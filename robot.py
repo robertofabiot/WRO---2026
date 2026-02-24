@@ -1,161 +1,148 @@
 from pybricks.hubs import PrimeHub
-from pybricks.parameters import Axis, Direction, Port, Stop
-from pybricks.pupdevices import Motor, ColorSensor
+from pybricks.parameters import Axis, Direction, Stop
+from pybricks.pupdevices import Motor
 from pybricks.robotics import DriveBase
-from pybricks.tools import wait, StopWatch
+from pybricks.tools import wait
 
 class Robot:
     def __init__(self, port_izq, port_der, port_garra):
         """
-        Inicializa el robot, sus motores y la base motriz.
-        Se pasan los puertos en lugar de los motores ya instanciados para mantener
-        la creación de objetos encapsulada dentro de la clase.
+        Configuración inicial del robot.
+        Define la geometría, los puertos y activa la estabilización por giroscopio.
         """
-        self.prime_hub = PrimeHub(top_side=Axis.Z, front_side=Axis.X)
+        # 1. Inicializar el Hub (Orientación: Arriba=Z, Frente=X)
+        self.hub = PrimeHub(top_side=Axis.Z, front_side=Axis.X)
         
-        # Motores de tracción
-        self.motor_izquierda = Motor(port_izq, Direction.COUNTERCLOCKWISE) # Ajusta la dirección según tu ensamble
-        self.motor_derecha = Motor(port_der)
+        # 2. Configurar Motores
+        # Ajustamos las direcciones según tu construcción física
+        self.motor_izquierda = Motor(port_izq, Direction.COUNTERCLOCKWISE)
+        self.motor_derecha = Motor(port_der, Direction.CLOCKWISE)
+        self.motor_garra = Motor(port_garra, Direction.CLOCKWISE)
         
-        # Motor de manipulación (Garra)
-        self.motor_garra = Motor(port_garra)
-        
-        # Base motriz: Ajusta el diámetro de la rueda (ej. 56) y la separación (ej. 160)
+        # 3. Configurar Base Motriz (DriveBase)
+        # Rueda: 56mm, Eje: 160mm
         self.drive_base = DriveBase(self.motor_izquierda, self.motor_derecha, 56, 160)
-        self.drive_base.use_gyro(True) # Activa el uso interno del giroscopio si usas Pybricks 3.x
+        
+        # 4. Activar Estabilización Gyro (Crucial para ir recto)
+        self.drive_base.use_gyro(True)
+        
+        # 5. Configurar velocidades por defecto (basado en 'base_settings')
+        self.VELOCIDAD_BASE = 950
+        self.drive_base.settings(straight_speed=500, straight_acceleration=600, turn_rate=200)
 
-# region Auxiliares
-    @staticmethod
-    def cm_a_mm(cm):
-        return cm * 10
+# region Movimiento Básico (Chasis)
 
-    def espera(self, milisegundos):
-        """Pausa la ejecución del programa."""
-        wait(milisegundos)
-# endregion
-
-# region Movimiento de Tracción (DriveBase)
-    def avanzar_cm(self, cm):
-        """Avance básico usando la odometría de la DriveBase."""
-        mm = self.cm_a_mm(cm)
-        self.drive_base.straight(mm)
-
-    def retroceder_cm(self, cm):
-        """Retroceso básico."""
-        self.avanzar_cm(-cm)
-
-    def avance_giroscopico(self, cm, velocidad=300):
+    def avanzar_recto(self, distancia_cm, velocidad=None, frenado=Stop.BRAKE):
         """
-        Avance hiperpreciso en línea recta utilizando un control Proporcional
-        con el giroscopio para evitar desviaciones por fricción o peso asimétrico.
-        Reemplaza la función 'GyroDrive' de tu amigo.
+        Avanza en línea recta usando el giroscopio para corregir el rumbo.
+        :param distancia_cm: Distancia en centímetros (negativo para retroceder).
+        :param velocidad: (Opcional) Velocidad en deg/s. Si no se da, usa la por defecto.
         """
-        mm_objetivo = self.cm_a_mm(cm)
-        self.drive_base.reset()
-        angulo_inicial = self.prime_hub.imu.heading()
-        kp = 3.0 # Constante de corrección (ajustable)
-
-        # Determinar dirección
-        direccion = 1 if cm > 0 else -1
-
-        while abs(self.drive_base.distance()) < abs(mm_objetivo):
-            # Calculamos el error de desviación
-            error = angulo_inicial - self.prime_hub.imu.heading()
+        if velocidad is None:
+            velocidad = self.VELOCIDAD_BASE
             
-            # Calculamos la corrección (turn_rate)
-            correccion = error * kp
-            
-            # Aplicamos velocidad y corrección
-            self.drive_base.drive(velocidad * direccion, correccion)
-            wait(10)
+        # Limitador de seguridad para no quemar motores
+        velocidad = max(min(velocidad, 977), -977)
+        
+        # Conversión cm -> mm requerida por Pybricks
+        distancia_mm = distancia_cm * 10
+        
+        self.drive_base.straight(distancia_mm, then=frenado)
 
-        # Frenado en seco
-        self.drive_base.stop()
-
-    def curva(self, cm, angulo):
+    def girar_sobre_eje(self, grados):
         """
-        Reemplaza los 'DRIVE_BASE.arc' del código original.
-        Realiza una curva precisa usando la cinemática de la base.
-        :param radio_mm: Radio de la curva en milímetros. Un radio de 0 hace que gire sobre su propio eje.
-        :param angulo: Grados que abarcará la curva (positivo = derecha, negativo = izquierda).
+        Gira el robot sobre su propio eje (giro tipo tanque).
+        :param grados: Grados a girar (positivo = derecha, negativo = izquierda).
         """
-        mm_objetivo = self.cm_a_mm(cm)
-        self.drive_base.curve(mm_objetivo, angulo)
-
-# endregion
-
-# region Giros
+        self.drive_base.turn(grados)
+    
     def giro_preciso(self, angulo_objetivo):
         """
         Gira el robot a un ángulo exacto usando el giroscopio y un Control Proporcional.
-        Excelente para giros de 90° o reorientaciones en pista.
         """
-        self.prime_hub.imu.reset_heading(0)
-        kp = 2.5
-        min_speed = 50
-        tolerancia = 1
-
+        # 1. Reiniciamos el giroscopio a 0 grados antes de empezar a girar
+        self.hub.imu.reset_heading(0) # Nota: Usa self.prime_hub si no cambiaste el nombre en el __init__
+        
+        # --- VARIABLES DE AJUSTE ---
+        kp = 2.5           # Constante proporcional (agresividad del giro)
+        min_speed = 50     # Velocidad mínima para que no se atasque al final
+        tolerancia = 1     # Margen de error aceptable (en grados)
+        
         while True:
-            angulo_actual = self.prime_hub.imu.heading()
+            # 2. Leemos hacia dónde está apuntando el robot actualmente
+            angulo_actual = self.hub.imu.heading()
+            
+            # 3. Calculamos cuánto nos falta para llegar (el error)
             error = angulo_objetivo - angulo_actual
-
+            
+            # 4. Condición de salida: Si estamos lo suficientemente cerca, rompemos el bucle
             if abs(error) <= tolerancia:
                 break
-
+                
+            # 5. Calculamos la velocidad de giro (mientras menor el error, más lento gira)
             turn_rate = error * kp
-
+            
+            # 6. Aseguramos que el robot no vaya tan lento que la fricción lo detenga antes de llegar
             if turn_rate > 0:
                 turn_rate = max(turn_rate, min_speed)
             else:
                 turn_rate = min(turn_rate, -min_speed)
-
+                
+            # 7. Movemos la base: 0 velocidad de avance, 'turn_rate' de giro
             self.drive_base.drive(0, turn_rate)
+            
+            # Pequeña pausa para estabilizar las lecturas del procesador
             wait(10)
-
+            
+        # 8. Frenamos los motores en seco al llegar al objetivo
         self.drive_base.stop()
+
+    def mover_en_arco(self, radio_cm, angulo=None, distancia_cm=None):
+        """
+        Realiza una curva suave.
+        :param radio_cm: Radio de la curva en cm.
+        :param angulo: Cuánto girar en grados.
+        :param distancia_cm: Cuánto recorrer sobre la curva en cm.
+        """
+        radio_mm = radio_cm * 10
+        distancia_mm = distancia_cm * 10 if distancia_cm is not None else None
+        
+        self.drive_base.arc(radio_mm, angle=angulo, distance=distancia_mm)
+
 # endregion
 
 # region Control de Motores Individuales
-    def mover_motor_izquierdo(self, velocidad, grados):
-        """Mueve solo la llanta izquierda (ideal para acomodarse contra paredes)."""
-        self.motor_izquierda.run_angle(velocidad, grados, then=Stop.HOLD, wait=True)
 
-    def mover_motor_derecho(self, velocidad, grados):
-        """Mueve solo la llanta derecha."""
-        self.motor_derecha.run_angle(velocidad, grados, then=Stop.HOLD, wait=True)
+    def mover_motor_izquierdo(self, grados, velocidad=500):
+        """Mueve solo la rueda izquierda."""
+        self.motor_izquierda.run_angle(velocidad, grados)
+
+    def mover_motor_derecho(self, grados, velocidad=500):
+        """Mueve solo la rueda derecha."""
+        self.motor_derecha.run_angle(velocidad, grados)
+
+    def mover_garra(self, grados, velocidad=500):
+        """
+        Mueve el motor de la garra/accesorio.
+        :param grados: Grados relativos a mover.
+        :param velocidad: Velocidad del movimiento.
+        """
+        self.motor_garra.run_angle(velocidad, grados)
+
 # endregion
 
-# region Manipuladores (Garra)
-    def mover_garra(self, velocidad, grados):
-        """
-        Controla el motor de la garra trasera. 
-        Reemplaza 'bajar_garraT' y 'subir_garraT'. El signo de los grados define si sube o baja.
-        """
-        self.motor_garra.run_angle(velocidad, grados, then=Stop.HOLD, wait=True)
-# endregion
+# region Utilidades y Sensores
 
-# region Seguidores
-    def seguidor_linea(self, sensor_color, velocidad=150):
-        """
-        Seguidor de línea usando control PD (Proporcional-Derivativo) 
-        para una navegación fluida sin oscilaciones bruscas.
-        """
-        kp = 3.6
-        kd = 1.0
-        last_error = 0 
+    def esperar(self, milisegundos):
+        """Pausa el programa."""
+        wait(milisegundos)
+
+    def resetear_giroscopio(self):
+        """Reinicia el ángulo del giroscopio a 0."""
+        self.hub.imu.reset_heading(0)
         
-        while True: 
-            # Valor objetivo (setpoint) suele ser el promedio entre blanco y negro (ej. 35)
-            current_reflection = sensor_color.reflection()
-            error = current_reflection - 35 
-            derivative = error - last_error
-            
-            correction = (error * kp) + (derivative * kd)
-            
-            # Se aplica la corrección a los motores
-            self.motor_izquierda.dc(velocidad - correction)
-            self.motor_derecha.dc(velocidad + correction)
-            
-            last_error = error
-            wait(10) # Pequeña pausa para no saturar el procesador
+    def obtener_angulo(self):
+        """Devuelve el ángulo actual del robot."""
+        return self.hub.imu.heading()
+
 # endregion
