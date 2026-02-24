@@ -1,4 +1,5 @@
-from pybricks.parameters import Port
+from pybricks.parameters import Port, Color
+from pybricks.pupdevices import ColorSensor
 from robot import Robot
 
 # Configuración de Hardware
@@ -41,5 +42,21 @@ def rutina_cubo_cemento():
     mi_robot.avanzar_recto(10)
     mi_robot.giro_preciso(90)
 
+def rutina_bloques_blancos():
+    mi_robot.avanzar_recto(-48)
+    mi_robot.mover_garra(grados=-200, velocidad=500) #agarra bloques
+    mi_robot.avanzar_recto(30)
+    mi_robot.giro_preciso(90)
+    mi_robot.avanzar_recto(54)
+    mi_robot.girar_sobre_eje(88)
+    sensor_piso = ColorSensor(Port.E)
+
+    # Avanza buscando la línea roja de entrega
+    mi_robot.avanzar_hasta_color(sensor_piso, Color.GREEN, velocidad=-250)
+    mi_robot.mover_en_arco(-23, distancia_cm=-20)
+    mi_robot.mover_en_arco(30, distancia_cm=-20)
+
+
 if __name__ == "__main__":
     rutina_cubo_cemento()
+    rutina_bloques_blancos()

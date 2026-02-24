@@ -48,6 +48,32 @@ class Robot:
         distancia_mm = distancia_cm * 10
         
         self.drive_base.straight(distancia_mm, then=frenado)
+    
+    def avanzar_hasta_color(self, sensor_color, color_objetivo, velocidad=300):
+        """
+        Avanza o retrocede en línea recta perfecta (asistida por giroscopio) 
+        hasta que el sensor detecte el color especificado.
+        
+        :param sensor_color: El objeto ColorSensor instanciado en app.py.
+        :param color_objetivo: El color a buscar (ej. Color.RED, Color.BLUE).
+        :param velocidad: Velocidad en mm/s. Usa un valor negativo para retroceder.
+        """
+        # Iniciamos el movimiento recto asistido por giroscopio
+        self.drive_base.drive(velocidad, 0)
+        
+        while True:
+            # Leemos el color actual bajo el sensor
+            color_actual = sensor_color.color()
+            
+            # Condición de salida: Si el color leído coincide con el objetivo
+            if color_actual == color_objetivo:
+                break
+                
+            # Micro-pausa para no saturar las lecturas del I2C del sensor
+            self.esperar(1)
+            
+        # Frenamos en seco al encontrar el color
+        self.drive_base.stop()
 
     def girar_sobre_eje(self, grados):
         """
@@ -130,6 +156,47 @@ class Robot:
         self.motor_garra.run_angle(velocidad, grados)
 
 # endregion
+
+    def seguir_linea(self, sensor_color, distancia_cm=None, velocidad=150, kp=3.6, kd=1.0):
+        """
+        Sigue la línea usando control PD inyectando voltaje directo (Duty Cycle) 
+        a los motores para una respuesta instantánea y sin latencia.
+        :param sensor_color: El objeto ColorSensor instanciado.
+        :param distancia_cm: Distancia límite a recorrer en cm (None para infinito).
+        :param velocidad: Velocidad base (Duty Cycle, típicamente de 0 a 10000, 
+                          pero ajustado a la escala de Pybricks).
+        :param kp: Agresividad de la corrección.
+        :param kd: Suavizado de la oscilación.
+        """
+        last_error = 0 
+        
+        # Si se definió una distancia, reseteamos la odometría de la base
+        if distancia_cm is not None:
+            self.drive_base.reset()
+            distancia_mm = distancia_cm * 10
+            
+        while True: 
+            # Condición de salida por odometría
+            if distancia_cm is not None and abs(self.drive_base.distance()) >= distancia_mm:
+                break
+                
+            current_reflection = sensor_color.reflection()
+            error = current_reflection - 35
+            derivative = error - last_error
+            correction = (error * kp) + (derivative * kd)
+
+            # Lógica pura del coach usando dc()
+            self.motor_izquierda.dc(velocidad + correction)
+            self.motor_derecha.dc(velocidad - correction)
+            
+            last_error = error
+            
+            # Micro-pausa para estabilizar la lectura del sensor
+            self.esperar(10)
+            
+        # Frenar en seco al cumplir la distancia
+        self.motor_izquierda.brake()
+        self.motor_derecha.brake()
 
 # region Utilidades y Sensores
 
