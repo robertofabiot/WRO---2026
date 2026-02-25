@@ -1,14 +1,38 @@
-from robot import *
+from pybricks.parameters import Port, Color
+from pybricks.pupdevices import ColorSensor
+from robot import Robot
 
-from pybricks.hubs import PrimeHub
-from pybricks.parameters import Axis, Direction, Port
-from pybricks.pupdevices import Motor
-from pybricks.robotics import DriveBase
-from pybricks.tools import wait
+# Configuración de Hardware
+mi_robot = Robot(port_izq=Port.A, port_der=Port.B, port_garra=Port.C)
+sensor = ColorSensor(Port.D)
 
-izquierda = Motor(Port.A, Direction.COUNTERCLOCKWISE)
-derecha = Motor(Port.B, Direction.CLOCKWISE)
+mi_robot.avanzar_recto(5)
+mi_robot.mover_motor_izquierdo(500)
+mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=100)
+mi_robot.mover_motor_izquierdo(-400)
+mi_robot.mover_motor_derecho(-450)
+mi_robot.mover_garra(-180)
+mi_robot.avanzar_recto(-38)
 
-robot = Robot(izquierda, derecha)
+mi_robot.mover_en_arco(-30, distancia_cm=23)
+mi_robot.mover_en_arco(7, 23)
+mi_robot.seguidor_linea_distancia(sensor, 100, 65)
+mi_robot.mover_motor_derecho(-430)
+mi_robot.mover_garra(90)
+mi_robot.avanzar_recto(10)
+mi_robot.mover_motor_derecho(530)
+mi_robot.avanzar_recto(10)
+mi_robot.seguidor_linea_distancia(sensor, 60, 13)
+mi_robot.giro_preciso(-90)
+mi_robot.giro_preciso(-90)
+mi_robot.avanzar_recto(-15)
+mi_robot.mover_garra(-100)
+mi_robot.giro_preciso(55)
+mi_robot.avanzar_recto(62)
+mi_robot.seguidor_linea_distancia(sensor, 80, 22)
+mi_robot.giro_preciso(90)
+mi_robot.giro_preciso(90)
+mi_robot.giro_preciso(45)
+mi_robot.avanzar_recto(-18)
 
-robot.avanzar_cm(20)
+
