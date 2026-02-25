@@ -2,7 +2,7 @@ from pybricks.hubs import PrimeHub
 from pybricks.parameters import Axis, Direction, Stop
 from pybricks.pupdevices import Motor
 from pybricks.robotics import DriveBase
-from pybricks.tools import wait
+from pybricks.tools import wait, StopWatch
 
 class Robot:
     def __init__(self, port_izq, port_der, port_garra):
@@ -198,6 +198,9 @@ class Robot:
         self.motor_izquierda.brake()
         self.motor_derecha.brake()
     
+# Asegúrate de importar StopWatch al inicio de tu archivo:
+# from pybricks.tools import StopWatch, wait
+
     def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm):
 
         # --- Constantes físicas ---
@@ -205,27 +208,30 @@ class Robot:
         circunferencia = 3.1416 * diametro_rueda
         grados_objetivo = (distancia_cm / circunferencia) * 360
 
-        # --- NUEVO: Fases totalmente independientes ---
-        velocidad_minima = 30          # Potencia constante para el acomodo
-        distancia_acomodo_cm = 8       # Distancia ESTRICTA a velocidad mínima
-        distancia_aceleracion_cm = 15  # Distancia que tomará subir de la mínima a la máxima
-
-        # Convertimos las distancias a grados de motor
-        grados_acomodo = (distancia_acomodo_cm / circunferencia) * 360
-        grados_aceleracion = (distancia_aceleracion_cm / circunferencia) * 360
-
-        # Resetear encoders
+        # Resetear encoders para la distancia total
         self.motor_izquierda.reset_angle(0)
         self.motor_derecha.reset_angle(0)
+
+        # --- NUEVO: Configuración por Tiempo (StopWatch) ---
+        cronometro = StopWatch()
+        velocidad_minima = 25
+        
+        # Tiempos en milisegundos (ms)
+        tiempo_acomodo_ms = 800       # 0.8 segundos a velocidad_minima estricta
+        tiempo_aceleracion_ms = 00  # 1.2 segundos subiendo hasta velocidad_max
 
         kp = 1.8
         kd = 1.2
         last_error = 0
         objetivo_reflexion = 35
 
+        # Iniciar el cronómetro desde cero justo antes de arrancar
+        cronometro.reset()
+        cronometro.resume()
+
         while True:
 
-            # Distancia recorrida promedio de ambos motores
+            # 1. Condición de Parada (Distancia Total)
             grados_actuales = (
                 abs(self.motor_izquierda.angle()) +
                 abs(self.motor_derecha.angle())
@@ -234,15 +240,17 @@ class Robot:
             if grados_actuales >= grados_objetivo:
                 break
 
-            # --- Control de Fases de Velocidad ---
-            if grados_actuales < grados_acomodo:
-                # FASE 1: Acomodo (Velocidad mínima constante, no hay rampa aquí)
+            # 2. Control de Fases de Velocidad por Tiempo
+            tiempo_actual = cronometro.time()
+
+            if tiempo_actual < tiempo_acomodo_ms:
+                # FASE 1: Acomodo (Velocidad mínima constante)
                 velocidad_actual = velocidad_minima
 
-            elif grados_actuales < (grados_acomodo + grados_aceleracion):
-                # FASE 2: Aceleración (Rampa desde mínima hasta máxima)
-                grados_en_rampa = grados_actuales - grados_acomodo
-                progreso = grados_en_rampa / grados_aceleracion
+            elif tiempo_actual < (tiempo_acomodo_ms + tiempo_aceleracion_ms):
+                # FASE 2: Aceleración (Rampa temporal)
+                tiempo_en_rampa = tiempo_actual - tiempo_acomodo_ms
+                progreso = tiempo_en_rampa / tiempo_aceleracion_ms
                 velocidad_actual = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
 
             else:
@@ -261,8 +269,10 @@ class Robot:
             last_error = error
             wait(1)
 
+        # Detener motores y pausar el reloj al terminar
         self.motor_izquierda.stop()
         self.motor_derecha.stop()
+        cronometro.pause() 
 
 # region Utilidades y Sensores
 
