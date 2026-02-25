@@ -197,6 +197,72 @@ class Robot:
         # Frenar en seco al cumplir la distancia
         self.motor_izquierda.brake()
         self.motor_derecha.brake()
+    
+    def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm):
+
+        # --- Constantes físicas ---
+        diametro_rueda = 5.6
+        circunferencia = 3.1416 * diametro_rueda
+        grados_objetivo = (distancia_cm / circunferencia) * 360
+
+        # --- NUEVO: Fases totalmente independientes ---
+        velocidad_minima = 30          # Potencia constante para el acomodo
+        distancia_acomodo_cm = 8       # Distancia ESTRICTA a velocidad mínima
+        distancia_aceleracion_cm = 15  # Distancia que tomará subir de la mínima a la máxima
+
+        # Convertimos las distancias a grados de motor
+        grados_acomodo = (distancia_acomodo_cm / circunferencia) * 360
+        grados_aceleracion = (distancia_aceleracion_cm / circunferencia) * 360
+
+        # Resetear encoders
+        self.motor_izquierda.reset_angle(0)
+        self.motor_derecha.reset_angle(0)
+
+        kp = 1.8
+        kd = 1.2
+        last_error = 0
+        objetivo_reflexion = 35
+
+        while True:
+
+            # Distancia recorrida promedio de ambos motores
+            grados_actuales = (
+                abs(self.motor_izquierda.angle()) +
+                abs(self.motor_derecha.angle())
+            ) / 2
+
+            if grados_actuales >= grados_objetivo:
+                break
+
+            # --- Control de Fases de Velocidad ---
+            if grados_actuales < grados_acomodo:
+                # FASE 1: Acomodo (Velocidad mínima constante, no hay rampa aquí)
+                velocidad_actual = velocidad_minima
+
+            elif grados_actuales < (grados_acomodo + grados_aceleracion):
+                # FASE 2: Aceleración (Rampa desde mínima hasta máxima)
+                grados_en_rampa = grados_actuales - grados_acomodo
+                progreso = grados_en_rampa / grados_aceleracion
+                velocidad_actual = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
+
+            else:
+                # FASE 3: Crucero (Velocidad máxima constante)
+                velocidad_actual = velocidad_max
+
+            # --- Control PD ---
+            current_reflection = sensor_color.reflection()
+            error = current_reflection - objetivo_reflexion
+            derivative = error - last_error
+            correction = (error * kp) + (derivative * kd)
+
+            self.motor_izquierda.dc(velocidad_actual - correction)
+            self.motor_derecha.dc(velocidad_actual + correction)
+
+            last_error = error
+            wait(1)
+
+        self.motor_izquierda.stop()
+        self.motor_derecha.stop()
 
 # region Utilidades y Sensores
 
