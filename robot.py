@@ -82,7 +82,7 @@ class Robot:
         """
         self.drive_base.turn(grados)
     
-    def giro_preciso(self, angulo_objetivo):
+    def giro_preciso(self, angulo_objetivo, kp_nuevo = 2.5):
         """
         Gira el robot a un ángulo exacto usando el giroscopio y un Control Proporcional.
         """
@@ -90,7 +90,7 @@ class Robot:
         self.hub.imu.reset_heading(0) # Nota: Usa self.prime_hub si no cambiaste el nombre en el __init__
         
         # --- VARIABLES DE AJUSTE ---
-        kp = 2.5           # Constante proporcional (agresividad del giro)
+        kp = kp_nuevo           # Constante proporcional (agresividad del giro)
         min_speed = 50     # Velocidad mínima para que no se atasque al final
         tolerancia = 1     # Margen de error aceptable (en grados)
         
@@ -123,7 +123,7 @@ class Robot:
         # 8. Frenamos los motores en seco al llegar al objetivo
         self.drive_base.stop()
 
-    def mover_en_arco(self, radio_cm, angulo=None, distancia_cm=None):
+    def mover_en_arco(self, radio_cm, angulo=None, distancia_cm=None, stop = Stop.HOLD, wait_after = True):
         """
         Realiza una curva suave.
         :param radio_cm: Radio de la curva en cm.
@@ -133,7 +133,7 @@ class Robot:
         radio_mm = radio_cm * 10
         distancia_mm = distancia_cm * 10 if distancia_cm is not None else None
         
-        self.drive_base.arc(radio_mm, angle=angulo, distance=distancia_mm)
+        self.drive_base.arc(radio_mm, angle=angulo, distance=distancia_mm, then=stop, wait=wait_after)
 
 # endregion
 
@@ -201,7 +201,7 @@ class Robot:
 # Asegúrate de importar StopWatch al inicio de tu archivo:
 # from pybricks.tools import StopWatch, wait
 
-    def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm):
+    def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800):
 
         # --- Constantes físicas ---
         diametro_rueda = 5.6
@@ -217,13 +217,17 @@ class Robot:
         velocidad_minima = 25
         
         # Tiempos en milisegundos (ms)
-        tiempo_acomodo_ms = 800       # 0.8 segundos a velocidad_minima estricta
-        tiempo_aceleracion_ms = 00  # 1.2 segundos subiendo hasta velocidad_max
+        # El tiempo_acomodo_ms ahora viene como parámetro
+        tiempo_aceleracion_ms = 0  # 1.2 segundos subiendo hasta velocidad_max
 
         kp = 1.8
         kd = 1.2
         last_error = 0
         objetivo_reflexion = 35
+
+        # Configurar dirección del seguidor según el lado de la línea
+        # 1 mantiene la corrección normal (derecha), -1 invierte el giro (izquierda)
+        multiplicador_lado = 1 if lado == "derecha" else -1
 
         # Iniciar el cronómetro desde cero justo antes de arrancar
         cronometro.reset()
@@ -250,7 +254,13 @@ class Robot:
             elif tiempo_actual < (tiempo_acomodo_ms + tiempo_aceleracion_ms):
                 # FASE 2: Aceleración (Rampa temporal)
                 tiempo_en_rampa = tiempo_actual - tiempo_acomodo_ms
-                progreso = tiempo_en_rampa / tiempo_aceleracion_ms
+                
+                # Prevenir división por cero si tiempo_aceleracion_ms es 0
+                if tiempo_aceleracion_ms > 0:
+                    progreso = tiempo_en_rampa / tiempo_aceleracion_ms
+                else:
+                    progreso = 1
+                    
                 velocidad_actual = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
 
             else:
@@ -261,7 +271,9 @@ class Robot:
             current_reflection = sensor_color.reflection()
             error = current_reflection - objetivo_reflexion
             derivative = error - last_error
-            correction = (error * kp) + (derivative * kd)
+            
+            # Aplicamos el multiplicador para invertir la corrección si es el lado izquierdo
+            correction = ((error * kp) + (derivative * kd)) * multiplicador_lado
 
             self.motor_izquierda.dc(velocidad_actual - correction)
             self.motor_derecha.dc(velocidad_actual + correction)
@@ -272,7 +284,7 @@ class Robot:
         # Detener motores y pausar el reloj al terminar
         self.motor_izquierda.stop()
         self.motor_derecha.stop()
-        cronometro.pause() 
+        cronometro.pause()
 
 # region Utilidades y Sensores
 
