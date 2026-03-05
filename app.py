@@ -1,67 +1,132 @@
 from pybricks.parameters import Port, Color, Stop
 from pybricks.pupdevices import ColorSensor
+from pybricks.tools import StopWatch
 from robot import Robot
+
+
 
 # Configuración de Hardware
 mi_robot = Robot(port_izq=Port.A, port_der=Port.B, port_garra=Port.C)
 sensor = ColorSensor(Port.D)
+sensor_trasero = ColorSensor(Port.E)
 
 def cemento_y_llana():
     """
     Empieza: en el start point, viendo hacia los bloques de colores
     Termina: dejando el bloque de cemento, con la garra hacia arriba, viendo hacia la pared de la mesa
     """
-    #Acomodarse para el seguidor de línea
-    mi_robot.avanzar_recto(5) 
-    mi_robot.mover_motor_izquierdo(500)
+    # 1. FLUIDEZ: El arco termina en Stop.NONE, entra al seguidor sin frenar
+    mi_robot.mover_en_arco(radio_cm=15, distancia_cm=28, stop=Stop.COAST_SMART)
 
-    #Empieza seguidor de línea
-    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=100, tiempo_acomodo_ms=150)
+    # 2. INERCIA: Como viene del arco sin frenar, el tiempo_acomodo_ms se vuelve 0 para no frenarlo artificialmente
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=65, tiempo_acomodo_ms=0)
 
-    #Se acomoda para recoger el bloque de cemento
-    mi_robot.mover_motor_izquierdo(-400)
-    mi_robot.mover_motor_derecho(-450)
+    # Agarrar bloque
+    mi_robot.giro_preciso_pd(-90)
+    
+    # 3. ASINCRONÍA: La garra empieza a moverse MIENTRAS el robot retrocede
+    mi_robot.mover_garra(105, velocidad=1000, wait_after=False) 
+    mi_robot.avanzar_recto(-12, frenado=Stop.HOLD)
+    # Empujar el otro
+    mi_robot.avanzar_recto(7, frenado=Stop.BRAKE)
+    mi_robot.mover_motor_derecho(-540, velocidad=800) # Más rápido
+    
+    # 4. ENCADENAMIENTO: Retrocede y fluye directamente hacia la primera curva
+    mi_robot.avanzar_recto(-14, frenado=Stop.NONE)
 
-    #Recoge el bloque y deja la llana en su lugar
-    mi_robot.mover_garra(-180)
-    mi_robot.avanzar_recto(-38)
+    # Se acomoda para el siguiente seguidor de línea (Ambos arcos fluyen juntos)
+    mi_robot.mover_en_arco(-10, distancia_cm=6, stop=Stop.COAST)
+    mi_robot.mover_en_arco(10, distancia_cm=4, stop=Stop.NONE) 
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=74, tiempo_acomodo_ms=100)
 
-    #Se acomoda para el siguiente seguidor de línea
-    mi_robot.mover_en_arco(-30, distancia_cm=15, stop = Stop.NONE)
-    mi_robot.mover_en_arco(20, distancia_cm=18)
-
-    #Empieza seguidor de línea y deja bloque de cemento
-    mi_robot.seguidor_linea_distancia(sensor, 100, 56, tiempo_acomodo_ms=700)
-    mi_robot.mover_motor_derecho(-400)
-    mi_robot.mover_garra(90)
+    mi_robot.mover_motor_derecho(-440, velocidad=800)
+    mi_robot.mover_garra(-50, velocidad=100)
 
 def bloques_blancos():
     """
     Empieza: dejando el bloque de cemento, con la garra hacia arriba, viendo hacia la pared de la mesa
     Termina: en el área de los bloques blancos, en posición de 45 grados 
     """
-    #Sale del cemento
+    # 1. FLUIDEZ: Salimos del arco a toda velocidad (Stop.NONE)
+    mi_robot.mover_en_arco(-18, distancia_cm=27, stop=Stop.BRAKE)
+
+    # 2. INERCIA: Como el robot ya viene moviéndose del arco, eliminamos el tiempo de acomodo (0ms)
     mi_robot.avanzar_recto(10)
 
-    #Se acomoda a la línea
-    mi_robot.mover_motor_derecho(520)
-    mi_robot.avanzar_recto(10)
+    # Gira para meterse a dejar los bloques blancos 
+    mi_robot.giro_preciso_pd(-180)
+    mi_robot.seguidor_linea_distancia(sensor, 80, 7, lado="izquierda", tiempo_acomodo_ms=800) 
 
-    #Se acomoda para recoger los bloques
-    mi_robot.seguidor_linea_distancia(sensor, 80, 10)
-    mi_robot.giro_preciso(-180, kp_nuevo=2.8)
-    mi_robot.avanzar_recto(-8)
+    # Avanza para posicionarse sobre los bloques
+    mi_robot.mover_garra(55, velocidad=800)
+    mi_robot.avanzar_recto(-13)
 
-    #Recoge los bloques
-    mi_robot.mover_garra(-100)
+    mi_robot.mover_garra(-55, velocidad=800)
+    mi_robot.avanzar_recto(-9)
 
-    # Dejar los bloques blancos
-    mi_robot.giro_preciso(55)
-    mi_robot.avanzar_recto(62)
-    mi_robot.seguidor_linea_distancia(sensor, 80, 22)
-    mi_robot.giro_preciso(225, kp_nuevo=2.8)
-    mi_robot.avanzar_recto(-18)
+    mi_robot.mover_garra(55, velocidad=1000)
+
+
+    # 3. ASINCRONÍA + VELOCIDAD: Empezamos a cerrar la garra rápido (800) y SIN esperar.
+    # El robot empezará a hacer el giro de 50 grados MIENTRAS la garra se cierra, ahorrando casi un segundo.
+    
+
+    mi_robot.giro_preciso_pd(50)
+    mi_robot.avanzar_recto(61, frenado=Stop.COAST_SMART)
+
+    mi_robot.seguidor_linea_distancia(sensor, 80, 21, tiempo_acomodo_ms=800)
+
+def ejecutar_y_medir_tiempo():
+      
+    # 4. ENCADENAMIENTO: Esta es una recta larga (60cm). En lugar de frenar al final, 
+    # le decimos que pase de largo (Stop.NONE) para entrar a la línea volando.
+    
+    
+    # 5. INERCIA MAXIMIZADA: Entra al seguidor con todo el impulso de la recta anterior.
+    # Redujimos el acomodo de 700ms a 0ms.
+    
+    
+    mi_robot.giro_preciso(220, kp_nuevo=1.5)
+    
+    # Retrocede a dejar los bloques
+    mi_robot.avanzar_recto(-17)
+    
+    # Abrir la garra rápido para soltar. 
+    # Nota: Si esta es tu ÚLTIMA instrucción de toda la corrida, déjala con wait_after=True 
+    # para que no se corte por el problema de las "instrucciones fantasma" que vimos antes.
+    mi_robot.mover_garra(-105, velocidad=800)
+    """
+    Ejecuta las rutinas y calcula el tiempo exacto que tarda el robot en la vida real.
+    """
+    cronometro = StopWatch()
+    
+    # Reiniciamos y arrancamos el reloj justo antes de moverse
+    cronometro.reset()
+    cronometro.resume()
+    
+    print("🤖 Iniciando recorrido...")
+    
+    # Llamamos a tus rutinas
+    cemento_y_llana()
+    bloques_blancos()
+    
+    # Pausamos el reloj al terminar el último movimiento
+    cronometro.pause()
+    
+    # Pybricks mide en milisegundos, lo convertimos a segundos para que sea más legible
+    tiempo_ms = cronometro.time()
+    tiempo_segundos = tiempo_ms / 1000
+    
+    # Imprimimos el resultado en la consola
+    print(f"🏁 ¡Recorrido completado!")
+    print(f"⏱️ Tiempo total: {tiempo_segundos} segundos.")
+    
+    return tiempo_segundos
 
 if __name__ == "__main__":
+
+    #ejecutar_y_medir_tiempo()
+
     cemento_y_llana()
+
     bloques_blancos()

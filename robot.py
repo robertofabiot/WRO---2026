@@ -5,7 +5,7 @@ from pybricks.robotics import DriveBase
 from pybricks.tools import wait, StopWatch
 
 class Robot:
-    def __init__(self, port_izq, port_der, port_garra):
+    def __init__(self, port_izq, port_der, port_garra): #port_garra falta
         """
         Configuración inicial del robot.
         Define la geometría, los puertos y activa la estabilización por giroscopio.
@@ -14,10 +14,9 @@ class Robot:
         self.hub = PrimeHub(top_side=Axis.Z, front_side=Axis.X)
         
         # 2. Configurar Motores
-        # Ajustamos las direcciones según tu construcción física
         self.motor_izquierda = Motor(port_izq, Direction.COUNTERCLOCKWISE)
         self.motor_derecha = Motor(port_der, Direction.CLOCKWISE)
-        self.motor_garra = Motor(port_garra, Direction.CLOCKWISE)
+        self.motor_garra = Motor(port_garra, Direction.COUNTERCLOCKWISE)
         
         # 3. Configurar Base Motriz (DriveBase)
         # Rueda: 56mm, Eje: 160mm
@@ -28,155 +27,130 @@ class Robot:
         
         # 5. Configurar velocidades por defecto (basado en 'base_settings')
         self.VELOCIDAD_BASE = 950
-        self.drive_base.settings(straight_speed=500, straight_acceleration=600, turn_rate=200)
+        self.drive_base.settings(straight_speed=700, straight_acceleration=700, turn_rate=500)
 
-# region Movimiento Básico (Chasis)
+    # region Movimiento Básico (Chasis)
 
-    def avanzar_recto(self, distancia_cm, velocidad=None, frenado=Stop.BRAKE):
-        """
-        Avanza en línea recta usando el giroscopio para corregir el rumbo.
-        :param distancia_cm: Distancia en centímetros (negativo para retroceder).
-        :param velocidad: (Opcional) Velocidad en deg/s. Si no se da, usa la por defecto.
-        """
+    def avanzar_recto(self, distancia_cm, velocidad=None, frenado=Stop.BRAKE, wait_after=True):
         if velocidad is None:
             velocidad = self.VELOCIDAD_BASE
             
-        # Limitador de seguridad para no quemar motores
-        velocidad = max(min(velocidad, 977), -977)
-        
-        # Conversión cm -> mm requerida por Pybricks
+        velocidad = max(min(velocidad, 976), -976)
         distancia_mm = distancia_cm * 10
-        
-        self.drive_base.straight(distancia_mm, then=frenado)
+        self.drive_base.straight(distancia_mm, then=frenado, wait=wait_after)
     
     def avanzar_hasta_color(self, sensor_color, color_objetivo, velocidad=300):
         """
-        Avanza o retrocede en línea recta perfecta (asistida por giroscopio) 
-        hasta que el sensor detecte el color especificado.
-        
-        :param sensor_color: El objeto ColorSensor instanciado en app.py.
-        :param color_objetivo: El color a buscar (ej. Color.RED, Color.BLUE).
-        :param velocidad: Velocidad en mm/s. Usa un valor negativo para retroceder.
+        Avanza o retrocede en línea recta perfecta hasta que el sensor detecte el color especificado.
         """
-        # Iniciamos el movimiento recto asistido por giroscopio
         self.drive_base.drive(velocidad, 0)
         
         while True:
-            # Leemos el color actual bajo el sensor
             color_actual = sensor_color.color()
-            
-            # Condición de salida: Si el color leído coincide con el objetivo
             if color_actual == color_objetivo:
                 break
-                
-            # Micro-pausa para no saturar las lecturas del I2C del sensor
             self.esperar(1)
             
-        # Frenamos en seco al encontrar el color
         self.drive_base.stop()
 
     def girar_sobre_eje(self, grados):
-        """
-        Gira el robot sobre su propio eje (giro tipo tanque).
-        :param grados: Grados a girar (positivo = derecha, negativo = izquierda).
-        """
+        """Gira el robot sobre su propio eje."""
         self.drive_base.turn(grados)
     
-    def giro_preciso(self, angulo_objetivo, kp_nuevo = 2.5):
-        """
-        Gira el robot a un ángulo exacto usando el giroscopio y un Control Proporcional.
-        """
-        # 1. Reiniciamos el giroscopio a 0 grados antes de empezar a girar
-        self.hub.imu.reset_heading(0) # Nota: Usa self.prime_hub si no cambiaste el nombre en el __init__
+    def giro_preciso(self, angulo_objetivo, kp_nuevo=2.5, tolerancia=1):
+        """Gira el robot a un ángulo exacto usando el giroscopio y un Control Proporcional."""
+        self.hub.imu.reset_heading(0) 
         
-        # --- VARIABLES DE AJUSTE ---
-        kp = kp_nuevo           # Constante proporcional (agresividad del giro)
-        min_speed = 50     # Velocidad mínima para que no se atasque al final
-        tolerancia = 1     # Margen de error aceptable (en grados)
+        kp = kp_nuevo
+        min_speed = 50 
+        tolerancia = tolerancia 
         
         while True:
-            # 2. Leemos hacia dónde está apuntando el robot actualmente
             angulo_actual = self.hub.imu.heading()
-            
-            # 3. Calculamos cuánto nos falta para llegar (el error)
             error = angulo_objetivo - angulo_actual
             
-            # 4. Condición de salida: Si estamos lo suficientemente cerca, rompemos el bucle
             if abs(error) <= tolerancia:
                 break
                 
-            # 5. Calculamos la velocidad de giro (mientras menor el error, más lento gira)
             turn_rate = error * kp
             
-            # 6. Aseguramos que el robot no vaya tan lento que la fricción lo detenga antes de llegar
             if turn_rate > 0:
                 turn_rate = max(turn_rate, min_speed)
             else:
                 turn_rate = min(turn_rate, -min_speed)
                 
-            # 7. Movemos la base: 0 velocidad de avance, 'turn_rate' de giro
             self.drive_base.drive(0, turn_rate)
-            
-            # Pequeña pausa para estabilizar las lecturas del procesador
             wait(10)
             
-        # 8. Frenamos los motores en seco al llegar al objetivo
         self.drive_base.stop()
 
-    def mover_en_arco(self, radio_cm, angulo=None, distancia_cm=None, stop = Stop.HOLD, wait_after = True):
-        """
-        Realiza una curva suave.
-        :param radio_cm: Radio de la curva en cm.
-        :param angulo: Cuánto girar en grados.
-        :param distancia_cm: Cuánto recorrer sobre la curva en cm.
-        """
+    def mover_en_arco(self, radio_cm, angulo=None, distancia_cm=None, stop=Stop.HOLD, wait_after=True):
+        """Realiza una curva suave."""
         radio_mm = radio_cm * 10
         distancia_mm = distancia_cm * 10 if distancia_cm is not None else None
-        
         self.drive_base.arc(radio_mm, angle=angulo, distance=distancia_mm, then=stop, wait=wait_after)
 
-# endregion
+    # endregion
 
-# region Control de Motores Individuales
+    # region Control de Motores Individuales
 
     def mover_motor_izquierdo(self, grados, velocidad=500):
         """Mueve solo la rueda izquierda."""
         self.motor_izquierda.run_angle(velocidad, grados)
 
-    def mover_motor_derecho(self, grados, velocidad=500):
+    def mover_motor_derecho(self, grados, velocidad=800, wait_after=True):
         """Mueve solo la rueda derecha."""
-        self.motor_derecha.run_angle(velocidad, grados)
+        self.motor_derecha.run_angle(velocidad, grados, wait=wait_after)
 
-    def mover_garra(self, grados, velocidad=500):
-        """
-        Mueve el motor de la garra/accesorio.
-        :param grados: Grados relativos a mover.
-        :param velocidad: Velocidad del movimiento.
-        """
-        self.motor_garra.run_angle(velocidad, grados)
+    def mover_garra(self, grados, velocidad=600, wait_after=True):
+        """Mueve el motor de la garra/accesorio."""
+        self.motor_garra.run_angle(velocidad, grados, wait=wait_after)
 
-# endregion
+    def giro_preciso_pd(self, angulo_relativo):
+        """Gira el robot a máxima velocidad usando un Control PD dinámico."""
+        angulo_inicial = self.hub.imu.heading()
+        angulo_meta = angulo_inicial + angulo_relativo
+        
+        kp = 4.0          
+        kd = 18.0         
+        min_speed = 40    
+        max_speed = 800   
+        tolerancia = 1    
+        
+        error_previo = 0
+        
+        while True:
+            angulo_actual = self.hub.imu.heading()
+            error = angulo_meta - angulo_actual
+            
+            if abs(error) <= tolerancia:
+                break
+                
+            derivada = error - error_previo
+            turn_rate = (error * kp) + (derivada * kd)
+            
+            if turn_rate > 0:
+                turn_rate = min(max(turn_rate, min_speed), max_speed)
+            else:
+                turn_rate = max(min(turn_rate, -min_speed), -max_speed)
+                
+            self.drive_base.drive(0, turn_rate)
+            error_previo = error
+            wait(10)
+            
+        self.drive_base.stop()
+
+    # endregion
 
     def seguir_linea(self, sensor_color, distancia_cm=None, velocidad=150, kp=3.6, kd=1.0):
-        """
-        Sigue la línea usando control PD inyectando voltaje directo (Duty Cycle) 
-        a los motores para una respuesta instantánea y sin latencia.
-        :param sensor_color: El objeto ColorSensor instanciado.
-        :param distancia_cm: Distancia límite a recorrer en cm (None para infinito).
-        :param velocidad: Velocidad base (Duty Cycle, típicamente de 0 a 10000, 
-                          pero ajustado a la escala de Pybricks).
-        :param kp: Agresividad de la corrección.
-        :param kd: Suavizado de la oscilación.
-        """
+        """Sigue la línea usando control PD inyectando voltaje directo (Duty Cycle)."""
         last_error = 0 
         
-        # Si se definió una distancia, reseteamos la odometría de la base
         if distancia_cm is not None:
             self.drive_base.reset()
             distancia_mm = distancia_cm * 10
             
         while True: 
-            # Condición de salida por odometría
             if distancia_cm is not None and abs(self.drive_base.distance()) >= distancia_mm:
                 break
                 
@@ -185,94 +159,61 @@ class Robot:
             derivative = error - last_error
             correction = (error * kp) + (derivative * kd)
 
-            # Lógica pura del coach usando dc()
             self.motor_izquierda.dc(velocidad + correction)
             self.motor_derecha.dc(velocidad - correction)
             
             last_error = error
-            
-            # Micro-pausa para estabilizar la lectura del sensor
             self.esperar(10)
             
-        # Frenar en seco al cumplir la distancia
         self.motor_izquierda.brake()
         self.motor_derecha.brake()
-    
-# Asegúrate de importar StopWatch al inicio de tu archivo:
-# from pybricks.tools import StopWatch, wait
 
     def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800):
-
-        # --- Constantes físicas ---
         diametro_rueda = 5.6
         circunferencia = 3.1416 * diametro_rueda
         grados_objetivo = (distancia_cm / circunferencia) * 360
 
-        # Resetear encoders para la distancia total
         self.motor_izquierda.reset_angle(0)
         self.motor_derecha.reset_angle(0)
 
-        # --- NUEVO: Configuración por Tiempo (StopWatch) ---
         cronometro = StopWatch()
         velocidad_minima = 25
+        tiempo_aceleracion_ms = 0 
         
-        # Tiempos en milisegundos (ms)
-        # El tiempo_acomodo_ms ahora viene como parámetro
-        tiempo_aceleracion_ms = 0  # 1.2 segundos subiendo hasta velocidad_max
-
         kp = 1.8
         kd = 1.2
         last_error = 0
         objetivo_reflexion = 35
 
-        # Configurar dirección del seguidor según el lado de la línea
-        # 1 mantiene la corrección normal (derecha), -1 invierte el giro (izquierda)
         multiplicador_lado = 1 if lado == "derecha" else -1
 
-        # Iniciar el cronómetro desde cero justo antes de arrancar
         cronometro.reset()
         cronometro.resume()
 
         while True:
-
-            # 1. Condición de Parada (Distancia Total)
-            grados_actuales = (
-                abs(self.motor_izquierda.angle()) +
-                abs(self.motor_derecha.angle())
-            ) / 2
+            grados_actuales = (abs(self.motor_izquierda.angle()) + abs(self.motor_derecha.angle())) / 2
 
             if grados_actuales >= grados_objetivo:
                 break
 
-            # 2. Control de Fases de Velocidad por Tiempo
             tiempo_actual = cronometro.time()
 
             if tiempo_actual < tiempo_acomodo_ms:
-                # FASE 1: Acomodo (Velocidad mínima constante)
                 velocidad_actual = velocidad_minima
-
             elif tiempo_actual < (tiempo_acomodo_ms + tiempo_aceleracion_ms):
-                # FASE 2: Aceleración (Rampa temporal)
                 tiempo_en_rampa = tiempo_actual - tiempo_acomodo_ms
-                
-                # Prevenir división por cero si tiempo_aceleracion_ms es 0
                 if tiempo_aceleracion_ms > 0:
                     progreso = tiempo_en_rampa / tiempo_aceleracion_ms
                 else:
                     progreso = 1
-                    
                 velocidad_actual = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
-
             else:
-                # FASE 3: Crucero (Velocidad máxima constante)
                 velocidad_actual = velocidad_max
 
-            # --- Control PD ---
             current_reflection = sensor_color.reflection()
             error = current_reflection - objetivo_reflexion
             derivative = error - last_error
             
-            # Aplicamos el multiplicador para invertir la corrección si es el lado izquierdo
             correction = ((error * kp) + (derivative * kd)) * multiplicador_lado
 
             self.motor_izquierda.dc(velocidad_actual - correction)
@@ -281,23 +222,54 @@ class Robot:
             last_error = error
             wait(1)
 
-        # Detener motores y pausar el reloj al terminar
         self.motor_izquierda.stop()
         self.motor_derecha.stop()
         cronometro.pause()
 
-# region Utilidades y Sensores
+    def seguidor_linea_distancia_carlos(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800):
+        diametro_rueda = 5.6
+        circunferencia = 3.1416 * diametro_rueda
+        grados_objetivo = (distancia_cm / circunferencia) * 360
 
-    def esperar(self, milisegundos):
-        """Pausa el programa."""
-        wait(milisegundos)
+        self.motor_izquierda.reset_angle(0)
+        self.motor_derecha.reset_angle(0)
 
-    def resetear_giroscopio(self):
-        """Reinicia el ángulo del giroscopio a 0."""
-        self.hub.imu.reset_heading(0)
+        cronometro = StopWatch()
+        velocidad_minima = 25
+        tiempo_aceleracion_ms = 800  
+
+        kp = 1.8 
+        kd = 5.5 
+        k_freno = 1.5 
         
-    def obtener_angulo(self):
-        """Devuelve el ángulo actual del robot."""
-        return self.hub.imu.heading()
+        last_error = 0
+        objetivo_reflexion = 35
 
-# endregion
+        multiplicador_lado = 1 if lado == "derecha" else -1
+
+        cronometro.reset()
+        cronometro.resume()
+
+        while True:
+            grados_actuales = (abs(self.motor_izquierda.angle()) + abs(self.motor_derecha.angle())) / 2
+
+            if grados_actuales >= grados_objetivo:
+                break
+
+            tiempo_actual = cronometro.time()
+
+            if tiempo_actual < tiempo_acomodo_ms:
+                velocidad_actual = velocidad_minima
+            elif tiempo_actual < (tiempo_acomodo_ms + tiempo_aceleracion_ms):
+                tiempo_en_rampa = tiempo_actual - tiempo_acomodo_ms
+                if tiempo_aceleracion_ms > 0:
+                    progreso = tiempo_en_rampa / tiempo_aceleracion_ms
+                else:
+                    progreso = 1
+                velocidad_actual = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
+            else:
+                velocidad_actual = velocidad_max
+
+            current_reflection = sensor_color.reflection()
+            error = current_reflection - objetivo_reflexion
+            derivative

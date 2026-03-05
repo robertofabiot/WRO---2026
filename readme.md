@@ -9,13 +9,11 @@ Aún está pendiente:
 
 ## Limitaciones conocidas
 
-La principal limitación del sistema es la garra:
-- Es demasiado angosta para sujetar correctamente todos los bloques durante la recogida.
-- Es demasiado ancha para dejarlos con precisión en la zona de entrega.
+La principal limitación del sistema es el seguidor de línea desajustado. Tambalea mucho.
 
 ## Funcionalidades implementadas
 
 El código actual incluye solución para:
 - Bloque de cemento.
 - Llana.
-- Bloques blancos (implementación parcial).
+- Bloques blancos.
