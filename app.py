@@ -34,12 +34,12 @@ def cemento_y_llana():
     mi_robot.mover_motor_derecho(-540, velocidad=1000) # Más rápido
     
     # 4. ENCADENAMIENTO: Retrocede y fluye directamente hacia la primera curva
-    mi_robot.avanzar_recto(-13, frenado=Stop.NONE)
+    mi_robot.avanzar_recto(-15, frenado=Stop.NONE)
 
     # Se acomoda para el siguiente seguidor de línea (Ambos arcos fluyen juntos)
     mi_robot.mover_en_arco(-9, distancia_cm=4, stop=Stop.COAST)
     mi_robot.mover_en_arco(9, distancia_cm=3, stop=Stop.NONE) 
-    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=71, tiempo_acomodo_ms=200)
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=73, tiempo_acomodo_ms=200)
 
     mi_robot.mover_motor_derecho(-440, velocidad=800)
     mi_robot.mover_garra(-50, velocidad=50)
@@ -66,12 +66,7 @@ def bloques_blancos():
     mi_robot.mover_garra(-55, velocidad=1000)
     mi_robot.avanzar_recto(-9)
 
-    mi_robot.mover_garra(55, velocidad=1000)
-
-
-    # 3. ASINCRONÍA + VELOCIDAD: Empezamos a cerrar la garra rápido (800) y SIN esperar.
-    # El robot empezará a hacer el giro de 50 grados MIENTRAS la garra se cierra, ahorrando casi un segundo.
-    
+    mi_robot.mover_garra_segura(55, velocidad=1000) #Garra abajo, bloques agarrados
 
     mi_robot.giro_preciso_pd(55)
     mi_robot.avanzar_recto(54, frenado=Stop.COAST_SMART) #Originalmente 61
@@ -87,53 +82,19 @@ def bloques_blancos():
     mi_robot.avanzar_recto(-16)
     mi_robot.mover_garra(-55, velocidad=800)
     mi_robot.avanzar_recto(22)
-    mi_robot.giro_preciso(-45)
-    mi_robot.avanzar_recto(-10)
 
-    #Mueca para detectar los colores del mosaico 
-    mi_robot.mover_garra(40, velocidad=300)
-
-    #camino a los bloques amarillos 
-
-    mi_robot.seguidor_linea_distancia(sensor, 100, 10, tiempo_acomodo_ms=500)
-    mi_robot.giro_preciso_pd(-45)
-    mi_robot.avanzar_recto(33)
-
-    mi_robot.seguidor_linea_distancia(sensor, 90, 8, lado="izquierda")
-
-    # Gira para meterse a dejar los bloques blancos 
-    mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 60, 7, tiempo_acomodo_ms=800) 
-
-    # Avanza para posicionarse sobre los bloques
-    mi_robot.mover_garra(5, velocidad=800)
-    mi_robot.avanzar_recto(-13)
-
-    mi_robot.mover_garra(-15, velocidad=800)
-    mi_robot.avanzar_recto(-9)
-
+    #Nuevo código para terminar de empujar los bloques
     mi_robot.mover_garra(55, velocidad=1000)
-    
+    mi_robot.avanzar_recto(-7)
+
+def mosaico_etc():
+    """
+    Empieza: dejando los bloques blancos, en posición de 45 grados hacia afuera
+    Termina: n/a 
+    """
+
     
 def ejecutar_y_medir_tiempo():
-      
-    # 4. ENCADENAMIENTO: Esta es una recta larga (60cm). En lugar de frenar al final, 
-    # le decimos que pase de largo (Stop.NONE) para entrar a la línea volando.
-    
-    
-    # 5. INERCIA MAXIMIZADA: Entra al seguidor con todo el impulso de la recta anterior.
-    # Redujimos el acomodo de 700ms a 0ms.
-    
-    
-    mi_robot.giro_preciso(220, kp_nuevo=1.5)
-    
-    # Retrocede a dejar los bloques
-    mi_robot.avanzar_recto(-17)
-    
-    # Abrir la garra rápido para soltar. 
-    # Nota: Si esta es tu ÚLTIMA instrucción de toda la corrida, déjala con wait_after=True 
-    # para que no se corte por el problema de las "instrucciones fantasma" que vimos antes.
-    mi_robot.mover_garra(-105, velocidad=800)
     """
     Ejecuta las rutinas y calcula el tiempo exacto que tarda el robot en la vida real.
     """
@@ -163,9 +124,7 @@ def ejecutar_y_medir_tiempo():
     return tiempo_segundos
 
 if __name__ == "__main__":
-
     #ejecutar_y_medir_tiempo()
-
     cemento_y_llana()
-
     bloques_blancos()
+    #mosaico_etc()
