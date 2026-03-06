@@ -1,19 +1,18 @@
 ## Estado del proyecto
 
-Se realizaron varios cambios en la estructura del código y en la lógica general de la solución. Actualmente, el enfoque principal es una función de seguidor de línea que recibe como entrada una distancia en centímetros con una precisión aceptable.
+Actualmente, el enfoque principal es una función de seguidor de línea que recibe como entrada una distancia en centímetros con una precisión aceptable. Se mejoró muchísimo la optimización del mismo para eliminar los tambaleos.
 
 Aún está pendiente:
-- Comentar el código.
-- Reorganizarlo en funciones para mejorar su claridad y mantenimiento.
-- Evaluar el aumento de velocidad en ciertos tramos del recorrido para mejorar el rendimiento.
+- Reorganizar el código en funciones para mejorar su claridad y mantenimiento.
+- Mejorar la función de bloques blancos para que sea más estable.
 
 ## Limitaciones conocidas
 
-La principal limitación del sistema es el seguidor de línea desajustado. Tambalea mucho.
+La principal limitación del sistema es que no se ha encontrado una solución para llevar a cabo de manera estable el recorrido de los bloques blancos.
 
 ## Funcionalidades implementadas
 
 El código actual incluye solución para:
 - Bloque de cemento.
 - Llana.
-- Bloques blancos.
+- Bloques blancos (parcialmente)
