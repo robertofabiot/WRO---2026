@@ -180,8 +180,12 @@ class Robot:
         velocidad_minima = 25
         tiempo_aceleracion_ms = 0 
         
-        kp = 1.8
-        kd = 1.2
+        # --- AJUSTES DEL CONTROLADOR ---
+        kp = 0.85  # Reducido para evitar la oscilación agresiva
+        kd = 2.5   # Aumentado para frenar el tambaleo (actúa como amortiguador)
+        k_freno = 0.6 # Factor nuevo: reduce la velocidad si hay mucho error
+        # -------------------------------
+        
         last_error = 0
         objetivo_reflexion = 35
 
@@ -198,26 +202,41 @@ class Robot:
 
             tiempo_actual = cronometro.time()
 
+            # Lógica de aceleración
             if tiempo_actual < tiempo_acomodo_ms:
                 velocidad_actual = velocidad_minima
             elif tiempo_actual < (tiempo_acomodo_ms + tiempo_aceleracion_ms):
                 tiempo_en_rampa = tiempo_actual - tiempo_acomodo_ms
-                if tiempo_aceleracion_ms > 0:
-                    progreso = tiempo_en_rampa / tiempo_aceleracion_ms
-                else:
-                    progreso = 1
+                progreso = tiempo_en_rampa / tiempo_aceleracion_ms if tiempo_aceleracion_ms > 0 else 1
                 velocidad_actual = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
             else:
                 velocidad_actual = velocidad_max
 
+            # Lectura del sensor y cálculo de errores
             current_reflection = sensor_color.reflection()
             error = current_reflection - objetivo_reflexion
             derivative = error - last_error
             
+            # Cálculo de la corrección
             correction = ((error * kp) + (derivative * kd)) * multiplicador_lado
 
-            self.motor_izquierda.dc(velocidad_actual - correction)
-            self.motor_derecha.dc(velocidad_actual + correction)
+            # --- NUEVO: REDUCCIÓN DINÁMICA DE VELOCIDAD ---
+            # Si el robot se desvía (error alto), reduce su velocidad base para estabilizarse.
+            # Si va perfectamente en la línea (error 0), va a la velocidad_actual máxima.
+            velocidad_base = velocidad_actual - (abs(error) * k_freno)
+            velocidad_base = max(velocidad_minima, velocidad_base) # Nunca ir más lento que la mínima
+
+            # Cálculo final de motores
+            potencia_izq = velocidad_base - correction
+            potencia_der = velocidad_base + correction
+
+            # --- NUEVO: LÍMITES DE SEGURIDAD (CLAMPING) ---
+            # Evita que el .dc() reciba valores fuera del rango permitido (-100 a 100)
+            potencia_izq = max(-100, min(100, potencia_izq))
+            potencia_der = max(-100, min(100, potencia_der))
+
+            self.motor_izquierda.dc(potencia_izq)
+            self.motor_derecha.dc(potencia_der)
 
             last_error = error
             wait(1)

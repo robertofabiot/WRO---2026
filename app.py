@@ -1,6 +1,6 @@
 from pybricks.parameters import Port, Color, Stop
 from pybricks.pupdevices import ColorSensor
-from pybricks.tools import StopWatch
+from pybricks.tools import StopWatch, wait
 from robot import Robot
 
 
@@ -16,31 +16,33 @@ def cemento_y_llana():
     Termina: dejando el bloque de cemento, con la garra hacia arriba, viendo hacia la pared de la mesa
     """
     # 1. FLUIDEZ: El arco termina en Stop.NONE, entra al seguidor sin frenar
-    mi_robot.mover_en_arco(radio_cm=15, distancia_cm=28, stop=Stop.COAST_SMART)
+    mi_robot.mover_en_arco(radio_cm=15, distancia_cm=27, stop=Stop.COAST_SMART)
 
     # 2. INERCIA: Como viene del arco sin frenar, el tiempo_acomodo_ms se vuelve 0 para no frenarlo artificialmente
-    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=65, tiempo_acomodo_ms=0)
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=62, tiempo_acomodo_ms=0)
 
     # Agarrar bloque
     mi_robot.giro_preciso_pd(-90)
     
     # 3. ASINCRONÍA: La garra empieza a moverse MIENTRAS el robot retrocede
-    mi_robot.mover_garra(105, velocidad=1000, wait_after=False) 
+    mi_robot.mover_garra(53, velocidad=1000, wait_after=False) 
     mi_robot.avanzar_recto(-12, frenado=Stop.HOLD)
+    mi_robot.mover_garra(45, velocidad=2000) 
+
     # Empujar el otro
-    mi_robot.avanzar_recto(7, frenado=Stop.BRAKE)
-    mi_robot.mover_motor_derecho(-540, velocidad=800) # Más rápido
+    mi_robot.avanzar_recto(10, frenado=Stop.BRAKE)
+    mi_robot.mover_motor_derecho(-540, velocidad=1000) # Más rápido
     
     # 4. ENCADENAMIENTO: Retrocede y fluye directamente hacia la primera curva
-    mi_robot.avanzar_recto(-14, frenado=Stop.NONE)
+    mi_robot.avanzar_recto(-13, frenado=Stop.NONE)
 
     # Se acomoda para el siguiente seguidor de línea (Ambos arcos fluyen juntos)
-    mi_robot.mover_en_arco(-10, distancia_cm=6, stop=Stop.COAST)
-    mi_robot.mover_en_arco(10, distancia_cm=4, stop=Stop.NONE) 
-    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=74, tiempo_acomodo_ms=100)
+    mi_robot.mover_en_arco(-9, distancia_cm=4, stop=Stop.COAST)
+    mi_robot.mover_en_arco(9, distancia_cm=3, stop=Stop.NONE) 
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=71, tiempo_acomodo_ms=200)
 
     mi_robot.mover_motor_derecho(-440, velocidad=800)
-    mi_robot.mover_garra(-50, velocidad=100)
+    mi_robot.mover_garra(-50, velocidad=50)
 
 def bloques_blancos():
     """
@@ -48,20 +50,20 @@ def bloques_blancos():
     Termina: en el área de los bloques blancos, en posición de 45 grados 
     """
     # 1. FLUIDEZ: Salimos del arco a toda velocidad (Stop.NONE)
-    mi_robot.mover_en_arco(-18, distancia_cm=27, stop=Stop.BRAKE)
+    mi_robot.mover_en_arco(-17, distancia_cm=28, stop=Stop.BRAKE)
 
     # 2. INERCIA: Como el robot ya viene moviéndose del arco, eliminamos el tiempo de acomodo (0ms)
-    mi_robot.avanzar_recto(10)
+    mi_robot.seguidor_linea_distancia(sensor, 90, 8)
 
     # Gira para meterse a dejar los bloques blancos 
     mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 80, 7, lado="izquierda", tiempo_acomodo_ms=800) 
+    mi_robot.seguidor_linea_distancia(sensor, 60, 7, lado="izquierda", tiempo_acomodo_ms=800) 
 
     # Avanza para posicionarse sobre los bloques
-    mi_robot.mover_garra(55, velocidad=800)
+    mi_robot.mover_garra(55, velocidad=1000)
     mi_robot.avanzar_recto(-13)
 
-    mi_robot.mover_garra(-55, velocidad=800)
+    mi_robot.mover_garra(-55, velocidad=1000)
     mi_robot.avanzar_recto(-9)
 
     mi_robot.mover_garra(55, velocidad=1000)
@@ -71,11 +73,48 @@ def bloques_blancos():
     # El robot empezará a hacer el giro de 50 grados MIENTRAS la garra se cierra, ahorrando casi un segundo.
     
 
-    mi_robot.giro_preciso_pd(50)
-    mi_robot.avanzar_recto(61, frenado=Stop.COAST_SMART)
+    mi_robot.giro_preciso_pd(55)
+    mi_robot.avanzar_recto(54, frenado=Stop.COAST_SMART) #Originalmente 61
 
-    mi_robot.seguidor_linea_distancia(sensor, 80, 21, tiempo_acomodo_ms=800)
+    mi_robot.giro_preciso_pd(-45)
 
+    mi_robot.seguidor_linea_distancia(sensor, 80, 28, lado="izquierda", tiempo_acomodo_ms=800)
+
+    mi_robot.giro_preciso_pd(180)
+    mi_robot.giro_preciso_pd(49)
+
+
+    mi_robot.avanzar_recto(-16)
+    mi_robot.mover_garra(-55, velocidad=800)
+    mi_robot.avanzar_recto(22)
+    mi_robot.giro_preciso(-45)
+    mi_robot.avanzar_recto(-10)
+
+    #Mueca para detectar los colores del mosaico 
+    mi_robot.mover_garra(40, velocidad=300)
+
+    #camino a los bloques amarillos 
+
+    mi_robot.seguidor_linea_distancia(sensor, 100, 10, tiempo_acomodo_ms=500)
+    mi_robot.giro_preciso_pd(-45)
+    mi_robot.avanzar_recto(33)
+
+    mi_robot.seguidor_linea_distancia(sensor, 90, 8, lado="izquierda")
+
+    # Gira para meterse a dejar los bloques blancos 
+    mi_robot.giro_preciso_pd(-180)
+    mi_robot.seguidor_linea_distancia(sensor, 60, 7, tiempo_acomodo_ms=800) 
+
+    # Avanza para posicionarse sobre los bloques
+    mi_robot.mover_garra(5, velocidad=800)
+    mi_robot.avanzar_recto(-13)
+
+    mi_robot.mover_garra(-15, velocidad=800)
+    mi_robot.avanzar_recto(-9)
+
+    mi_robot.mover_garra(55, velocidad=1000)
+    
+    
 def ejecutar_y_medir_tiempo():
       
     # 4. ENCADENAMIENTO: Esta es una recta larga (60cm). En lugar de frenar al final, 
