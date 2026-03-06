@@ -106,6 +106,24 @@ class Robot:
         """Mueve el motor de la garra/accesorio."""
         self.motor_garra.run_angle(velocidad, grados, wait=wait_after)
 
+    def mover_garra_segura(self, grados, velocidad=600, empuje_cm=1):
+        """
+        Mueve la garra. Si detecta que se atascó contra algo, 
+        avanza el chasis un poco para destrabarla.
+        """
+        # 1. Iniciamos el movimiento de la garra SIN pausar el código
+        self.motor_garra.run_angle(velocidad, grados, wait=False)
+        
+        # 2. Monitoreamos mientras la garra siga en movimiento
+        while not self.motor_garra.done():
+            # Si el motor se atasca físicamente...
+            if self.motor_garra.stalled():
+                # Avanzamos el robot la distancia indicada para liberarlo
+                self.avanzar_recto(empuje_cm)
+            
+            # Pequeña pausa de 10ms para no saturar el cerebro del hub
+            wait(10)
+
     def giro_preciso_pd(self, angulo_relativo):
         """Gira el robot a máxima velocidad usando un Control PD dinámico."""
         angulo_inicial = self.hub.imu.heading()
