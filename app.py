@@ -83,16 +83,18 @@ def bloques_blancos():
     mi_robot.mover_garra(-55, velocidad=800)
     mi_robot.avanzar_recto(22)
 
-    #Nuevo código para terminar de empujar los bloques
-    mi_robot.mover_garra(55, velocidad=1000)
-    mi_robot.avanzar_recto(-7)
-
-def mosaico_etc():
+def detectar_mosaico():
     """
     Empieza: dejando los bloques blancos, en posición de 45 grados hacia afuera
     Termina: n/a 
     """
+    #acomodarse para seguidor
+    mi_robot.mover_motor_derecho(300)
 
+    #seguir línea (a veces no es necesario, pero prefiero hacerlo por estabilidad)
+    mi_robot.seguidor_linea_distancia(sensor, 100, 20)
+    mi_robot.avanzar_recto(-36)
+    mi_robot.mover_garra(80)
     
 def ejecutar_y_medir_tiempo():
     """
@@ -127,4 +129,4 @@ if __name__ == "__main__":
     #ejecutar_y_medir_tiempo()
     cemento_y_llana()
     bloques_blancos()
-    #mosaico_etc()
+    detectar_mosaico()

@@ -102,10 +102,10 @@ class Robot:
         """Mueve solo la rueda derecha."""
         self.motor_derecha.run_angle(velocidad, grados, wait=wait_after)
 
-    def mover_garra(self, grados, velocidad=600, wait_after=True):
+    def mover_garra(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD):
         """Mueve el motor de la garra/accesorio."""
-        self.motor_garra.run_angle(velocidad, grados, wait=wait_after)
-
+        self.motor_garra.run_angle(velocidad, grados, then=frenado,wait=wait_after)
+        
     def mover_garra_segura(self, grados, velocidad=600, empuje_cm=1):
         """
         Mueve la garra. Si detecta que se atascó contra algo, 
