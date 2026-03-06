@@ -74,7 +74,7 @@ def bloques_blancos():
 
     mi_robot.giro_preciso_pd(-45)
 
-    mi_robot.seguidor_linea_distancia(sensor, 80, 28, lado="izquierda", tiempo_acomodo_ms=800)
+    mi_robot.seguidor_linea_distancia(sensor, 78, 28, lado="izquierda", tiempo_acomodo_ms=800)
 
     mi_robot.giro_preciso_pd(180)
     mi_robot.giro_preciso_pd(49)
@@ -95,7 +95,7 @@ def detectar_mosaico():
     #seguir línea (a veces no es necesario, pero prefiero hacerlo por estabilidad)
     mi_robot.seguidor_linea_distancia(sensor, 100, 20)
     mi_robot.avanzar_recto(-36)
-    mi_robot.mover_garra(80)
+    mi_robot.mover_garra(30)
     mosaico = mi_robot.identificar_combinacion(sensor_trasero, -5)
     print(f"{mosaico}" if mosaico != -1 else "mal") #Para ver en consola la combinación detectada
     

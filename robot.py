@@ -174,17 +174,15 @@ class Robot:
         # 3. Frenar en seco al llegar a la meta
         self.motor_garra.hold()
 
-    def giro_preciso_pd(self, angulo_relativo):
-        """Gira el robot a máxima velocidad usando un Control PD dinámico."""
+    def giro_preciso_pd(self, angulo_relativo, max_speed=800, min_speed=40, kp=4.0, kd=18.0):
+        """
+        Gira el robot usando un Control PD dinámico.
+        Permite ajustar la velocidad máxima y las constantes para giros de alta precisión.
+        """
         angulo_inicial = self.hub.imu.heading()
         angulo_meta = angulo_inicial + angulo_relativo
         
-        kp = 4.0          
-        kd = 18.0         
-        min_speed = 40    
-        max_speed = 800   
         tolerancia = 1    
-        
         error_previo = 0
         
         while True:
@@ -197,6 +195,7 @@ class Robot:
             derivada = error - error_previo
             turn_rate = (error * kp) + (derivada * kd)
             
+            # Aplicamos los límites de velocidad dinámicos
             if turn_rate > 0:
                 turn_rate = min(max(turn_rate, min_speed), max_speed)
             else:
