@@ -3,7 +3,8 @@ from pybricks.pupdevices import ColorSensor
 from pybricks.tools import StopWatch, wait
 from robot import Robot
 
-
+#Variables globales
+mosaicos = {Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2}, Color.BLUE: 3, Color.YELLOW: 4, Color.WHITE: 5}
 
 # Configuración de Hardware
 mi_robot = Robot(port_izq=Port.A, port_der=Port.B, port_garra=Port.C)
@@ -26,8 +27,8 @@ def cemento_y_llana():
     
     # 3. ASINCRONÍA: La garra empieza a moverse MIENTRAS el robot retrocede
     mi_robot.mover_garra(53, velocidad=1000, wait_after=False) 
-    mi_robot.avanzar_recto(-12, frenado=Stop.HOLD)
-    mi_robot.mover_garra(45, velocidad=2000) 
+    mi_robot.avanzar_recto(-11, frenado=Stop.HOLD)
+    mi_robot.mover_garra_segura(45, velocidad=2000) 
 
     # Empujar el otro
     mi_robot.avanzar_recto(10, frenado=Stop.BRAKE)
@@ -57,16 +58,16 @@ def bloques_blancos():
 
     # Gira para meterse a dejar los bloques blancos 
     mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 60, 7, lado="izquierda", tiempo_acomodo_ms=800) 
+    mi_robot.seguidor_linea_distancia(sensor, 35, 9, lado="izquierda", tiempo_acomodo_ms=800) 
 
     # Avanza para posicionarse sobre los bloques
     mi_robot.mover_garra(55, velocidad=1000)
-    mi_robot.avanzar_recto(-13)
+    mi_robot.avanzar_recto(-11)
 
     mi_robot.mover_garra(-55, velocidad=1000)
     mi_robot.avanzar_recto(-9)
 
-    mi_robot.mover_garra_segura(55, velocidad=1000) #Garra abajo, bloques agarrados
+    mi_robot.mover_garra_dc(55, potencia=100, empuje_cm=1) #Garra abajo, bloques agarrados
 
     mi_robot.giro_preciso_pd(55)
     mi_robot.avanzar_recto(54, frenado=Stop.COAST_SMART) #Originalmente 61
@@ -95,6 +96,8 @@ def detectar_mosaico():
     mi_robot.seguidor_linea_distancia(sensor, 100, 20)
     mi_robot.avanzar_recto(-36)
     mi_robot.mover_garra(80)
+    mosaico = mi_robot.identificar_combinacion(sensor_trasero, -5)
+    print(f"{mosaico}" if mosaico != -1 else "mal") #Para ver en consola la combinación detectada
     
 def ejecutar_y_medir_tiempo():
     """

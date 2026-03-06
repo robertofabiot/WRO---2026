@@ -1,8 +1,15 @@
 from pybricks.hubs import PrimeHub
-from pybricks.parameters import Axis, Direction, Stop
-from pybricks.pupdevices import Motor
+from pybricks.parameters import Axis, Direction, Stop, Color
+from pybricks.pupdevices import Motor, ColorSensor
 from pybricks.robotics import DriveBase
 from pybricks.tools import wait, StopWatch
+
+mosaicos = {
+    Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2}, 
+    Color.BLUE: 3, 
+    Color.YELLOW: 4, 
+    Color.WHITE: 5
+}
 
 class Robot:
     def __init__(self, port_izq, port_der, port_garra): #port_garra falta
@@ -123,6 +130,49 @@ class Robot:
             
             # Pequeña pausa de 10ms para no saturar el cerebro del hub
             wait(10)
+    
+    def mover_garra_dc(self, grados, potencia=100, empuje_cm=1):
+        """
+        Mueve la garra inyectando voltaje directo (DC) para máxima velocidad.
+        Monitorea el ángulo para detenerse y la velocidad para detectar atascos.
+        """
+        angulo_inicial = self.motor_garra.angle()
+        angulo_meta = angulo_inicial + grados
+        
+        # Determinar si el movimiento es positivo o negativo
+        direccion = 1 if grados >= 0 else -1
+        
+        # 1. Inyectar potencia pura (por defecto 100%)
+        # Aseguramos que el valor esté entre -100 y 100
+        potencia_real = max(-100, min(100, potencia)) * direccion
+        self.motor_garra.dc(potencia_real)
+        
+        # Pequeña pausa de gracia para que el motor empiece a moverse físicamente
+        # antes de empezar a medir si está atascado
+        wait(50)
+        
+        # 2. Bucle de monitoreo
+        while True:
+            angulo_actual = self.motor_garra.angle()
+            
+            # Condición de parada: Si ya llegamos o pasamos la meta
+            if direccion == 1 and angulo_actual >= angulo_meta:
+                break
+            elif direccion == -1 and angulo_actual <= angulo_meta:
+                break
+                
+            # Condición de atasco: Si el motor está recibiendo potencia pero casi no gira
+            if abs(self.motor_garra.speed()) < 15:
+                # Avanzamos el robot para destrabarlo
+                self.avanzar_recto(empuje_cm)
+                # Le damos un instante para que recupere velocidad tras liberarse
+                wait(50) 
+            
+            # Pausa breve para no saturar el procesador
+            wait(10)
+            
+        # 3. Frenar en seco al llegar a la meta
+        self.motor_garra.hold()
 
     def giro_preciso_pd(self, angulo_relativo):
         """Gira el robot a máxima velocidad usando un Control PD dinámico."""
@@ -263,50 +313,36 @@ class Robot:
         self.motor_derecha.stop()
         cronometro.pause()
 
-    def seguidor_linea_distancia_carlos(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800):
-        diametro_rueda = 5.6
-        circunferencia = 3.1416 * diametro_rueda
-        grados_objetivo = (distancia_cm / circunferencia) * 360
+    def identificar_combinacion(self, sensor, distancia_si_verde):
+        """
+        Identifica una combinación de colores minimizando las lecturas del sensor.
+        Retorna el ID de la combinación (1-5) o -1 si hay un error de lectura.
+        """
+        # 1. Realizamos la primera y única lectura obligatoria.
+        color_principal = sensor.color()
 
-        self.motor_izquierda.reset_angle(0)
-        self.motor_derecha.reset_angle(0)
+        # 2. Búsqueda rápida en el diccionario principal.
+        if color_principal not in mosaicos:
+            print("Error: Color principal no reconocido")
+            # SOLUCIÓN: Usamos f-strings para imprimir el objeto Color sin errores
+            print(f"Color escaneado: {color_principal}") 
+            return -1  
 
-        cronometro = StopWatch()
-        velocidad_minima = 25
-        tiempo_aceleracion_ms = 800  
+        decision = mosaicos[color_principal]
 
-        kp = 1.8 
-        kd = 5.5 
-        k_freno = 1.5 
-        
-        last_error = 0
-        objetivo_reflexion = 35
+        # 3. Verificamos si necesitamos desempatar (Caso VERDE).
+        if type(decision) is dict:
+            self.avanzar_recto(distancia_si_verde)
 
-        multiplicador_lado = 1 if lado == "derecha" else -1
+            # 4. SOLO en este caso gastamos tiempo leyendo el sensor por segunda vez.
+            color_anterior = sensor.color()
 
-        cronometro.reset()
-        cronometro.resume()
+            # Verificamos si la segunda lectura es válida antes de retornar
+            if color_anterior not in decision:
+                print(f"Error: El segundo color ({color_anterior}) no completa un patrón verde válido.")
+                return -1
+                
+            return decision[color_anterior]
 
-        while True:
-            grados_actuales = (abs(self.motor_izquierda.angle()) + abs(self.motor_derecha.angle())) / 2
-
-            if grados_actuales >= grados_objetivo:
-                break
-
-            tiempo_actual = cronometro.time()
-
-            if tiempo_actual < tiempo_acomodo_ms:
-                velocidad_actual = velocidad_minima
-            elif tiempo_actual < (tiempo_acomodo_ms + tiempo_aceleracion_ms):
-                tiempo_en_rampa = tiempo_actual - tiempo_acomodo_ms
-                if tiempo_aceleracion_ms > 0:
-                    progreso = tiempo_en_rampa / tiempo_aceleracion_ms
-                else:
-                    progreso = 1
-                velocidad_actual = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
-            else:
-                velocidad_actual = velocidad_max
-
-            current_reflection = sensor_color.reflection()
-            error = current_reflection - objetivo_reflexion
-            derivative
+        # 5. Si no era un diccionario, retornamos el ID directo.
+        return decision
