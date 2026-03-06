@@ -9,7 +9,7 @@ Aún está pendiente:
 
 ## Limitaciones conocidas
 
--
+-El giro al entregar los bloques blancos no se logra hacer sin pasarse llevando la torre y el borde del mosaico, lo que afecta su entrega y por ende los movimientos posteriores.
 
 ## Funcionalidades implementadas
 
