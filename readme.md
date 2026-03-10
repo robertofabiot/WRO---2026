@@ -8,8 +8,7 @@ Aún está pendiente:
 - Reorganizar el código en funciones para mejorar su claridad y mantenimiento.
 
 ## Limitaciones conocidas
-
--El giro al entregar los bloques blancos no se logra hacer sin pasarse llevando la torre y el borde del mosaico, lo que afecta su entrega y por ende los movimientos posteriores.
+El giro para meterse a dejar los bloques blancos en su zona se pasa llevando la torre.
 
 ## Funcionalidades implementadas
 
