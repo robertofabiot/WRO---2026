@@ -56,7 +56,7 @@ class Robot:
             color_actual = sensor_color.color()
             if color_actual == color_objetivo:
                 break
-            self.esperar(1)
+            wait(1)
             
         self.drive_base.stop()
 
@@ -207,6 +207,56 @@ class Robot:
             
         self.drive_base.stop()
 
+    def giro_eje_puro(self, angulo_relativo, kp=3.5, kd=15.0, max_speed=600, min_speed=30):
+        """
+        Fuerza un giro perfecto sobre el eje del robot ignorando el DriveBase.
+        Manda la misma magnitud de velocidad a ambos motores en direcciones opuestas,
+        reguladas por el giroscopio.
+        """
+        # 1. Detener cualquier orden previa de la base motriz
+        self.drive_base.stop()
+        
+        angulo_inicial = self.hub.imu.heading()
+        angulo_meta = angulo_inicial + angulo_relativo
+        
+        tolerancia = 1    
+        error_previo = 0
+        
+        while True:
+            angulo_actual = self.hub.imu.heading()
+            error = angulo_meta - angulo_actual
+            
+            # Condición de salida
+            if abs(error) <= tolerancia:
+                break
+                
+            derivada = error - error_previo
+            
+            # Calculamos la magnitud bruta necesaria
+            magnitud = abs((error * kp) + (derivada * kd))
+            
+            # Clamping dinámico para no ir muy rápido ni muy lento
+            velocidad_giro = max(min_speed, min(magnitud, max_speed))
+            
+            # 2. Control directo e inverso de los motores
+            # Si el error es positivo, necesitamos girar a la derecha (CW)
+            # Izquierda avanza, Derecha retrocede.
+            if error > 0:
+                self.motor_izquierda.run(velocidad_giro)
+                self.motor_derecha.run(-velocidad_giro)
+            # Si el error es negativo, necesitamos girar a la izquierda (CCW)
+            # Izquierda retrocede, Derecha avanza.
+            else:
+                self.motor_izquierda.run(-velocidad_giro)
+                self.motor_derecha.run(velocidad_giro)
+                
+            error_previo = error
+            wait(10)
+            
+        # 3. Freno en seco usando hold() en motores individuales para máxima retención
+        self.motor_izquierda.hold()
+        self.motor_derecha.hold()
+
     # endregion
 
     def seguir_linea(self, sensor_color, distancia_cm=None, velocidad=150, kp=3.6, kd=1.0):
@@ -312,6 +362,107 @@ class Robot:
         self.motor_derecha.stop()
         cronometro.pause()
 
+    def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo, lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None):
+        """
+        Sigue la línea usando control PD.
+        Si se pasa una distancia_cm, desacelera suavemente hasta velocidad 50 antes de llegar a esa marca.
+        Se detiene cuando el sensor detecta el color_objetivo.
+        """
+        cronometro = StopWatch()
+        velocidad_minima = 25
+        velocidad_enfoque = 50 # Velocidad segura para leer el color
+        tiempo_aceleracion_ms = 0 
+        
+        # Límite por seguridad para la lectura (si no hay desaceleración)
+        if distancia_cm is None:
+            velocidad_max = min(velocidad_max, 70) 
+            
+        # --- AJUSTES DEL CONTROLADOR ---
+        kp = 0.85  
+        kd = 2.5   
+        k_freno = 0.6 
+        # -------------------------------
+        
+        last_error = 0
+        objetivo_reflexion = 35
+        multiplicador_lado = 1 if lado == "derecha" else -1
+
+        # Si hay distancia, preparamos la matemática de las ruedas
+        if distancia_cm is not None:
+            diametro_rueda = 5.6
+            circunferencia = 3.1416 * diametro_rueda
+            grados_objetivo = (distancia_cm / circunferencia) * 360
+            self.motor_izquierda.reset_angle(0)
+            self.motor_derecha.reset_angle(0)
+
+        cronometro.reset()
+        cronometro.resume()
+
+        while True:
+            # --- CONDICIÓN DE PARADA ---
+            if sensor_color.color() == color_objetivo:
+                break
+
+            tiempo_actual = cronometro.time()
+
+            # 1. Lógica de aceleración (Rampa por tiempo)
+            if tiempo_actual < tiempo_acomodo_ms:
+                vel_aceleracion = velocidad_minima
+            elif tiempo_actual < (tiempo_acomodo_ms + tiempo_aceleracion_ms):
+                tiempo_en_rampa = tiempo_actual - tiempo_acomodo_ms
+                progreso = tiempo_en_rampa / tiempo_aceleracion_ms if tiempo_aceleracion_ms > 0 else 1
+                vel_aceleracion = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
+            else:
+                vel_aceleracion = velocidad_max
+
+            # 2. Lógica de desaceleración (Rampa por distancia)
+            if distancia_cm is not None:
+                grados_actuales = (abs(self.motor_izquierda.angle()) + abs(self.motor_derecha.angle())) / 2
+                
+                # Calculamos qué porcentaje de la ruta hemos completado (de 0.0 a 1.0)
+                progreso_distancia = grados_actuales / grados_objetivo
+                progreso_distancia = min(1.0, progreso_distancia) # Evitar que pase de 100%
+                
+                # Interpolación: Baja de velocidad_max a 50 gradualmente
+                vel_desaceleracion = velocidad_max - ((velocidad_max - velocidad_enfoque) * progreso_distancia)
+                vel_desaceleracion = max(velocidad_enfoque, vel_desaceleracion) # Nunca bajar de 50 aquí
+                
+                # La velocidad real será la menor entre lo que dicta la aceleración y la desaceleración
+                velocidad_actual = min(vel_aceleracion, vel_desaceleracion)
+            else:
+                velocidad_actual = vel_aceleracion
+
+            # Lectura de la línea (reflexión)
+            current_reflection = sensor_color.reflection()
+            error = current_reflection - objetivo_reflexion
+            derivative = error - last_error
+            
+            # Cálculo de la corrección PD
+            correction = ((error * kp) + (derivative * kd)) * multiplicador_lado
+
+            # Reducción dinámica de velocidad por desviación
+            velocidad_base = velocidad_actual - (abs(error) * k_freno)
+            velocidad_base = max(velocidad_minima, velocidad_base) 
+
+            # Mezcla para los motores
+            potencia_izq = velocidad_base - correction
+            potencia_der = velocidad_base + correction
+
+            # Límites de seguridad (Clamping)
+            potencia_izq = max(-100, min(100, potencia_izq))
+            potencia_der = max(-100, min(100, potencia_der))
+
+            self.motor_izquierda.dc(potencia_izq)
+            self.motor_derecha.dc(potencia_der)
+
+            last_error = error
+            wait(1)
+
+        # Freno en seco al detectar el color
+        self.motor_izquierda.stop()
+        self.motor_derecha.stop()
+        cronometro.pause()
+
     def identificar_combinacion(self, sensor, distancia_si_verde):
         """
         Identifica una combinación de colores minimizando las lecturas del sensor.
@@ -345,3 +496,15 @@ class Robot:
 
         # 5. Si no era un diccionario, retornamos el ID directo.
         return decision
+    
+    def esperar(self, milisegundos):
+        """Pausa el programa."""
+        wait(milisegundos)
+
+    def resetear_giroscopio(self):
+        """Reinicia el ángulo del giroscopio a 0."""
+        self.hub.imu.reset_heading(0)
+        
+    def obtener_angulo(self):
+        """Devuelve el ángulo actual del robot."""
+        return self.hub.imu.heading()
