@@ -1,14 +1,9 @@
 ## Estado del proyecto
 
-Actualmente, el enfoque principal es una función de seguidor de línea que recibe como entrada una distancia en centímetros con una precisión aceptable. Se mejoró muchísimo la optimización del mismo para eliminar los tambaleos.
-
-Se agregó una función para bajar la garra en caso de que esté trabada. La logica es que si no se detecta movimiento en el motor, el robot avanza un poco para destrabarla (asumiendo que es porque está trabada contra la pared de la mesa)
-
-Aún está pendiente:
-- Reorganizar el código en funciones para mejorar su claridad y mantenimiento.
+La función principal del proyecto es un seguidor de línea correctamente calibrado, con la posibilidad de operar por distancia o por detección de colores, lo que mejora significativamente la estabilidad durante las ejecuciones.
 
 ## Limitaciones conocidas
-El giro para meterse a dejar los bloques blancos en su zona se pasa llevando la torre.
+Actualmente no se ha logrado recoger todos los bloques blancos de manera consistente. Debido a esto, no ha sido posible probar de forma completa las rutinas que dependen de esta etapa.
 
 ## Funcionalidades implementadas
 
@@ -16,3 +11,5 @@ El código actual incluye solución para:
 - Bloque de cemento.
 - Llana.
 - Bloques blancos
+- Detectar el mosaico
+- Bloques amarillos
