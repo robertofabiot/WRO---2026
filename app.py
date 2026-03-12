@@ -95,18 +95,18 @@ def detectar_mosaico():
             (el que se detecta de primero)
     """
     # Acomodarse para seguidor
-    mi_robot.avanzar_recto(24)
+    mi_robot.avanzar_recto(21)
     mi_robot.mover_motor_derecho(250)
 
     # Seguir línea por estabilidad
-    mi_robot.seguidor_linea_distancia(sensor, 75, 14) 
+    mi_robot.seguidor_linea_distancia(sensor, 50, 15, tiempo_acomodo_ms=800, kp=0.45, kd=1.8, k_freno=0.8) 
 
     # Retroceder hasta el mosaico
-    mi_robot.avanzar_recto(-35 , velocidad=700) 
+    mi_robot.avanzar_recto(-31 , velocidad=700) 
 
     # Escaneo y acomodo de ser necesario
     mi_robot.mover_garra(45, frenado=Stop.HOLD)
-    wait(500)
+    wait(600)
     mosaico = mi_robot.identificar_combinacion(sensor_trasero, -5)
     print(f"{mosaico}" if mosaico != -1 else "la cagaste") #Para ver en consola la combinación detectada
     if (mosaico == 1 or mosaico == 2): # Condición para acomodos
@@ -126,15 +126,20 @@ def agarrar_bloques_amarillos():
     mi_robot.giro_preciso_pd(45)
     mi_robot.seguidor_linea_distancia(sensor, 90, 8)
 
-    # Gira para meterse a dejar los bloques amarillos
+    # Acomodo para agarrar bloques amarillos
     mi_robot.giro_preciso_pd(-180)
     mi_robot.seguidor_linea_distancia(sensor, 50, 9, lado="izquierda", tiempo_acomodo_ms=800) 
 
-    # Avanza para posicionarse sobre los bloques
+    # Empuja los bloques para juntarlos
     mi_robot.mover_garra(55, velocidad=1000)
-    mi_robot.avanzar_recto(-9)
-    mi_robot.avanzar_recto(-13) 
-    mi_robot.mover_garra(-55, velocidad=700, frenado=Stop.HOLD)
+    mi_robot.avanzar_recto(-10)
+    
+    # Se posiciona para agarrarlos
+    mi_robot.mover_garra(-30, velocidad=700) 
+    mi_robot.avanzar_recto(-11) 
+
+    # Agarrar bloques
+    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques amarillos agarrados
 
 
 def dejar_bloques_amarillos():
@@ -142,11 +147,11 @@ def dejar_bloques_amarillos():
     Empieza: con los bloques amarillos agarrados, listo para ir a dejarlos
     Termina: dejando los bloques amarillos, viendo hacia la pared de la mesa
     """
-    #Rutina para dejar los bloques amarillos en su lugar
     mi_robot.avanzar_recto(5)
     # mi_robot.seguidor_linea_distancia(sensor, 80, 5)
     mi_robot.giro_preciso_pd(-65)
     mi_robot.avanzar_recto(70, velocidad=1000)
+    mi_robot.mover_motor_izquierdo(300)
     mi_robot.seguidor_linea_distancia(sensor, 100,  47, lado="izquierda")
     mi_robot.giro_preciso_pd(-90)
     mi_robot.avanzar_recto(-20)
