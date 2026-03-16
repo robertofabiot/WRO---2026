@@ -125,10 +125,10 @@ def agarrar_bloques_amarillos():
     mi_robot.avanzar_recto(25)
     mi_robot.giro_preciso_pd(45)
 
-   # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
+    # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
     mi_robot.seguidor_linea_distancia(sensor, 90, 7)
 
-    # Acomodo para agarrar bloques blancos 
+    # Acomodo para agarrar bloques amarillos 
     mi_robot.giro_preciso_pd(-180)
     mi_robot.seguidor_linea_distancia(sensor, 50, 7, lado="izquierda", tiempo_acomodo_ms=800, kp=0.45, kd=1.8, k_freno=0.8) 
 
@@ -141,7 +141,7 @@ def agarrar_bloques_amarillos():
     mi_robot.avanzar_recto(-11) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques blancos agarrados
+    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques amarillos agarrados
 
 
 def dejar_bloques_amarillos():
@@ -182,10 +182,10 @@ def recoger_bloques_azules():
     mi_robot.giro_preciso_pd(-45)
     mi_robot.avanzar_recto(10)
 
-   # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
+    # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
     mi_robot.seguidor_linea_distancia(sensor, 90, 11)
 
-    # Acomodo para agarrar bloques blancos 
+    # Acomodo para agarrar bloques azules
     mi_robot.giro_preciso_pd(-180)
     mi_robot.seguidor_linea_distancia(sensor, 50, 11, lado="izquierda", tiempo_acomodo_ms=800) 
 
@@ -198,12 +198,13 @@ def recoger_bloques_azules():
     mi_robot.avanzar_recto(-11) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques blancos agarrados
+    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques azules agarrados
 
-def dejar_bloques_azules():
+def dejar_bloques_azules_y_pala():
     """
     Empieza: con los bloques azules agarrados, listo para salir
-    Termina: n/a
+    Termina: con los bloques azules cerca del inicio, viendo hacia los bloques del mosaico.
+            La pala queda en el inicio.
     """
     mi_robot.giro_preciso_pd(-30)
     mi_robot.avanzar_recto(60)
@@ -218,8 +219,6 @@ def dejar_bloques_azules():
     mi_robot.mover_motor_derecho(250)
     mi_robot.avanzar_recto(-20)
     mi_robot.giro_preciso_pd(115)
-
-
 
     #Dejamos los bloques azules en un espacio accesible 
     mi_robot.mover_garra(-55) 
@@ -242,6 +241,8 @@ def ejecutar_y_medir_tiempo():
     detectar_mosaico()
     agarrar_bloques_amarillos()
     dejar_bloques_amarillos()
+    recoger_bloques_azules()
+    dejar_bloques_azules_y_pala()
     
     # Pausamos el reloj al terminar el último movimiento
     cronometro.pause()
@@ -264,4 +265,4 @@ if __name__ == "__main__":
     agarrar_bloques_amarillos()
     dejar_bloques_amarillos()
     recoger_bloques_azules()
-    dejar_bloques_azules()
+    dejar_bloques_azules_y_pala()
