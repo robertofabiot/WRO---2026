@@ -65,7 +65,7 @@ def bloques_blancos():
     
     # Se posiciona para agarrarlos
     mi_robot.mover_garra(-30, velocidad=700) 
-    mi_robot.avanzar_recto(-11) 
+    mi_robot.avanzar_recto(-13) 
 
     # Agarrar bloques
     mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques blancos agarrados
@@ -95,14 +95,14 @@ def detectar_mosaico():
             (el que se detecta de primero)
     """
     # Acomodarse para seguidor
-    mi_robot.avanzar_recto(24)
+    mi_robot.avanzar_recto(21)
     mi_robot.mover_motor_derecho(250)
 
     # Seguir línea por estabilidad
-    mi_robot.seguidor_linea_distancia(sensor, 75, 14) 
+    mi_robot.seguidor_linea_distancia(sensor, 50, 15, tiempo_acomodo_ms=800, kp=0.45, kd=1.8, k_freno=0.8) 
 
     # Retroceder hasta el mosaico
-    mi_robot.avanzar_recto(-35 , velocidad=700) 
+    mi_robot.avanzar_recto(-31 , velocidad=700) 
 
     # Escaneo y acomodo de ser necesario
     mi_robot.mover_garra(45, frenado=Stop.HOLD)
@@ -124,17 +124,24 @@ def agarrar_bloques_amarillos():
     mi_robot.giro_preciso_pd(-55)
     mi_robot.avanzar_recto(25)
     mi_robot.giro_preciso_pd(45)
-    mi_robot.seguidor_linea_distancia(sensor, 90, 8)
 
-    # Gira para meterse a dejar los bloques amarillos
+   # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
+    mi_robot.seguidor_linea_distancia(sensor, 90, 7)
+
+    # Acomodo para agarrar bloques blancos 
     mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 50, 9, lado="izquierda", tiempo_acomodo_ms=800) 
+    mi_robot.seguidor_linea_distancia(sensor, 50, 7, lado="izquierda", tiempo_acomodo_ms=800, kp=0.45, kd=1.8, k_freno=0.8) 
 
-    # Avanza para posicionarse sobre los bloques
+    # Empuja los bloques para juntarlos
     mi_robot.mover_garra(55, velocidad=1000)
-    mi_robot.avanzar_recto(-9)
-    mi_robot.avanzar_recto(-13) 
-    mi_robot.mover_garra(-55, velocidad=700, frenado=Stop.HOLD)
+    mi_robot.avanzar_recto(-8.5)
+    
+    # Se posiciona para agarrarlos
+    mi_robot.mover_garra(-22, velocidad=700) 
+    mi_robot.avanzar_recto(-11) 
+
+    # Agarrar bloques
+    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques blancos agarrados
 
 
 def dejar_bloques_amarillos():
@@ -142,72 +149,81 @@ def dejar_bloques_amarillos():
     Empieza: con los bloques amarillos agarrados, listo para ir a dejarlos
     Termina: dejando los bloques amarillos, viendo hacia la pared de la mesa
     """
-    #Rutina para dejar los bloques amarillos en su lugar
+    # Acomodarse para buscar la línea
     mi_robot.avanzar_recto(5)
-    # mi_robot.seguidor_linea_distancia(sensor, 80, 5)
     mi_robot.giro_preciso_pd(-65)
-    mi_robot.avanzar_recto(70, velocidad=1000)
-    mi_robot.seguidor_linea_distancia(sensor, 100,  47, lado="izquierda")
+
+    # Buscar la línea
+    mi_robot.avanzar_recto(69, velocidad=1000)
+    mi_robot.mover_motor_izquierdo(300)
+
+    # Seguir la línea
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=57, lado="izquierda", tiempo_acomodo_ms=800)
+    wait(500)
+
+    # Dejar los bloques
     mi_robot.giro_preciso_pd(-90)
-    mi_robot.avanzar_recto(-20)
+    mi_robot.avanzar_recto(-17)
     mi_robot.mover_garra(-55)
+
+def recoger_bloques_azules():
+    """
+    Empieza: dejando los bloques amarillos, viendo hacia la pared de la mesa
+    Termina: con los bloques azules agarrados, listo para salir
+    """
+    # Acomodarse para seguidor de línea
     mi_robot.avanzar_recto(15)
     mi_robot.giro_preciso_pd(-90)
-    mi_robot.seguidor_linea_distancia(sensor, 100, 55)
+
+    # Seguir línea
+    mi_robot.seguidor_linea_distancia(sensor, 100, 50)
+
+    # Buscar el siguiente seguidor
     mi_robot.giro_preciso_pd(-45)
-    mi_robot.avanzar_recto(17)
-    mi_robot.seguidor_linea_distancia(sensor, 100, 9, lado="izquierda")
-    mi_robot.giro_preciso_pd(180)
-    mi_robot.seguidor_linea_distancia(sensor, 60, 9)
-    mi_robot.avanzar_recto(-7)
-    mi_robot.mover_garra_dc(55)
+    mi_robot.avanzar_recto(10)
 
+   # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
+    mi_robot.seguidor_linea_distancia(sensor, 90, 11)
+
+    # Acomodo para agarrar bloques blancos 
+    mi_robot.giro_preciso_pd(-180)
+    mi_robot.seguidor_linea_distancia(sensor, 50, 11, lado="izquierda", tiempo_acomodo_ms=800) 
+
+    # Empuja los bloques para juntarlos
+    mi_robot.mover_garra(55, velocidad=1000)
+    mi_robot.avanzar_recto(-10)
     
-    
+    # Se posiciona para agarrarlos
+    mi_robot.mover_garra(-30, velocidad=700) 
+    mi_robot.avanzar_recto(-11) 
+
+    # Agarrar bloques
+    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques blancos agarrados
+
+def dejar_bloques_azules():
+    """
+    Empieza: con los bloques azules agarrados, listo para salir
+    Termina: n/a
+    """
+    mi_robot.giro_preciso_pd(-30)
+    mi_robot.avanzar_recto(60)
+
+    #Giro para salir con la llana
+    mi_robot.mover_motor_izquierdo(520)
+    mi_robot.avanzar_recto(18)
+    mi_robot.giro_preciso_pd(-45)
+    mi_robot.seguidor_linea_distancia(sensor, 100, 93, lado="izquierda")
+
+    #Acá deja la llana en el inicio
+    mi_robot.mover_motor_derecho(250)
+    mi_robot.avanzar_recto(-20)
+    mi_robot.giro_preciso_pd(115)
 
 
-    # mi_robot.avanzar_recto(10)
-    # mi_robot.giro_preciso_pd(-65)
-    # mi_robot.avanzar_recto(69)
-    # mi_robot.giro_preciso_pd(65)
-    # mi_robot.seguidor_linea_distancia(sensor, 80, 54)
-    # mi_robot.giro_preciso_pd(-90)
 
+    #Dejamos los bloques azules en un espacio accesible 
+    mi_robot.mover_garra(-55) 
 
-    # #Rutina para ir por los bloques azules y dejar la palita en el inicio 
-    # mi_robot.avanzar_recto(-19)
-    # mi_robot.mover_garra(200)
-    # mi_robot.avanzar_recto(19)
-    # mi_robot.giro_preciso_pd(-90)
-    # mi_robot.seguidor_linea_distancia(sensor, 80, 42)
-    # mi_robot.giro_preciso_pd(-35)
-    # mi_robot.avanzar_recto(23)
-    # mi_robot.giro_preciso_pd(35)
-    # mi_robot.seguidor_linea_distancia(sensor, 80, 10)
-    # mi_robot.giro_preciso_pd(90)
-    # mi_robot.giro_preciso_pd(90)
-    # mi_robot.avanzar_recto(-11)
-
-    # #Agarra los bloques azules
-    # mi_robot.mover_garra(-210)
-    # mi_robot.giro_preciso_pd(-15)
-    # mi_robot.avanzar_recto(65)
-
-    # #Giro para salir con la llana
-    # mi_robot.mover_motor_izquierdo(255)
-    # mi_robot.avanzar_recto(31)
-    # mi_robot.seguidor_linea_distancia(sensor, 80, 85)
-
-    # #Acá deja la llana en el inicio
-    # mi_robot.mover_motor_derecho(250)
-    # mi_robot.mover_motor_derecho(-250)
-    # mi_robot.avanzar_recto(-16)
-    # mi_robot.giro_preciso_pd(95)
-
-    # #Dejamos los bloques azules en un espacio accesible 
-    # mi_robot.mover_garra(200)
-
-    
 def ejecutar_y_medir_tiempo():
     """
     Ejecuta las rutinas y calcula el tiempo exacto que tarda el robot en la vida real.
@@ -247,3 +263,5 @@ if __name__ == "__main__":
     detectar_mosaico()
     agarrar_bloques_amarillos()
     dejar_bloques_amarillos()
+    recoger_bloques_azules()
+    dejar_bloques_azules()

@@ -285,7 +285,7 @@ class Robot:
         self.motor_izquierda.brake()
         self.motor_derecha.brake()
 
-    def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800):
+    def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800, kp = 0.85, kd = 2.5, k_freno = 0.6):
         diametro_rueda = 5.6
         circunferencia = 3.1416 * diametro_rueda
         grados_objetivo = (distancia_cm / circunferencia) * 360
@@ -298,9 +298,9 @@ class Robot:
         tiempo_aceleracion_ms = 0 
         
         # --- AJUSTES DEL CONTROLADOR ---
-        kp = 0.85  # Reducido para evitar la oscilación agresiva
-        kd = 2.5   # Aumentado para frenar el tambaleo (actúa como amortiguador)
-        k_freno = 0.6 # Factor nuevo: reduce la velocidad si hay mucho error
+          # Reducido para evitar la oscilación agresiva
+           # Aumentado para frenar el tambaleo (actúa como amortiguador)
+         # Factor nuevo: reduce la velocidad si hay mucho error
         # -------------------------------
         
         last_error = 0
@@ -462,6 +462,93 @@ class Robot:
         self.motor_izquierda.stop()
         self.motor_derecha.stop()
         cronometro.pause()
+
+    def acomodar_en_linea(self, sensor_color, velocidad_base=50, lado="derecha", tiempo_estabilizado_ms=250, distancia_max_cm=15):
+        """
+        Sigue la línea buscando estabilizarse (quedar recto).
+        Devuelve la distancia exacta en centímetros que recorrió para lograrlo.
+        Si supera la distancia máxima sin estabilizarse, se detiene por seguridad.
+        """
+        diametro_rueda = 5.6
+        circunferencia = 3.1416 * diametro_rueda
+        grados_maximos = (distancia_max_cm / circunferencia) * 360 if distancia_max_cm else None
+
+        # Reiniciar contadores de motores para medir la distancia desde cero
+        self.motor_izquierda.reset_angle(0)
+        self.motor_derecha.reset_angle(0)
+
+        cronometro = StopWatch()
+        
+        # --- TUS VALORES ORIGINALES ---
+        velocidad_minima = 25
+        kp = 0.85 
+        kd = 2.5  
+        k_freno = 0.6 
+        # ------------------------------
+        
+        last_error = 0
+        objetivo_reflexion = 35
+        multiplicador_lado = 1 if lado == "derecha" else -1
+
+        tiempo_estable_inicio = 0
+        tolerancia_error = 5      
+        # Ajustamos la tolerancia de corrección a 5 para que empate con tu kp de 0.85
+        tolerancia_correccion = 5 
+
+        cronometro.reset()
+        cronometro.resume()
+
+        while True:
+            # --- LÍMITE DE SEGURIDAD WRO ---
+            grados_actuales = (abs(self.motor_izquierda.angle()) + abs(self.motor_derecha.angle())) / 2
+            if grados_maximos and grados_actuales >= grados_maximos:
+                break # Corta el ciclo para no perder el control del robot en la pista
+
+            # Lectura y cálculo de error
+            current_reflection = sensor_color.reflection()
+            error = current_reflection - objetivo_reflexion
+            derivative = error - last_error
+            
+            # 1. Calcular la corrección PRIMERO
+            correction = ((error * kp) + (derivative * kd)) * multiplicador_lado
+
+            # 2. CONDICIÓN DE PARADA POR ESTABILIZACIÓN GEOMÉTRICA
+            # Está sobre la línea (error bajo) Y va recto (corrección baja)
+            if abs(error) <= tolerancia_error and abs(correction) <= tolerancia_correccion:
+                if tiempo_estable_inicio == 0:
+                    tiempo_estable_inicio = cronometro.time()
+                elif cronometro.time() - tiempo_estable_inicio >= tiempo_estabilizado_ms:
+                    break 
+            else:
+                tiempo_estable_inicio = 0 # Volvió a oscilar, reiniciamos el cronómetro de estabilidad
+
+            # 3. Lógica de movimiento adaptativo
+            velocidad_actual = velocidad_base - (abs(error) * k_freno)
+            velocidad_actual = max(velocidad_minima, velocidad_actual) 
+
+            potencia_izq = velocidad_actual - correction
+            potencia_der = velocidad_actual + correction
+
+            # Clamping para proteger el .dc()
+            potencia_izq = max(-100, min(100, potencia_izq))
+            potencia_der = max(-100, min(100, potencia_der))
+
+            self.motor_izquierda.dc(potencia_izq)
+            self.motor_derecha.dc(potencia_der)
+
+            last_error = error
+            wait(10) # Pausa obligatoria para no saturar las lecturas de Pybricks
+
+        # 4. Freno en seco para máxima precisión
+        self.motor_izquierda.stop()
+        self.motor_derecha.stop()
+        cronometro.pause()
+
+        # 5. Calcular la distancia exacta recorrida
+        grados_finales = (abs(self.motor_izquierda.angle()) + abs(self.motor_derecha.angle())) / 2
+        distancia_recorrida_cm = (grados_finales / 360) * circunferencia
+        
+        return distancia_recorrida_cm
 
     def identificar_combinacion(self, sensor, distancia_si_verde):
         """
