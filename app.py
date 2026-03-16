@@ -187,7 +187,7 @@ def recoger_bloques_azules():
 
     # Acomodo para agarrar bloques blancos 
     mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 50, 9, lado="izquierda", tiempo_acomodo_ms=800) 
+    mi_robot.seguidor_linea_distancia(sensor, 50, 11, lado="izquierda", tiempo_acomodo_ms=800) 
 
     # Empuja los bloques para juntarlos
     mi_robot.mover_garra(55, velocidad=1000)
@@ -206,21 +206,23 @@ def dejar_bloques_azules():
     Termina: n/a
     """
     mi_robot.giro_preciso_pd(-30)
-    mi_robot.avanzar_recto(65)
+    mi_robot.avanzar_recto(60)
 
     #Giro para salir con la llana
     mi_robot.mover_motor_izquierdo(520)
-    mi_robot.avanzar_recto(31)
-    mi_robot.seguidor_linea_distancia(sensor, 80, 85)
+    mi_robot.avanzar_recto(18)
+    mi_robot.giro_preciso_pd(-45)
+    mi_robot.seguidor_linea_distancia(sensor, 100, 93, lado="izquierda")
 
     #Acá deja la llana en el inicio
     mi_robot.mover_motor_derecho(250)
-    mi_robot.mover_motor_derecho(-250)
-    mi_robot.avanzar_recto(-16)
-    mi_robot.giro_preciso_pd(95)
+    mi_robot.avanzar_recto(-20)
+    mi_robot.giro_preciso_pd(115)
+
+
 
     #Dejamos los bloques azules en un espacio accesible 
-    mi_robot.mover_garra(200)
+    mi_robot.mover_garra(-55) 
 
 def ejecutar_y_medir_tiempo():
     """
