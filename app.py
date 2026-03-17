@@ -3,11 +3,11 @@ from pybricks.pupdevices import ColorSensor
 from pybricks.tools import StopWatch, wait
 from robot import Robot
 
-#Variables globales
+# Variables globales
 mosaicos = {Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2}, Color.BLUE: 3, Color.YELLOW: 4, Color.WHITE: 5}
 
 # Configuración de Hardware
-mi_robot = Robot(port_izq=Port.A, port_der=Port.B, port_garra=Port.C)
+mi_robot = Robot(port_izq=Port.A, port_der=Port.B, port_eje_central=Port.C, port_garra_delantera=Port.F)
 sensor = ColorSensor(Port.D)
 sensor_trasero = ColorSensor(Port.E)
 
@@ -24,9 +24,9 @@ def cemento_y_llana():
 
     # Acomodarse para cemento
     mi_robot.giro_preciso_pd(-90)
-    mi_robot.mover_garra(53, velocidad=1200, wait_after=False) 
+    mi_robot.mover_garra_trasera(53, velocidad=1200, wait_after=False) 
     mi_robot.avanzar_recto(-12, frenado=Stop.HOLD)
-    mi_robot.mover_garra_segura(49, velocidad=2500, empuje_cm=2) # Cemento agarrado
+    mi_robot.mover_garra_trasera_segura(49, velocidad=2500, empuje_cm=2) # Cemento agarrado
 
     # Empujar el otro
     mi_robot.avanzar_recto(9, frenado=Stop.BRAKE)
@@ -42,7 +42,7 @@ def cemento_y_llana():
 
     # Dejar cemento
     mi_robot.mover_motor_derecho(-440, velocidad=800)
-    mi_robot.mover_garra(-50, velocidad=50) # Cemento dejado
+    mi_robot.mover_garra_trasera(-50, velocidad=50) # Cemento dejado
 
 def bloques_blancos():
     """
@@ -60,15 +60,15 @@ def bloques_blancos():
     mi_robot.seguidor_linea_distancia(sensor, 50, 9, lado="izquierda", tiempo_acomodo_ms=800) 
 
     # Empuja los bloques para juntarlos
-    mi_robot.mover_garra(55, velocidad=1000)
+    mi_robot.mover_garra_trasera(55, velocidad=1000)
     mi_robot.avanzar_recto(-10)
     
     # Se posiciona para agarrarlos
-    mi_robot.mover_garra(-30, velocidad=700) 
+    mi_robot.mover_garra_trasera(-30, velocidad=700) 
     mi_robot.avanzar_recto(-13) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques blancos agarrados
+    mi_robot.mover_garra_trasera_dc(30, potencia=100, empuje_cm=1) # Bloques blancos agarrados
 
     # Va en diagonal hacia la otra línea
     mi_robot.giro_preciso_pd(60)
@@ -86,7 +86,7 @@ def bloques_blancos():
     # Dejar los bloques
     mi_robot.giro_eje_puro(217, kp=5 ,kd=10, min_speed=200)
     mi_robot.avanzar_recto(-22)
-    mi_robot.mover_garra(-60)
+    mi_robot.mover_garra_trasera(-60)
 
 def detectar_mosaico():
     """
@@ -105,12 +105,13 @@ def detectar_mosaico():
     mi_robot.avanzar_recto(-31 , velocidad=700) 
 
     # Escaneo y acomodo de ser necesario
-    mi_robot.mover_garra(45, frenado=Stop.HOLD)
+    mi_robot.mover_garra_trasera(45, frenado=Stop.HOLD)
     wait(500)
     mosaico = mi_robot.identificar_combinacion(sensor_trasero, -5)
     print(f"{mosaico}" if mosaico != -1 else "la cagaste") #Para ver en consola la combinación detectada
     if (mosaico == 1 or mosaico == 2): # Condición para acomodos
         mi_robot.avanzar_recto(5)
+    return mosaico
 
 def agarrar_bloques_amarillos():
     """
@@ -119,7 +120,7 @@ def agarrar_bloques_amarillos():
     Termina: con los bloques amarillos agarrados, listo para ir a dejarlos
     """
     #Camino para ir por los bloques amarillos 
-    mi_robot.mover_garra(-50)
+    mi_robot.mover_garra_trasera(-50)
     mi_robot.seguidor_linea_distancia(sensor, 80, 25)
     mi_robot.giro_preciso_pd(-55)
     mi_robot.avanzar_recto(25)
@@ -133,15 +134,15 @@ def agarrar_bloques_amarillos():
     mi_robot.seguidor_linea_distancia(sensor, 50, 7, lado="izquierda", tiempo_acomodo_ms=800, kp=0.45, kd=1.8, k_freno=0.8) 
 
     # Empuja los bloques para juntarlos
-    mi_robot.mover_garra(55, velocidad=1000)
+    mi_robot.mover_garra_trasera(55, velocidad=1000)
     mi_robot.avanzar_recto(-8.5)
     
     # Se posiciona para agarrarlos
-    mi_robot.mover_garra(-22, velocidad=700) 
+    mi_robot.mover_garra_trasera(-22, velocidad=700) 
     mi_robot.avanzar_recto(-11) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques amarillos agarrados
+    mi_robot.mover_garra_trasera_dc(30, potencia=100, empuje_cm=1) # Bloques amarillos agarrados
 
 
 def dejar_bloques_amarillos():
@@ -164,7 +165,7 @@ def dejar_bloques_amarillos():
     # Dejar los bloques
     mi_robot.giro_preciso_pd(-90)
     mi_robot.avanzar_recto(-17)
-    mi_robot.mover_garra(-55)
+    mi_robot.mover_garra_trasera(-55)
 
 def recoger_bloques_azules():
     """
@@ -190,15 +191,15 @@ def recoger_bloques_azules():
     mi_robot.seguidor_linea_distancia(sensor, 50, 11, lado="izquierda", tiempo_acomodo_ms=800) 
 
     # Empuja los bloques para juntarlos
-    mi_robot.mover_garra(55, velocidad=1000)
+    mi_robot.mover_garra_trasera(55, velocidad=1000)
     mi_robot.avanzar_recto(-10)
     
     # Se posiciona para agarrarlos
-    mi_robot.mover_garra(-30, velocidad=700) 
+    mi_robot.mover_garra_trasera(-30, velocidad=700) 
     mi_robot.avanzar_recto(-11) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_dc(30, potencia=100, empuje_cm=1) # Bloques azules agarrados
+    mi_robot.mover_garra_trasera_dc(30, potencia=100, empuje_cm=1) # Bloques azules agarrados
 
 def dejar_bloques_azules_y_pala():
     """
@@ -209,19 +210,42 @@ def dejar_bloques_azules_y_pala():
     mi_robot.giro_preciso_pd(-30)
     mi_robot.avanzar_recto(60)
 
-    #Giro para salir con la llana
+    # Giro para salir con la llana
     mi_robot.mover_motor_izquierdo(520)
     mi_robot.avanzar_recto(18)
     mi_robot.giro_preciso_pd(-45)
     mi_robot.seguidor_linea_distancia(sensor, 100, 93, lado="izquierda")
 
-    #Acá deja la llana en el inicio
+    # Acá deja la llana en el inicio
     mi_robot.mover_motor_derecho(250)
     mi_robot.avanzar_recto(-20)
     mi_robot.giro_preciso_pd(115)
 
-    #Dejamos los bloques azules en un espacio accesible 
-    mi_robot.mover_garra(-55) 
+    # Dejamos los bloques azules en un espacio accesible 
+    mi_robot.mover_garra_trasera(-55) 
+
+def armar_mosaico(mosaico):
+    if mosaico == 1:
+        mi_robot.llevar_eje_central_al_tope("negativo")
+        mi_robot.seguidor_linea_distancia(sensor, 80, 38)
+        mi_robot.giro_preciso(-90)
+        mi_robot.abrir_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
+        mi_robot.avanzar_recto(16)
+        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
+        mi_robot.avanzar_recto(-21)
+        mi_robot.giro_preciso(-200)
+
+        #Esto no sirve porque el negro lo toma como azul. Quiero trabajar la calibración del sensor para 
+        #que si se pueda, pero de momento se queda con un valor "inestable"
+        #mi_robot.seguidor_linea_color(sensor, 100, Color.BLUE, lado="derecha", distancia_cm=30)
+
+        mi_robot.seguidor_linea_distancia(sensor, 80, 30, lado="izquierda")
+        mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+        mi_robot.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.COAST)
+        mi_robot.mover_en_arco(9, distancia_cm=2, stop=Stop.NONE) 
+        mi_robot.avanzar_recto(11)
+        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=80)
+        mi_robot.abrir_garra_delantera(200)
 
 def ejecutar_y_medir_tiempo():
     """
@@ -258,11 +282,12 @@ def ejecutar_y_medir_tiempo():
     return tiempo_segundos
 
 if __name__ == "__main__":
-    #ejecutar_y_medir_tiempo()
-    cemento_y_llana()
-    bloques_blancos()
-    detectar_mosaico()
-    agarrar_bloques_amarillos()
-    dejar_bloques_amarillos()
-    recoger_bloques_azules()
-    dejar_bloques_azules_y_pala()
+    # ejecutar_y_medir_tiempo()
+    # cemento_y_llana()
+    # bloques_blancos()
+    # mosaico = detectar_mosaico()
+    # agarrar_bloques_amarillos()
+    # dejar_bloques_amarillos()
+    # recoger_bloques_azules()
+    # dejar_bloques_azules_y_pala()
+    armar_mosaico(mosaico = 1)
