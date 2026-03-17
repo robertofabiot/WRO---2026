@@ -227,57 +227,58 @@ def dejar_bloques_azules_y_pala():
 def armar_mosaico(mosaico):
     """
     Empieza: con los bloques azules cerca del inicio, viendo hacia los bloques del mosaico.
-            La pala queda en el inicio.
+             La pala queda en el inicio.
     Termina: n/a
     """
-    match mosaico:
-        case 1: # verde - verde
-            # Mandar la garra central abajo si no lo está
-            mi_robot.llevar_eje_central_al_tope("negativo")
+    if mosaico == 1: # verde - verde
+        # Mandar la garra central abajo si no lo está
+        mi_robot.llevar_eje_central_al_tope("negativo")
 
-            # Acomodo para agarrar dos azules y dos verdes
-            mi_robot.seguidor_linea_distancia(sensor, 80, 38)
-            mi_robot.giro_preciso(-90)
-            mi_robot.abrir_garra_delantera_al_tope(velocidad=1000, limite_potencia=100) # por si no lo está
+        # Acomodo para agarrar dos azules y dos verdes
+        mi_robot.seguidor_linea_distancia(sensor, 80, 38)
+        mi_robot.giro_preciso(-90)
+        mi_robot.abrir_garra_delantera_al_tope(velocidad=1000, limite_potencia=100) # por si no lo está
 
-            # Entrada
-            mi_robot.avanzar_recto(16)
+        # Entrada
+        mi_robot.avanzar_recto(16)
 
-            # Agarrar bloques
-            mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
+        # Agarrar bloques
+        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
 
-            # Acomodo para seguidor
-            mi_robot.avanzar_recto(-21)
-            mi_robot.giro_preciso(-200)
+        # Acomodo para seguidor
+        mi_robot.avanzar_recto(-21)
+        mi_robot.giro_preciso(-200)
 
-            """Esto no sirve porque el negro lo toma como azul. Quiero trabajar la calibración del sensor para 
-            que si se pueda, pero de momento se queda con un valor 'inestable'"""
-            #mi_robot.seguidor_linea_color(sensor, 100, Color.BLUE, lado="derecha", distancia_cm=30)
+        # Esto no sirve porque el negro lo toma como azul. Quiero trabajar la calibración del sensor para 
+        # que si se pueda, pero de momento se queda con un valor 'inestable'
+        # mi_robot.seguidor_linea_color(sensor, 100, Color.BLUE, lado="derecha", distancia_cm=30)
 
-            # Seguidor, de momento con distancia fija
-            mi_robot.seguidor_linea_distancia(sensor, 80, 30, lado="izquierda")
+        # Seguidor, de momento con distancia fija
+        mi_robot.seguidor_linea_distancia(sensor, 80, 30, lado="izquierda")
 
-            # Subida de garra
-            mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+        # Subida de garra
+        mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
 
-            # Acomodo para que queden en su lugar
-            mi_robot.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.COAST)
-            mi_robot.mover_en_arco(9, distancia_cm=2, stop=Stop.NONE) 
-            mi_robot.avanzar_recto(11)
+        # Acomodo para que queden en su lugar
+        mi_robot.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.COAST)
+        mi_robot.mover_en_arco(9, distancia_cm=2, stop=Stop.NONE) 
+        mi_robot.avanzar_recto(11)
 
-            # Soltar
-            mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=80)
-            mi_robot.abrir_garra_delantera(200)
-        case 2: # verde - amarillo
-            pass
-        case 3: # azul
-            pass
-        case 4: # amarillo
-            pass
-        case 5: # blanco
-            pass
-        case _: # si no se detectó se va al 1 por default
-            armar_mosaico(1)
+        # Soltar
+        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=80)
+        mi_robot.abrir_garra_delantera(200)
+
+    elif mosaico == 2: # verde - amarillo
+        pass
+    elif mosaico == 3: # azul
+        pass
+    elif mosaico == 4: # amarillo
+        pass
+    elif mosaico == 5: # blanco
+        pass
+    else: # si no se detectó se va al 1 por default
+        mosaico = 1
+        armar_mosaico(mosaico)
 
 def ejecutar_y_medir_tiempo():
     """
