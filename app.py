@@ -225,27 +225,43 @@ def dejar_bloques_azules_y_pala():
     mi_robot.mover_garra_trasera(-55) 
 
 def armar_mosaico(mosaico):
-    if mosaico == 1:
-        mi_robot.llevar_eje_central_al_tope("negativo")
-        mi_robot.seguidor_linea_distancia(sensor, 80, 38)
-        mi_robot.giro_preciso(-90)
-        mi_robot.abrir_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
-        mi_robot.avanzar_recto(16)
-        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
-        mi_robot.avanzar_recto(-21)
-        mi_robot.giro_preciso(-200)
+    """
+    Empieza: con los bloques azules cerca del inicio, viendo hacia los bloques del mosaico.
+            La pala queda en el inicio.
+    Termina: n/a
+    """
+    match mosaico:
+        case 1:
+            mi_robot.llevar_eje_central_al_tope("negativo")
+            mi_robot.seguidor_linea_distancia(sensor, 80, 38)
+            mi_robot.giro_preciso(-90)
+            mi_robot.abrir_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
+            mi_robot.avanzar_recto(16)
+            mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
+            mi_robot.avanzar_recto(-21)
+            mi_robot.giro_preciso(-200)
 
-        #Esto no sirve porque el negro lo toma como azul. Quiero trabajar la calibración del sensor para 
-        #que si se pueda, pero de momento se queda con un valor "inestable"
-        #mi_robot.seguidor_linea_color(sensor, 100, Color.BLUE, lado="derecha", distancia_cm=30)
+            #Esto no sirve porque el negro lo toma como azul. Quiero trabajar la calibración del sensor para 
+            #que si se pueda, pero de momento se queda con un valor "inestable"
+            #mi_robot.seguidor_linea_color(sensor, 100, Color.BLUE, lado="derecha", distancia_cm=30)
 
-        mi_robot.seguidor_linea_distancia(sensor, 80, 30, lado="izquierda")
-        mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
-        mi_robot.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.COAST)
-        mi_robot.mover_en_arco(9, distancia_cm=2, stop=Stop.NONE) 
-        mi_robot.avanzar_recto(11)
-        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=80)
-        mi_robot.abrir_garra_delantera(200)
+            mi_robot.seguidor_linea_distancia(sensor, 80, 30, lado="izquierda")
+            mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+            mi_robot.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.COAST)
+            mi_robot.mover_en_arco(9, distancia_cm=2, stop=Stop.NONE) 
+            mi_robot.avanzar_recto(11)
+            mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=80)
+            mi_robot.abrir_garra_delantera(200)
+        case 2:
+            pass
+        case 3:
+            pass
+        case 4:
+            pass
+        case 5:
+            pass
+        case _:
+            armar_mosaico(1)
 
 def ejecutar_y_medir_tiempo():
     """
