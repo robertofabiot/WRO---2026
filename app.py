@@ -233,14 +233,15 @@ def armar_mosaico(mosaico):
     if mosaico == 1: # verde - verde
         # Mandar la garra central abajo si no lo está
         mi_robot.llevar_eje_central_al_tope("negativo")
+        mi_robot.abrir_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
 
         # Acomodo para agarrar dos azules y dos verdes
-        mi_robot.seguidor_linea_distancia(sensor, 80, 38)
-        mi_robot.giro_preciso(-90)
-        mi_robot.abrir_garra_delantera_al_tope(velocidad=1000, limite_potencia=100) # por si no lo está
+        mi_robot.seguidor_linea_distancia(sensor, 80, 39)
+        mi_robot.giro_preciso_pd(-90)
 
         # Entrada
-        mi_robot.avanzar_recto(16)
+        mi_robot.avanzar_recto(18)
+        mi_robot.avanzar_recto(-3)
 
         # Agarrar bloques
         mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
@@ -262,11 +263,24 @@ def armar_mosaico(mosaico):
         # Acomodo para que queden en su lugar
         mi_robot.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.COAST)
         mi_robot.mover_en_arco(9, distancia_cm=2, stop=Stop.NONE) 
-        mi_robot.avanzar_recto(11)
+        mi_robot.avanzar_recto(9)
 
         # Soltar
-        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=80)
-        mi_robot.abrir_garra_delantera(200)
+        # 1. Bajar la garra hasta la altura de "jaula" (sin aplastar la impresión 3D)
+        mi_robot.mover_garra_trasera(-150)
+
+        # 2. Abrir la garra delantera ligeramente para dar holgura a los bloques
+        mi_robot.abrir_garra_delantera(grados=50, velocidad=400) 
+
+        # 3. ¡Vibrar!
+        mi_robot.sacudir(iteraciones=3, potencia=60, tiempo_ms=100)
+
+        # 4. Soltar por completo y salir
+        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=80) # Sube la garra/pala completa
+        mi_robot.abrir_garra_delantera_al_tope(velocidad=1000, limite_potencia=100) # Abre brazos
+        mi_robot.sacudir(iteraciones=2, potencia=60, tiempo_ms=100)
+        mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+        mi_robot.avanzar_recto(-15) # Retroceso limpio
 
     elif mosaico == 2: # verde - amarillo
         pass
