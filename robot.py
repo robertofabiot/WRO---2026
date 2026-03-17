@@ -183,6 +183,68 @@ class Robot:
             wait(10)
             
         self.motor_eje_central.hold()
+    
+    def sacudir(self, iteraciones=5, potencia=100, tiempo_ms=60):
+        """
+        Genera una sacudida violenta y simétrica usando voltaje directo (dc).
+        Ideal para vencer la fricción y asentar bloques pesados.
+        
+        :param iteraciones: Cuántas veces va y viene.
+        :param potencia: Fuerza bruta del motor (100 es el máximo voltaje de la batería).
+        :param tiempo_ms: Duración del latigazo en milisegundos (muy corto para no girar el robot).
+        """
+        self.drive_base.stop() # Desactivar el chasis
+        
+        for _ in range(iteraciones):
+            # Latigazo brusco a la derecha (izq adelante, der atrás)
+            self.motor_izquierda.dc(potencia)
+            self.motor_derecha.dc(-potencia)
+            wait(tiempo_ms)
+            
+            # Latigazo brusco a la izquierda (izq atrás, der adelante)
+            self.motor_izquierda.dc(-potencia)
+            self.motor_derecha.dc(potencia)
+            wait(tiempo_ms)
+            
+        # Frenar en seco al terminar para estabilizar
+        self.motor_izquierda.brake()
+        self.motor_derecha.brake()
+        wait(100) # Pequeña pausa para que la inercia del robot se calme
+    
+    def empuje_repetitivo(self, iteraciones=2, potencia=70, tiempo_empuje_ms=500, tiempo_retroceso_ms=400):
+        """
+        Realiza movimientos cortos y fuertes hacia adelante y hacia atrás
+        para empujar bloques al fondo de una zona.
+        
+        Usa dc() (duty cycle) en lugar de control de posición para evitar 
+        errores de estancamiento (stall) si el robot choca contra un borde físico.
+        
+        :param iteraciones: Cuántas veces realiza el ciclo de empuje/retroceso.
+        :param potencia: Fuerza de empuje (0 a 100). 70 es bastante fuerte.
+        :param tiempo_empuje_ms: Cuánto tiempo dura el impacto hacia adelante.
+        :param tiempo_retroceso_ms: Cuánto tiempo retrocede para tomar vuelo.
+        """
+        self.drive_base.stop() # Desactivamos el PID del chasis temporalmente
+        
+        for _ in range(iteraciones):
+            # 1. Empuje fuerte hacia adelante
+            self.motor_izquierda.dc(potencia)
+            self.motor_derecha.dc(potencia)
+            wait(tiempo_empuje_ms)
+            
+            # 2. Retroceso corto para tomar vuelo
+            self.motor_izquierda.dc(-potencia)
+            self.motor_derecha.dc(-potencia)
+            wait(tiempo_retroceso_ms)
+            
+        # 3. Empuje final sostenido (opcional, para asegurar que se queden ahí)
+        self.motor_izquierda.dc(potencia)
+        self.motor_derecha.dc(potencia)
+        wait(400)
+            
+        # Frenar motores al terminar
+        self.motor_izquierda.brake()
+        self.motor_derecha.brake()
     # endregion
 
     # region Giros Complejos y Seguidores (Sin Cambios)
