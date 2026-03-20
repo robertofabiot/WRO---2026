@@ -247,7 +247,7 @@ def armar_mosaico(mosaico):
         mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
 
         # Acomodo para seguidor
-        mi_robot.avanzar_recto(-21)
+        mi_robot.avanzar_recto(-21) 
         mi_robot.giro_preciso(-200)
 
         # Esto no sirve porque el negro lo toma como azul. Quiero trabajar la calibración del sensor para 
@@ -258,16 +258,16 @@ def armar_mosaico(mosaico):
         mi_robot.seguidor_linea_distancia(sensor, 80, 30, lado="izquierda")
 
         # Subida de garra
-        mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+        mi_robot.llevar_eje_central_al_tope("positivo", velocidad=400, limite_potencia=100)
 
         # Acomodo para que queden en su lugar
-        mi_robot.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.COAST)
+        mi_robot.mover_en_arco(-9, distancia_cm=3.6, stop=Stop.COAST)
         mi_robot.mover_en_arco(9, distancia_cm=2, stop=Stop.NONE) 
-        mi_robot.avanzar_recto(9)
+        mi_robot.avanzar_recto(6)
 
         # Soltar
         # 1. Bajar la garra hasta la altura de "jaula" (sin aplastar la impresión 3D)
-        mi_robot.mover_garra_trasera(-150)
+        mi_robot.mover_garra_trasera(-135)
 
         # 2. Abrir la garra delantera ligeramente para dar holgura a los bloques
         mi_robot.abrir_garra_delantera(grados=50, velocidad=400) 
@@ -276,11 +276,50 @@ def armar_mosaico(mosaico):
         mi_robot.sacudir(iteraciones=3, potencia=60, tiempo_ms=100)
 
         # 4. Soltar por completo y salir
-        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=80) # Sube la garra/pala completa
-        mi_robot.abrir_garra_delantera_al_tope(velocidad=1000, limite_potencia=100) # Abre brazos
-        mi_robot.sacudir(iteraciones=2, potencia=60, tiempo_ms=100)
+        mi_robot.abrir_garra_delantera_al_tope(velocidad=1200, limite_potencia=100) # Abre brazos
+        mi_robot.sacudir(iteraciones=2, potencia=60, tiempo_ms=100)      
+
+
+
+
+        # Acomodo para buscar los otros
+        mi_robot.avanzar_recto(-25) # Retroceso limpio
+        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+        mi_robot.giro_preciso(163)
+        mi_robot.avanzar_recto(30)
+        mi_robot.mover_motor_izquierdo(100)
+
+        #Entrar
+        mi_robot.avanzar_recto(12)
+        mi_robot.giro_preciso_pd(90, kp=2.5)
+        #Agarrar
+        mi_robot.cerrar_garra_delantera_al_tope()
+
+        #Buscar seguidor
+        mi_robot.avanzar_recto(-10)
+        mi_robot.giro_preciso(50)
+        mi_robot.avanzar_recto(30) #ANTES ERA 28 
+        mi_robot.mover_motor_izquierdo(320)
+
+        mi_robot.seguidor_linea_distancia(sensor, 80, 20)
+
         mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
-        mi_robot.avanzar_recto(-15) # Retroceso limpio
+        mi_robot.mover_en_arco(9, distancia_cm=3.8, stop=Stop.COAST)
+        mi_robot.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.NONE) 
+        mi_robot.avanzar_recto(6)
+        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+        mi_robot.mover_eje_central(35)
+# 2. Abrir la garra delantera ligeramente para dar holgura a los bloques
+        mi_robot.abrir_garra_delantera(grados=50, velocidad=400) 
+        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+        # 3. ¡Vibrar!
+        mi_robot.sacudir(iteraciones=3, potencia=60, tiempo_ms=100)
+
+        # 4. Soltar por completo y salir
+        mi_robot.abrir_garra_delantera_al_tope(velocidad=1200, limite_potencia=100) # Abre brazos
+        mi_robot.sacudir(iteraciones=2, potencia=60, tiempo_ms=100) 
+
+        
 
     elif mosaico == 2: # verde - amarillo
         pass
@@ -342,4 +381,4 @@ if __name__ == "__main__":
 
     """Cuando se vayan a hacer las pruebas completas, quitar el '= 1' y usar la variable 
     mosaico almacenada después de la función 'detectar_mosaico'"""
-    armar_mosaico(mosaico = 1) 
+    armar_mosaico(mosaico = 1)
