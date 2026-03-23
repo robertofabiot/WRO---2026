@@ -20,12 +20,12 @@ def cemento_y_llana():
     mi_robot.mover_en_arco(radio_cm=12, distancia_cm=19, stop=Stop.COAST_SMART)
 
     # Seguidor de línea hasta cemento
-    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=68, tiempo_acomodo_ms=100)
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=68, tiempo_acomodo_ms=0)
 
     # Acomodarse para cemento
     mi_robot.giro_preciso_pd(-90)
     mi_robot.mover_garra_trasera(53, velocidad=1200, wait_after=False) 
-    mi_robot.avanzar_recto(-12, frenado=Stop.HOLD)
+    mi_robot.avanzar_recto(-12, frenado=Stop.COAST)
     mi_robot.mover_garra_trasera_segura(49, velocidad=2500, empuje_cm=2) # Cemento agarrado
 
     # Empujar el otro
@@ -35,8 +35,8 @@ def cemento_y_llana():
 
     # Se acomoda para el siguiente seguidor de línea (Ambos arcos fluyen juntos)
     
-    mi_robot.mover_en_arco(-25, distancia_cm=10, stop=Stop.COAST)
-    mi_robot.mover_en_arco(13, distancia_cm=6, stop=Stop.NONE)   
+    mi_robot.mover_en_arco(-25, distancia_cm=9, stop=Stop.COAST)
+    mi_robot.mover_en_arco(30, distancia_cm=13, stop=Stop.NONE)
 
     # Seguidor de línea para dejar cemento
     mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=59, tiempo_acomodo_ms=200)
@@ -51,7 +51,7 @@ def bloques_blancos():
     Termina: en el área de los bloques blancos, en posición de 45 grados viendo hacia afuera
     """
     # Sale del área de cemento para ir hacia los bloques blancos
-    mi_robot.mover_en_arco(-17, distancia_cm=28, stop=Stop.BRAKE)
+    mi_robot.mover_en_arco(-17, distancia_cm=25, stop=Stop.BRAKE)
 
     # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
     mi_robot.seguidor_linea_distancia(sensor, 90, 12)
@@ -85,7 +85,7 @@ def bloques_blancos():
     mi_robot.avanzar_recto(-0.5)
 
     # Dejar los bloques
-    mi_robot.giro_eje_puro(217, kp=5 ,kd=10, min_speed=200)
+    mi_robot.giro_eje_puro(218, kp=5 ,kd=10, min_speed=200)
     mi_robot.avanzar_recto(-22)
     mi_robot.mover_garra_trasera(-60)
 
