@@ -172,27 +172,22 @@ def recoger_bloques_azules():
     mi_robot.seguidor_linea_distancia(sensor, 100, 50)
 
     # Buscar el siguiente seguidor
-    mi_robot.giro_preciso_pd(-60)
-    mi_robot.avanzar_recto(12)
+    mi_robot.giro_preciso_pd(-50)
+    mi_robot.avanzar_recto(13)
 
-    mi_robot.mover_motor_izquierdo(330)
+    mi_robot.mover_motor_izquierdo(110)
     # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
-    mi_robot.seguidor_linea_distancia(sensor, 90, 6, lado="izquierda")
+    mi_robot.seguidor_linea_color(sensor, 100, Color.BLUE, distancia_cm=26)
 
-    # Acomodo para agarrar bloques azules
-    mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 50, 11, tiempo_acomodo_ms=800) 
-
-    # Empuja los bloques para juntarlos
-    mi_robot.mover_garra_trasera(55, velocidad=1000)
-    mi_robot.avanzar_recto(-13)
-    
-    # Se posiciona para agarrarlos
-    mi_robot.mover_garra_trasera(-30, velocidad=700) 
-    mi_robot.avanzar_recto(-11) 
+    # Acomodo para agarrar bloques amarillos
+    mi_robot.avanzar_recto(-10)
+    mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+    mi_robot.giro_preciso(-175)
+    mi_robot.mover_motor_derecho(30)
+    mi_robot.avanzar_recto(-18) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_trasera_dc(30, potencia=100, empuje_cm=1) # Bloques azules agarrados
+    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
 
 def dejar_bloques_azules_y_pala():
     """
