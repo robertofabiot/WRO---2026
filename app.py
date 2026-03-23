@@ -124,22 +124,17 @@ def agarrar_bloques_amarillos():
     mi_robot.giro_preciso_pd(45)
 
     # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
-    mi_robot.seguidor_linea_distancia(sensor, 90, 10)
+    mi_robot.seguidor_linea_color(sensor, 100, Color.YELLOW, distancia_cm=26)
 
-    # Acomodo para agarrar bloques amarillos 
-    mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 50, 12, lado="izquierda", tiempo_acomodo_ms=800, kp=0.45, kd=1.8, k_freno=0.8) 
-
-    # Empuja los bloques para juntarlos
-    mi_robot.mover_garra_trasera(55, velocidad=1000)
-    mi_robot.avanzar_recto(-14)
-    
-    # Se posiciona para agarrarlos
-    mi_robot.mover_garra_trasera(-22, velocidad=700) 
-    mi_robot.avanzar_recto(-11) 
+    # Acomodo para agarrar bloques amarillos
+    mi_robot.avanzar_recto(-10)
+    mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+    mi_robot.giro_preciso(-175)
+    mi_robot.mover_motor_derecho(30)
+    mi_robot.avanzar_recto(-18) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_trasera_dc(30, potencia=100, empuje_cm=1) # Bloques amarillos agarrados
+    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
 
 
 def dejar_bloques_amarillos():
