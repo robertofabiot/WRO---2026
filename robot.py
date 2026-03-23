@@ -43,10 +43,45 @@ class Robot:
     def avanzar_hasta_color(self, sensor_color, color_objetivo, velocidad=300):
         self.drive_base.drive(velocidad, 0)
         while True:
-            if sensor_color.color() == color_objetivo:
+            if self.detectar_color_preciso(sensor_color) == color_objetivo:
                 break
             wait(1)
         self.drive_base.stop()
+
+    def detectar_color_preciso(self, sensor):
+        """
+        Clasifica el color basándose en datos crudos HSV, 
+        devolviendo el objeto Color nativo de Pybricks más cercano.
+        """
+        color_hsv = sensor.hsv()
+        h = color_hsv.h
+        s = color_hsv.s
+        v = color_hsv.v
+        
+        # 1. Filtro de colores en Escala de Grises (Negro y Blanco)
+        # Tu saturación para grises era ~20, y para colores vivos > 56. 
+        # 35 es una frontera perfecta.
+        if s < 35:
+            # Tu negro tenía un Valor de ~25, tu blanco de ~97.
+            # El punto medio matemático es ~61.
+            if v > 60:
+                return Color.WHITE
+            else:
+                return Color.BLACK
+                
+        # 2. Filtro de Colores Vivos (Azul, Verde, Amarillo)
+        else:
+            # Buscamos la frontera (punto medio) entre los Tonos (Hue) de tus colores:
+            # Amarillo (~41) y Verde (~152) -> Frontera: 95
+            # Verde (~152) y Azul (~220) -> Frontera: 185
+            # Azul (~220) y cruce a Amarillo (360 -> 41) -> Frontera: ~310
+            
+            if h < 95 or h > 310:
+                return Color.YELLOW
+            elif h < 185:
+                return Color.GREEN
+            else:
+                return Color.BLUE
 
     def girar_sobre_eje(self, grados):
         self.drive_base.turn(grados)
@@ -359,30 +394,46 @@ class Robot:
         self.motor_derecha.stop()
         cronometro.pause()
 
-    def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo, lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None):
+    def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo, lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None, lecturas_confirmacion=3):
         cronometro = StopWatch()
         velocidad_minima = 25
         velocidad_enfoque = 50 
         tiempo_aceleracion_ms = 0 
+        
         if distancia_cm is None:
             velocidad_max = min(velocidad_max, 70) 
+            
         kp = 0.85  
         kd = 2.5   
         k_freno = 0.6 
         last_error = 0
         objetivo_reflexion = 35
         multiplicador_lado = 1 if lado == "derecha" else -1
+        
+        # --- NUEVA VARIABLE: Contador para el filtro anti-rebote ---
+        contador_color = 0 
+        
         if distancia_cm is not None:
             diametro_rueda = 5.6
             circunferencia = 3.1416 * diametro_rueda
             grados_objetivo = (distancia_cm / circunferencia) * 360
             self.motor_izquierda.reset_angle(0)
             self.motor_derecha.reset_angle(0)
+            
         cronometro.reset()
         cronometro.resume()
+        
         while True:
-            if sensor_color.color() == color_objetivo:
-                break
+            # =======================================================
+            # LÓGICA ANTI-REBOTE (DEBOUNCING)
+            # =======================================================
+            if self.detectar_color_preciso(sensor_color) == color_objetivo:
+                contador_color += 1
+                if contador_color >= lecturas_confirmacion:
+                    break # Solo se detiene si alcanza las lecturas requeridas
+            else:
+                contador_color = 0 # Si lee otra cosa, la cuenta se reinicia a 0
+                
             tiempo_actual = cronometro.time()
             if tiempo_actual < tiempo_acomodo_ms:
                 vel_aceleracion = velocidad_minima
@@ -392,6 +443,7 @@ class Robot:
                 vel_aceleracion = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
             else:
                 vel_aceleracion = velocidad_max
+                
             if distancia_cm is not None:
                 grados_actuales = (abs(self.motor_izquierda.angle()) + abs(self.motor_derecha.angle())) / 2
                 progreso_distancia = grados_actuales / grados_objetivo
@@ -401,6 +453,7 @@ class Robot:
                 velocidad_actual = min(vel_aceleracion, vel_desaceleracion)
             else:
                 velocidad_actual = vel_aceleracion
+                
             current_reflection = sensor_color.reflection()
             error = current_reflection - objetivo_reflexion
             derivative = error - last_error
@@ -411,10 +464,12 @@ class Robot:
             potencia_der = velocidad_base + correction
             potencia_izq = max(-100, min(100, potencia_izq))
             potencia_der = max(-100, min(100, potencia_der))
+            
             self.motor_izquierda.dc(potencia_izq)
             self.motor_derecha.dc(potencia_der)
             last_error = error
             wait(1)
+            
         self.motor_izquierda.stop()
         self.motor_derecha.stop()
         cronometro.pause()
@@ -578,11 +633,11 @@ class Robot:
         
             last_error = error
             wait(1)
-            
+
         # --- 3. Freno Seco ---
         self.motor_izquierda.hold()
         self.motor_derecha.hold()
-    
+
     def identificar_combinacion(self, sensor, distancia_si_verde):
         color_principal = sensor.color()
         if color_principal not in mosaicos:
