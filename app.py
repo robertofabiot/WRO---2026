@@ -199,10 +199,15 @@ def dejar_bloques_azules_y_pala():
     mi_robot.avanzar_recto(60)
 
     # Giro para salir con la llana
-    mi_robot.mover_motor_izquierdo(520)
-    mi_robot.avanzar_recto(18)
-    mi_robot.giro_preciso_pd(-45)
-    mi_robot.seguidor_linea_distancia(sensor, 100, 93, lado="izquierda")
+    mi_robot.mover_motor_izquierdo(200)
+    mi_robot.abrir_garra_delantera_al_tope(limite_potencia=100)
+    mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+    mi_robot.cerrar_garra_delantera_al_tope(limite_potencia=100)
+    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+    mi_robot.mover_motor_izquierdo(60)
+    mi_robot.avanzar_recto(46)
+    mi_robot.abrir_garra_delantera_al_tope(limite_potencia=100)
+    mi_robot.seguidor_linea_distancia(sensor, 80, 65, lado="izquierda")
 
     # Acá deja la llana en el inicio
     mi_robot.mover_motor_derecho(250)
@@ -296,7 +301,7 @@ def armar_mosaico(mosaico):
         mi_robot.avanzar_recto(14)
         mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
         mi_robot.mover_eje_central(90)
-# 2. Abrir la garra delantera ligeramente para dar holgura a los bloques
+    # 2. Abrir la garra delantera ligeramente para dar holgura a los bloques
         mi_robot.abrir_garra_delantera(grados=50, velocidad=400) 
         mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
         # 3. ¡Vibrar!
@@ -362,12 +367,12 @@ def ejecutar_y_medir_tiempo():
 if __name__ == "__main__":
     # ejecutar_y_medir_tiempo()
 
-    cemento_y_llana()
-    bloques_blancos()
-    mosaico = detectar_mosaico()
-    agarrar_bloques_amarillos()
-    dejar_bloques_amarillos()
-    recoger_bloques_azules()
+    # cemento_y_llana()
+    # bloques_blancos()
+    # mosaico = detectar_mosaico()
+    # agarrar_bloques_amarillos()
+    # dejar_bloques_amarillos()
+    # recoger_bloques_azules()
     dejar_bloques_azules_y_pala()
 
     """Cuando se vayan a hacer las pruebas completas, quitar el '= 1' y usar la variable 
