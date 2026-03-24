@@ -28,13 +28,12 @@ def cemento_y_llana():
     mi_robot.avanzar_recto(-12, frenado=Stop.COAST)
     mi_robot.mover_garra_trasera_segura(49, velocidad=2500, empuje_cm=2) # Cemento agarrado
 
-    # Empujar el otro
+    # Empujar la llana
     mi_robot.avanzar_recto(9, frenado=Stop.BRAKE)
     mi_robot.mover_motor_derecho(-540, velocidad=1000) 
     mi_robot.avanzar_recto(-18, frenado=Stop.NONE) # Llana dejada
 
     # Se acomoda para el siguiente seguidor de línea (Ambos arcos fluyen juntos)
-    
     mi_robot.mover_en_arco(-25, distancia_cm=9, stop=Stop.COAST)
     mi_robot.mover_en_arco(30, distancia_cm=13, stop=Stop.NONE)
 
@@ -53,7 +52,7 @@ def bloques_blancos():
     # Sale del área de cemento para ir hacia los bloques blancos
     mi_robot.mover_en_arco(-15, distancia_cm=22.5, stop=Stop.BRAKE)
 
-    # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
+    # Seguidor hasta el cuadro blanco
     mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
     mi_robot.seguir_hasta_interseccion(sensor, sensor_trasero, 50)
 
@@ -123,7 +122,7 @@ def agarrar_bloques_amarillos():
     mi_robot.avanzar_recto(25)
     mi_robot.giro_preciso_pd(45)
 
-    # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
+    # Seguir hasta el cuadro amarillo
     mi_robot.seguidor_linea_color(sensor, 100, Color.YELLOW, distancia_cm=26)
 
     # Acomodo para agarrar bloques amarillos
@@ -135,7 +134,6 @@ def agarrar_bloques_amarillos():
 
     # Agarrar bloques
     mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
-
 
 def dejar_bloques_amarillos():
     """
@@ -174,12 +172,12 @@ def recoger_bloques_azules():
     # Buscar el siguiente seguidor
     mi_robot.giro_preciso_pd(-40)
     mi_robot.avanzar_recto(13)
-
     mi_robot.mover_motor_izquierdo(110)
-    # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
+
+    # Seguidor hasta el cuadro azul
     mi_robot.seguidor_linea_color(sensor, 100, Color.BLUE, distancia_cm=26)
 
-    # Acomodo para agarrar bloques amarillos
+    # Acomodo para agarrar bloques azules
     mi_robot.avanzar_recto(-10)
     mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
     mi_robot.giro_preciso(-175)
@@ -199,7 +197,7 @@ def dejar_bloques_azules_y_pala():
     mi_robot.giro_preciso_pd(-35)
     mi_robot.avanzar_recto(52)
 
-    # Giro para salir con la llana
+    # Giro para salir con la pala
     mi_robot.mover_motor_izquierdo(210)
     mi_robot.avanzar_recto(-10)
     mi_robot.giro_preciso(-180)
@@ -209,7 +207,7 @@ def dejar_bloques_azules_y_pala():
     mi_robot.mover_motor_izquierdo(-60)
     mi_robot.avanzar_recto(-80)
 
-    # Acá deja la llana en el inicio
+    # Acá deja la pala en el inicio
     mi_robot.mover_motor_derecho(250)
     mi_robot.avanzar_recto(-20)
     mi_robot.giro_preciso_pd(115)
@@ -272,9 +270,6 @@ def armar_mosaico(mosaico):
         mi_robot.abrir_garra_delantera_al_tope(velocidad=1200, limite_potencia=100) # Abre brazos
         mi_robot.sacudir(iteraciones=2, potencia=60, tiempo_ms=100)      
 
-
-
-
         # Acomodo para buscar los otros
         mi_robot.avanzar_recto(-30) # Retroceso limpio
         mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
@@ -312,10 +307,6 @@ def armar_mosaico(mosaico):
 
         mi_robot.llevar_eje_central_al_tope(direccion="positivo", limite_potencia=100)
         mi_robot.avanzar_recto(-30) # Retroceso limpio
-
-        
-
-        
 
     elif mosaico == 2: # verde - amarillo
         pass
