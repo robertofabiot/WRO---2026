@@ -20,23 +20,22 @@ def cemento_y_llana():
     mi_robot.mover_en_arco(radio_cm=12, distancia_cm=19, stop=Stop.COAST_SMART)
 
     # Seguidor de línea hasta cemento
-    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=68, tiempo_acomodo_ms=100)
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=72, tiempo_acomodo_ms=0)
 
     # Acomodarse para cemento
     mi_robot.giro_preciso_pd(-90)
     mi_robot.mover_garra_trasera(53, velocidad=1200, wait_after=False) 
-    mi_robot.avanzar_recto(-12, frenado=Stop.HOLD)
+    mi_robot.avanzar_recto(-12, frenado=Stop.COAST)
     mi_robot.mover_garra_trasera_segura(49, velocidad=2500, empuje_cm=2) # Cemento agarrado
 
-    # Empujar el otro
+    # Empujar la llana
     mi_robot.avanzar_recto(9, frenado=Stop.BRAKE)
     mi_robot.mover_motor_derecho(-540, velocidad=1000) 
-    mi_robot.avanzar_recto(-15, frenado=Stop.NONE) # Llana dejada
+    mi_robot.avanzar_recto(-18, frenado=Stop.NONE) # Llana dejada
 
     # Se acomoda para el siguiente seguidor de línea (Ambos arcos fluyen juntos)
-    
-    mi_robot.mover_en_arco(-25, distancia_cm=10, stop=Stop.COAST)
-    mi_robot.mover_en_arco(13, distancia_cm=6, stop=Stop.NONE)   
+    mi_robot.mover_en_arco(-25, distancia_cm=9, stop=Stop.COAST)
+    mi_robot.mover_en_arco(30, distancia_cm=13, stop=Stop.NONE)
 
     # Seguidor de línea para dejar cemento
     mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=59, tiempo_acomodo_ms=200)
@@ -51,25 +50,21 @@ def bloques_blancos():
     Termina: en el área de los bloques blancos, en posición de 45 grados viendo hacia afuera
     """
     # Sale del área de cemento para ir hacia los bloques blancos
-    mi_robot.mover_en_arco(-17, distancia_cm=28, stop=Stop.BRAKE)
+    mi_robot.mover_en_arco(-15, distancia_cm=22.5, stop=Stop.BRAKE)
 
-    # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
-    mi_robot.seguidor_linea_distancia(sensor, 90, 12)
+    # Seguidor hasta el cuadro blanco
+    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+    mi_robot.seguir_hasta_interseccion(sensor, sensor_trasero, 50)
 
     # Acomodo para agarrar bloques blancos 
-    mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 50, 11, lado="izquierda", tiempo_acomodo_ms=800) 
-
-    # Empuja los bloques para juntarlos
-    mi_robot.mover_garra_trasera(55, velocidad=1000)
     mi_robot.avanzar_recto(-10)
-    
-    # Se posiciona para agarrarlos
-    mi_robot.mover_garra_trasera(-30, velocidad=700) 
-    mi_robot.avanzar_recto(-13) 
+    mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+    mi_robot.giro_preciso(-175)
+    mi_robot.mover_motor_derecho(30)
+    mi_robot.avanzar_recto(-18) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_trasera_dc(30, potencia=100, empuje_cm=1) # Bloques blancos agarrados
+    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
 
     # Va en diagonal hacia la otra línea
     mi_robot.giro_preciso_pd(60)
@@ -79,13 +74,13 @@ def bloques_blancos():
     mi_robot.giro_preciso_pd(-45)
 
     # Seguidor hasta detectar el color verde
-    mi_robot.seguidor_linea_color(sensor, 100, Color.GREEN, lado="derecha", distancia_cm=30)
+    mi_robot.seguidor_linea_color(sensor, 100, Color.GREEN, lado="derecha", distancia_cm=38)
 
     # Retrocede para no pegar en el mosaico
     mi_robot.avanzar_recto(-0.5)
 
     # Dejar los bloques
-    mi_robot.giro_eje_puro(217, kp=5 ,kd=10, min_speed=200)
+    mi_robot.giro_eje_puro(218, kp=5 ,kd=10, min_speed=200)
     mi_robot.avanzar_recto(-22)
     mi_robot.mover_garra_trasera(-60)
 
@@ -127,24 +122,18 @@ def agarrar_bloques_amarillos():
     mi_robot.avanzar_recto(25)
     mi_robot.giro_preciso_pd(45)
 
-    # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
-    mi_robot.seguidor_linea_distancia(sensor, 90, 10)
+    # Seguir hasta el cuadro amarillo
+    mi_robot.seguidor_linea_color(sensor, 100, Color.YELLOW, distancia_cm=26)
 
-    # Acomodo para agarrar bloques amarillos 
-    mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 50, 12, lado="izquierda", tiempo_acomodo_ms=800, kp=0.45, kd=1.8, k_freno=0.8) 
-
-    # Empuja los bloques para juntarlos
-    mi_robot.mover_garra_trasera(55, velocidad=1000)
-    mi_robot.avanzar_recto(-14)
-    
-    # Se posiciona para agarrarlos
-    mi_robot.mover_garra_trasera(-22, velocidad=700) 
-    mi_robot.avanzar_recto(-11) 
+    # Acomodo para agarrar bloques amarillos
+    mi_robot.avanzar_recto(-10)
+    mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+    mi_robot.giro_preciso(-175)
+    mi_robot.mover_motor_derecho(30)
+    mi_robot.avanzar_recto(-18) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_trasera_dc(30, potencia=100, empuje_cm=1) # Bloques amarillos agarrados
-
+    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
 
 def dejar_bloques_amarillos():
     """
@@ -181,27 +170,22 @@ def recoger_bloques_azules():
     mi_robot.seguidor_linea_distancia(sensor, 100, 50)
 
     # Buscar el siguiente seguidor
-    mi_robot.giro_preciso_pd(-60)
-    mi_robot.avanzar_recto(12)
+    mi_robot.giro_preciso_pd(-40)
+    mi_robot.avanzar_recto(13)
+    mi_robot.mover_motor_izquierdo(110)
 
-    mi_robot.mover_motor_izquierdo(330)
-    # Hace seguidor para acomodarse un poco y dar distancia para el siguiente que es el del acomodo
-    mi_robot.seguidor_linea_distancia(sensor, 90, 6, lado="izquierda")
+    # Seguidor hasta el cuadro azul
+    mi_robot.seguidor_linea_color(sensor, 100, Color.BLUE, distancia_cm=26)
 
     # Acomodo para agarrar bloques azules
-    mi_robot.giro_preciso_pd(-180)
-    mi_robot.seguidor_linea_distancia(sensor, 50, 11, tiempo_acomodo_ms=800) 
-
-    # Empuja los bloques para juntarlos
-    mi_robot.mover_garra_trasera(55, velocidad=1000)
-    mi_robot.avanzar_recto(-13)
-    
-    # Se posiciona para agarrarlos
-    mi_robot.mover_garra_trasera(-30, velocidad=700) 
-    mi_robot.avanzar_recto(-11) 
+    mi_robot.avanzar_recto(-10)
+    mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+    mi_robot.giro_preciso(-175)
+    mi_robot.mover_motor_derecho(30)
+    mi_robot.avanzar_recto(-18) 
 
     # Agarrar bloques
-    mi_robot.mover_garra_trasera_dc(30, potencia=100, empuje_cm=1) # Bloques azules agarrados
+    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
 
 def dejar_bloques_azules_y_pala():
     """
@@ -209,16 +193,21 @@ def dejar_bloques_azules_y_pala():
     Termina: con los bloques azules cerca del inicio, viendo hacia los bloques del mosaico.
             La pala queda en el inicio.
     """
-    mi_robot.giro_preciso_pd(-30)
-    mi_robot.avanzar_recto(60)
+    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+    mi_robot.giro_preciso_pd(-35)
+    mi_robot.avanzar_recto(52)
 
-    # Giro para salir con la llana
-    mi_robot.mover_motor_izquierdo(520)
-    mi_robot.avanzar_recto(18)
-    mi_robot.giro_preciso_pd(-45)
-    mi_robot.seguidor_linea_distancia(sensor, 100, 93, lado="izquierda")
+    # Giro para salir con la pala
+    mi_robot.mover_motor_izquierdo(210)
+    mi_robot.avanzar_recto(-10)
+    mi_robot.giro_preciso(-180)
+    mi_robot.avanzar_recto(-10)
+    mi_robot.mover_motor_derecho(-60)
+    mi_robot.avanzar_recto(-46)
+    mi_robot.mover_motor_izquierdo(-60)
+    mi_robot.avanzar_recto(-80)
 
-    # Acá deja la llana en el inicio
+    # Acá deja la pala en el inicio
     mi_robot.mover_motor_derecho(250)
     mi_robot.avanzar_recto(-20)
     mi_robot.giro_preciso_pd(115)
@@ -281,9 +270,6 @@ def armar_mosaico(mosaico):
         mi_robot.abrir_garra_delantera_al_tope(velocidad=1200, limite_potencia=100) # Abre brazos
         mi_robot.sacudir(iteraciones=2, potencia=60, tiempo_ms=100)      
 
-
-
-
         # Acomodo para buscar los otros
         mi_robot.avanzar_recto(-30) # Retroceso limpio
         mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
@@ -310,7 +296,7 @@ def armar_mosaico(mosaico):
         mi_robot.avanzar_recto(14)
         mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
         mi_robot.mover_eje_central(90)
-# 2. Abrir la garra delantera ligeramente para dar holgura a los bloques
+    # 2. Abrir la garra delantera ligeramente para dar holgura a los bloques
         mi_robot.abrir_garra_delantera(grados=50, velocidad=400) 
         mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
         # 3. ¡Vibrar!
@@ -321,10 +307,6 @@ def armar_mosaico(mosaico):
 
         mi_robot.llevar_eje_central_al_tope(direccion="positivo", limite_potencia=100)
         mi_robot.avanzar_recto(-30) # Retroceso limpio
-
-        
-
-        
 
     elif mosaico == 2: # verde - amarillo
         pass
