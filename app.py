@@ -280,10 +280,19 @@ def armar_mosaico(mosaico):
 
         #Entrar
         mi_robot.avanzar_recto(12)
-        mi_robot.giro_preciso_pd(90, kp=2.5)
+        # mi_robot.giro_preciso_pd(90, kp=2.5)
+        mi_robot.avanzar_recto(10, velocidad=1000)
+        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
+        mi_robot.avanzar_recto(-5)
+        mi_robot.abrir_garra_delantera(170, velocidad=1000)
+        mi_robot.avanzar_recto(10, velocidad=1000)
+        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
+        mi_robot.avanzar_recto(-25)
+        mi_robot.abrir_garra_delantera(100, velocidad=1000, margen_grados=20)
+        mi_robot.avanzar_recto(7)
+        mi_robot.avanzar_recto(-3.5)
+        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
         #Agarrar
-        mi_robot.cerrar_garra_delantera_al_tope()
-
         #Buscar seguidor
         mi_robot.giro_preciso(80)
         mi_robot.avanzar_recto(32) #ANTES ERA 28 
