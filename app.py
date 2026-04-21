@@ -2,6 +2,7 @@ from pybricks.parameters import Port, Color, Stop
 from pybricks.pupdevices import ColorSensor
 from pybricks.tools import StopWatch, wait
 from robot import Robot
+from mosaicos import ArmadorMosaicos
 
 # Variables globales
 mosaicos = {Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2}, Color.BLUE: 3, Color.YELLOW: 4, Color.WHITE: 5}
@@ -10,6 +11,8 @@ mosaicos = {Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2}, Color.BLUE: 3, Color
 mi_robot = Robot(port_izq=Port.A, port_der=Port.B, port_eje_central=Port.C, port_garra_delantera=Port.F)
 sensor = ColorSensor(Port.D)
 sensor_trasero = ColorSensor(Port.E)
+
+armador = ArmadorMosaicos(mi_robot, sensor)
 
 def cemento_y_llana():
     """
@@ -204,131 +207,11 @@ def dejar_bloques_azules_y_pala():
     mi_robot.avanzar_recto(-80)
 
     # Acá deja la pala en el inicio
-    
     mi_robot.avanzar_recto(20, velocidad=1000)
     mi_robot.giro_preciso_pd(-90)
 
     # Dejamos los bloques azules en un espacio accesible 
     mi_robot.mover_garra_trasera(-55) 
-
-def armar_mosaico(mosaico):
-    """
-    Empieza: con los bloques azules cerca del inicio, viendo hacia los bloques del mosaico.
-             La pala queda en el inicio.
-    Termina: n/a
-    """
-    if mosaico == 1: # verde - verde
-        # Mandar la garra central abajo si no lo está
-        mi_robot.llevar_eje_central_al_tope("negativo")
-        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
-
-        # Acomodo para agarrar dos azules y dos verdes
-        mi_robot.seguidor_linea_distancia_desacelerado(sensor, 100, 51, margen_cm=5, tiempo_acomodo_ms=500)
-        mi_robot.giro_preciso(-87)
-        
-
-        # Entrada
-        mi_robot.abrir_garra_delantera(170, velocidad=1000)
-        mi_robot.avanzar_recto(10, velocidad=1000)
-        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
-        mi_robot.avanzar_recto(-5)
-        mi_robot.abrir_garra_delantera(170, velocidad=1000)
-        mi_robot.avanzar_recto(10, velocidad=1000)
-        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
-        mi_robot.avanzar_recto(-25)
-        mi_robot.abrir_garra_delantera(100, velocidad=1000, margen_grados=20)
-        mi_robot.avanzar_recto(7)
-        mi_robot.avanzar_recto(-3.5)
-        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
-    
-        mi_robot.girar_sobre_eje(200, margen_grados=20)
-        mi_robot.mover_motor_izquierdo(180, velocidad=1000, margen_grados=10)
-        mi_robot.avanzar_recto(3, velocidad=1000, frenado=Stop.NONE)
-        mi_robot.mover_motor_derecho(250, velocidad=1000, margen_grados=10)
-
-        mi_robot.seguidor_linea_color(sensor, 100, Color.BLUE, lado="izquierda", distancia_cm=20)
-
-        # Subida de garra
-        mi_robot.llevar_eje_central_al_tope("positivo", velocidad=400, limite_potencia=100)
-
-        # Acomodo para que queden en su lugar
-        mi_robot.mover_en_arco(-9, distancia_cm=3.6, stop=Stop.COAST)
-        mi_robot.mover_en_arco(9.5, distancia_cm=2, stop=Stop.NONE) 
-        mi_robot.avanzar_recto(7)
-        mi_robot.mover_motor_izquierdo(30)
-
-        # Soltar
-        # 1. Bajar la garra hasta la altura de "jaula" (sin aplastar la impresión 3D)
-        mi_robot.mover_garra_trasera(-110)
-
-        # 2. Abrir la garra delantera ligeramente para dar holgura a los bloques
-        mi_robot.abrir_garra_delantera(grados=50, velocidad=400) 
-
-        # 3. ¡Vibrar!
-        mi_robot.sacudir(iteraciones=3, potencia=60, tiempo_ms=100)
-
-        # 4. Soltar por completo y salir
-        mi_robot.abrir_garra_delantera_al_tope(velocidad=1200, limite_potencia=100) # Abre brazos
-        mi_robot.sacudir(iteraciones=2, potencia=60, tiempo_ms=100)      
-
-        # Acomodo para buscar los otros
-        mi_robot.avanzar_recto(-30) # Retroceso limpio
-        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
-        mi_robot.giro_preciso(155)
-        mi_robot.avanzar_recto(28)
-        mi_robot.mover_motor_izquierdo(120)
-
-        #Entrar
-        mi_robot.avanzar_recto(12)
-        # mi_robot.giro_preciso_pd(90, kp=2.5)
-        mi_robot.avanzar_recto(10, velocidad=1000)
-        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
-        mi_robot.avanzar_recto(-5)
-        mi_robot.abrir_garra_delantera(170, velocidad=1000)
-        mi_robot.avanzar_recto(10, velocidad=1000)
-        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
-        mi_robot.avanzar_recto(-25)
-        mi_robot.abrir_garra_delantera(100, velocidad=1000, margen_grados=20)
-        mi_robot.avanzar_recto(7)
-        mi_robot.avanzar_recto(-3.5)
-        mi_robot.cerrar_garra_delantera_al_tope(velocidad=1000, limite_potencia=100)
-        #Agarrar
-        #Buscar seguidor
-        mi_robot.giro_preciso(80)
-        mi_robot.avanzar_recto(32) #ANTES ERA 28 
-        mi_robot.mover_motor_izquierdo(150)
-
-        mi_robot.seguidor_linea_distancia(sensor, 80, 20)
-
-        mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
-        mi_robot.mover_en_arco(9, distancia_cm=3.8, stop=Stop.COAST)
-        mi_robot.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.BRAKE) 
-        mi_robot.avanzar_recto(14)
-        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
-        mi_robot.mover_eje_central(90)
-    # 2. Abrir la garra delantera ligeramente para dar holgura a los bloques
-        mi_robot.abrir_garra_delantera(grados=50, velocidad=400) 
-        mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
-        # 3. ¡Vibrar!
-        mi_robot.sacudir(iteraciones=4, potencia=60, tiempo_ms=100)
-
-        # 4. Soltar por completo y salir
-        # mi_robot.abrir_garra_delantera_al_tope(velocidad=1200, limite_potencia=100) # Abre brazos
-
-        mi_robot.llevar_eje_central_al_tope(direccion="positivo", limite_potencia=100)
-        mi_robot.avanzar_recto(-30) # Retroceso limpio
-
-    elif mosaico == 2: # verde - amarillo
-        pass
-    elif mosaico == 3: # azul
-        pass
-    elif mosaico == 4: # amarillo
-        pass
-    elif mosaico == 5: # blanco
-        passa
-    else: # si no se detectó se va al 1 por default
-        mosaico = 1
-        armar_mosaico(mosaico)
 
 def ejecutar_y_medir_tiempo():
     """
@@ -343,14 +226,18 @@ def ejecutar_y_medir_tiempo():
     print("Iniciando recorrido...")
     
     # Llamamos a las rutinas
-    # cemento_y_llana()
-    # bloques_blancos()
+    cemento_y_llana()
+    agarrar_bloques_blancos()
+    dejar_bloques_blancos()
     mosaico = detectar_mosaico()
     agarrar_bloques_amarillos()
     dejar_bloques_amarillos()
     recoger_bloques_azules()
     dejar_bloques_azules_y_pala()
-    armar_mosaico(mosaico) 
+
+    """Cuando se vayan a hacer las pruebas completas, quitar el '= 1' y usar la variable 
+    mosaico almacenada después de la función 'detectar_mosaico'"""
+    armador.armar(mosaico = 1)
     
     # Pausamos el reloj al terminar el último movimiento
     cronometro.pause()
@@ -377,4 +264,4 @@ if __name__ == "__main__":
 
     """Cuando se vayan a hacer las pruebas completas, quitar el '= 1' y usar la variable 
     mosaico almacenada después de la función 'detectar_mosaico'"""
-    armar_mosaico(mosaico = 1)
+    armador.armar(mosaico = 1)
