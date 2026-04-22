@@ -2,7 +2,8 @@ from pybricks.parameters import Port, Color, Stop
 from pybricks.pupdevices import ColorSensor
 from pybricks.tools import StopWatch, wait
 from robot import Robot
-from mosaicos import ArmadorMosaicos
+from ArmadorMosaicos import ArmadorMosaicos
+from RevisadorBateria import RevisadorBateria
 
 # Variables globales
 mosaicos = {Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2}, Color.BLUE: 3, Color.YELLOW: 4, Color.WHITE: 5}
@@ -13,6 +14,7 @@ sensor = ColorSensor(Port.D)
 sensor_trasero = ColorSensor(Port.E)
 
 armador = ArmadorMosaicos(mi_robot, sensor)
+revisador_bateria = RevisadorBateria(mi_robot)
 
 def cemento_y_llana():
     """
@@ -253,15 +255,18 @@ def ejecutar_y_medir_tiempo():
     return tiempo_segundos
 
 if __name__ == "__main__":
-    # cemento_y_llana()
-    # agarrar_bloques_blancos()
-    # dejar_bloques_blancos()
-    # mosaico = detectar_mosaico()
-    # agarrar_bloques_amarillos()
-    # dejar_bloques_amarillos()
-    # recoger_bloques_azules()
-    # dejar_bloques_azules_y_pala()
-
-    """Cuando se vayan a hacer las pruebas completas, quitar el '= 1' y usar la variable 
-    mosaico almacenada después de la función 'detectar_mosaico'"""
-    armador.armar(mosaico = 1)
+    if not revisador_bateria.revisar_bateria():
+        print("Ejecución cancelada.")
+    else:
+        # cemento_y_llana()
+        # agarrar_bloques_blancos()
+        # dejar_bloques_blancos()
+        # numero_mosaico = detectar_mosaico()
+        # agarrar_bloques_amarillos()
+        # dejar_bloques_amarillos()
+        # recoger_bloques_azules()
+        # dejar_bloques_azules_y_pala()
+    
+        """Cuando se vayan a hacer las pruebas completas, quitar el '= 1' y usar la variable 
+        mosaico almacenada después de la función 'detectar_mosaico'"""
+        armador.armar(numero_mosaico = 1)

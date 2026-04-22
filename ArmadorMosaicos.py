@@ -173,7 +173,6 @@ class ArmadorMosaicos:
         self.robot.abrir_garra_delantera_al_tope(velocidad=1200, limite_potencia=100) # Abre brazos
         self.robot.sacudir(iteraciones=2, potencia=60, tiempo_ms=100)   
 
-
     def _armar_verde_amarillo(self):
         pass
 
