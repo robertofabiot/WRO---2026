@@ -22,33 +22,35 @@ def cemento_y_llana():
     Termina: dejando el bloque de cemento, con la garra hacia arriba, viendo hacia la pared de la mesa
     """
     # Acomodarse para seguidor
-    mi_robot.mover_en_arco(radio_cm=13, distancia_cm=14, stop=Stop.NONE)
+    mi_robot.mover_en_arco(radio_cm=13, distancia_cm=15, stop=Stop.NONE)
 
     # Seguidor de línea hasta cemento
-    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=83, tiempo_acomodo_ms=0, margen_cm=10)
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=89, tiempo_acomodo_ms=0, margen_cm=10)
 
     # Acomodarse para cemento
-    mi_robot.giro_preciso_pd(-96, margen_grados=14)
+    mi_robot.giro_preciso_pd(-94, margen_grados=5)
     mi_robot.mover_garra_trasera(53, velocidad=1200, wait_after=False) 
-    mi_robot.avanzar_recto(-13,velocidad=1000, frenado=Stop.COAST, margen_cm=6)
-    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+    mi_robot.avanzar_recto(-11, velocidad=1000, frenado=Stop.COAST, margen_cm=6)
+    mi_robot.mover_eje_central(50)
 
 
     # Empujar la llana
     mi_robot.avanzar_recto(11, velocidad=1000, frenado=Stop.BRAKE, margen_cm=7)
-    mi_robot.mover_motor_derecho(-760, velocidad=1000, margen_grados=300) 
-    mi_robot.avanzar_recto(-22, velocidad=1000, frenado=Stop.NONE, margen_cm=9) # Llana dejada
+    wait(1)
+    mi_robot.mover_motor_derecho(-490, velocidad=1000, margen_grados=0) 
+    wait(1)
+    mi_robot.avanzar_recto(-18, velocidad=1000, frenado=Stop.NONE, margen_cm=3) # Llana dejada
 
     # Se acomoda para el siguiente seguidor de línea (Ambos arcos fluyen juntos)
-    mi_robot.mover_en_arco(-17, distancia_cm=4, stop=Stop.NONE)
-    mi_robot.mover_en_arco(20, distancia_cm=6, stop=Stop.NONE)
+    mi_robot.mover_en_arco(-50, distancia_cm=20)
+    wait(1)
+    mi_robot.mover_en_arco(19, angulo=25)
 
-    # Seguidor de línea para dejar cemento
-    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=62, tiempo_acomodo_ms=0, margen_cm=8)
+    mi_robot.seguidor_linea_distancia(sensor, 100, distancia_cm=69, tiempo_acomodo_ms=0, margen_cm=8)
 
     # Dejar cemento
-    mi_robot.mover_motor_derecho(-620, velocidad=1000, margen_grados=400)
-    mi_robot.mover_eje_central(-60, velocidad=1000, margen_grados=30) # Cemento dejado
+    mi_robot.mover_motor_derecho(-420, velocidad=1000, margen_grados=20)
+    mi_robot.mover_eje_central(-70, velocidad=1000, margen_grados=20) # Cemento dejado
 
 def agarrar_bloques_blancos():
     """
