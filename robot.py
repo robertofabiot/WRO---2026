@@ -3,13 +3,7 @@ from pybricks.parameters import Axis, Direction, Stop, Color
 from pybricks.pupdevices import Motor
 from pybricks.robotics import DriveBase
 from pybricks.tools import wait, StopWatch
-
-mosaicos = {
-    Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2}, 
-    Color.BLUE: 3, 
-    Color.YELLOW: 4, 
-    Color.WHITE: 5
-}
+import config
 
 class Robot:
     def __init__(self, port_izq, port_der, port_eje_central, port_garra_delantera): 
@@ -23,12 +17,13 @@ class Robot:
         self.motor_eje_central = Motor(port_eje_central, Direction.COUNTERCLOCKWISE)
         self.motor_garra_delantera = Motor(port_garra_delantera)
         
-        self.drive_base = DriveBase(self.motor_izquierda, self.motor_derecha, 56, 160)
+        # Se reemplazan los números quemados (56, 160, etc.) por config
+        self.drive_base = DriveBase(self.motor_izquierda, self.motor_derecha, config.DIAMETRO_RUEDA, config.SEPARACION_RUEDAS)
         self.drive_base.use_gyro(True)
         
-        self.VELOCIDAD_BASE = 950
-        self.drive_base.settings(straight_speed=700, straight_acceleration=700, turn_rate=500)
-
+        self.VELOCIDAD_BASE = config.VELOCIDAD_BASE
+        self.drive_base.settings(straight_speed=config.STRAIGHT_SPEED, straight_acceleration=config.STRAIGHT_ACCEL, turn_rate=config.TURN_RATE)
+        
     # region CHASIS - Movimiento Básico
     def avanzar_recto(self, distancia_cm, velocidad=None, frenado=Stop.BRAKE, wait_after=True, margen_cm=0):
         if velocidad is None:
@@ -464,10 +459,11 @@ class Robot:
 
     def identificar_combinacion(self, sensor, distancia_si_verde):
         color_principal = sensor.color()
-        if color_principal not in mosaicos:
+        if color_principal not in config.MOSAICOS: # <-- Cambio aquí
             print("Error: Color principal no reconocido")
+            print(f"Color escaneado: {color_principal}") 
             return -1  
-        decision = mosaicos[color_principal]
+        decision = config.MOSAICOS[color_principal] # <-- Cambio aquí
         if type(decision) is dict:
             self.avanzar_recto(distancia_si_verde)
             color_anterior = sensor.color()

@@ -1,17 +1,20 @@
-from pybricks.parameters import Port, Color, Stop
 from pybricks.pupdevices import ColorSensor
 from pybricks.tools import StopWatch, wait
+from pybricks.parameters import Stop, Color
 from robot import Robot
 from ArmadorMosaicos import ArmadorMosaicos
 from RevisadorBateria import RevisadorBateria
+import config # <-- Importamos el nuevo archivo
 
-# Variables globales
-mosaicos = {Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2}, Color.BLUE: 3, Color.YELLOW: 4, Color.WHITE: 5}
-
-# Configuración de Hardware
-mi_robot = Robot(port_izq=Port.A, port_der=Port.B, port_eje_central=Port.C, port_garra_delantera=Port.F)
-sensor = ColorSensor(Port.D)
-sensor_trasero = ColorSensor(Port.E)
+# Configuración de Hardware usando config.py
+mi_robot = Robot(
+    port_izq=config.PORT_MOTOR_IZQ, 
+    port_der=config.PORT_MOTOR_DER, 
+    port_eje_central=config.PORT_EJE_CENTRAL, 
+    port_garra_delantera=config.PORT_GARRA_DELANTERA
+)
+sensor = ColorSensor(config.PORT_SENSOR_FRENTE)
+sensor_trasero = ColorSensor(config.PORT_SENSOR_TRASERO)
 
 armador = ArmadorMosaicos(mi_robot, sensor)
 revisador_bateria = RevisadorBateria(mi_robot)
