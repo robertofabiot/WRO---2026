@@ -32,9 +32,9 @@ def cemento_y_llana():
 
     # Acomodarse para cemento
     mi_robot.navegacion.giro_preciso_pd(-94, margen_grados=5)
-    mi_robot.mover_garra_trasera(53, velocidad=1200, wait_after=False) 
+    mi_robot.eje_central.mover_garra_trasera(53, velocidad=1200, wait_after=False) 
     mi_robot.chasis.avanzar_recto(-11, velocidad=1000, frenado=Stop.COAST, margen_cm=6)
-    mi_robot.mover_eje_central(50)
+    mi_robot.eje_central.mover(50)
 
 
     # Empujar la llana
@@ -53,7 +53,7 @@ def cemento_y_llana():
 
     # Dejar cemento
     mi_robot.chasis.mover_motor_derecho(-420, velocidad=1000, margen_grados=20)
-    mi_robot.mover_eje_central(-70, velocidad=1000, margen_grados=20) # Cemento dejado
+    mi_robot.eje_central.mover(-70, velocidad=1000, margen_grados=20) # Cemento dejado
 
 def agarrar_bloques_blancos():
     """
@@ -64,18 +64,18 @@ def agarrar_bloques_blancos():
     mi_robot.chasis.mover_en_arco(-14, distancia_cm=20, stop=Stop.BRAKE)
 
     # Seguidor hasta el cuadro blanco
-    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+    mi_robot.eje_central.llevar_al_tope("positivo", limite_potencia=100)
     mi_robot.navegacion.seguir_hasta_interseccion(sensor, sensor_trasero, 50, kp=0.6)
 
     # Acomodo para agarrar bloques blancos 
     mi_robot.chasis.avanzar_recto(-10, velocidad=1000)
-    mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+    mi_robot.eje_central.llevar_al_tope("negativo", limite_potencia=100)
     mi_robot.chasis.giro_preciso(-175, margen_grados=5) #Antes no tenia margen
     mi_robot.chasis.mover_motor_derecho(30)
     mi_robot.chasis.avanzar_recto(-20, margen_cm=3) 
 
     # Agarrar bloques
-    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+    mi_robot.eje_central.llevar_al_tope("positivo", limite_potencia=100)
 
 def dejar_bloques_blancos():
     mi_robot.chasis.avanzar_recto(5, velocidad=1000, frenado=Stop.NONE)
@@ -91,7 +91,7 @@ def dejar_bloques_blancos():
     # Dejar los bloques
     mi_robot.navegacion.giro_eje_puro(218, kp=5 ,kd=10, min_speed=200)
     mi_robot.chasis.avanzar_recto(-24, velocidad=1000, margen_cm=2)
-    mi_robot.mover_garra_trasera(-80, margen_grados=20)
+    mi_robot.eje_central.mover_garra_trasera(-80, margen_grados=20)
 
 def detectar_mosaico():
     """
@@ -110,7 +110,7 @@ def detectar_mosaico():
     mi_robot.chasis.avanzar_recto(-28 , velocidad=700) 
 
     # Escaneo y acomodo de ser necesario
-    mi_robot.mover_garra_trasera(45, frenado=Stop.HOLD)
+    mi_robot.eje_central.mover_garra_trasera(45, frenado=Stop.HOLD)
     wait(100)
     mosaico = mi_robot.identificar_combinacion(sensor_trasero, -5)
     print(f"{mosaico}" if mosaico != -1 else "la cagaste") #Para ver en consola la combinación detectada
@@ -125,7 +125,7 @@ def agarrar_bloques_amarillos():
     Termina: con los bloques amarillos agarrados, listo para ir a dejarlos
     """
     #Camino para ir por los bloques amarillos 
-    mi_robot.mover_garra_trasera(-50)
+    mi_robot.eje_central.mover_garra_trasera(-50)
     mi_robot.navegacion.seguidor_linea_distancia(sensor, 100, 19)
     mi_robot.navegacion.giro_preciso_pd(-55)
     mi_robot.chasis.avanzar_recto(25)
@@ -136,13 +136,13 @@ def agarrar_bloques_amarillos():
 
     # Acomodo para agarrar bloques amarillos
     mi_robot.chasis.avanzar_recto(-10, velocidad=1000)
-    mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+    mi_robot.eje_central.llevar_al_tope("negativo", limite_potencia=100)
     mi_robot.chasis.giro_preciso(-175)
     mi_robot.chasis.mover_motor_derecho(30)
     mi_robot.chasis.avanzar_recto(-20) 
 
     # Agarrar bloques
-    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+    mi_robot.eje_central.llevar_al_tope("positivo", limite_potencia=100)
 
 def dejar_bloques_amarillos():
     """
@@ -161,7 +161,7 @@ def dejar_bloques_amarillos():
     # Dejar los bloques
     mi_robot.navegacion.giro_preciso_pd(-90)
     mi_robot.chasis.avanzar_recto(-17, velocidad=1000)
-    mi_robot.mover_garra_trasera(-55)
+    mi_robot.eje_central.mover_garra_trasera(-55)
 
 def recoger_bloques_azules():
     """
@@ -185,13 +185,13 @@ def recoger_bloques_azules():
 
     # Acomodo para agarrar bloques azules
     mi_robot.chasis.avanzar_recto(-10)
-    mi_robot.llevar_eje_central_al_tope("negativo", limite_potencia=100)
+    mi_robot.eje_central.llevar_al_tope("negativo", limite_potencia=100)
     mi_robot.chasis.giro_preciso(-175)
     mi_robot.chasis.mover_motor_derecho(30)
     mi_robot.chasis.avanzar_recto(-20) 
 
     # Agarrar bloques
-    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+    mi_robot.eje_central.llevar_al_tope("positivo", limite_potencia=100)
 
 def dejar_bloques_azules_y_pala():
     """
@@ -199,7 +199,7 @@ def dejar_bloques_azules_y_pala():
     Termina: con los bloques azules cerca del inicio, viendo hacia los bloques del mosaico.
             La pala queda en el inicio.
     """
-    mi_robot.llevar_eje_central_al_tope("positivo", limite_potencia=100)
+    mi_robot.eje_central.llevar_al_tope("positivo", limite_potencia=100)
     mi_robot.navegacion.giro_preciso_pd(-35)
     mi_robot.chasis.avanzar_recto(52, velocidad=1100)
 
@@ -218,7 +218,7 @@ def dejar_bloques_azules_y_pala():
     mi_robot.navegacion.giro_preciso_pd(-90)
 
     # Dejamos los bloques azules en un espacio accesible 
-    mi_robot.mover_garra_trasera(-55) 
+    mi_robot.eje_central.mover_garra_trasera(-55) 
 
 def ejecutar_y_medir_tiempo():
     """

@@ -30,50 +30,6 @@ class Robot:
         self.chasis = Chasis(self.drive_base, self.motor_izquierda, self.motor_derecha, self.hub, self.VELOCIDAD_BASE)
         self.navegacion = Navegacion(self.chasis) 
 
-    # region MECANISMOS - Garra Delantera
-    def abrir_garra_delantera(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        if wait_after and margen_grados > 0:
-            angulo_meta = self.motor_garra_delantera.angle() + abs(grados)
-            self.motor_garra_delantera.run_angle(velocidad, abs(grados), then=frenado, wait=False)
-            while abs(angulo_meta - self.motor_garra_delantera.angle()) > margen_grados:
-                if self.motor_garra_delantera.stalled(): break
-                wait(2)
-        else:
-            self.motor_garra_delantera.run_angle(velocidad, abs(grados), then=frenado, wait=wait_after)
-    
-    def abrir_garra_delantera_al_tope(self, velocidad=800, limite_potencia=50):
-        self.motor_garra_delantera.run_until_stalled(abs(velocidad), then=Stop.HOLD, duty_limit=limite_potencia)
-
-    def cerrar_garra_delantera_al_tope(self, velocidad=800, limite_potencia=50):
-        self.motor_garra_delantera.run_until_stalled(-abs(velocidad), then=Stop.HOLD, duty_limit=limite_potencia)
-    # endregion
-
-    # region MECANISMOS - Eje Central y Garra Trasera
-    def mover_eje_central(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        if wait_after and margen_grados > 0:
-            angulo_meta = self.motor_eje_central.angle() + grados
-            self.motor_eje_central.run_angle(velocidad, grados, then=frenado, wait=False)
-            while abs(angulo_meta - self.motor_eje_central.angle()) > margen_grados:
-                if self.motor_eje_central.stalled(): break
-                wait(2)
-        else:
-            self.motor_eje_central.run_angle(velocidad, grados, then=frenado, wait=wait_after)
-    
-    def llevar_eje_central_al_tope(self, direccion, velocidad=1000, limite_potencia=60):
-        if direccion == "positivo" or direccion == 1:
-            vel_real = abs(velocidad)
-        elif direccion == "negativo" or direccion == -1:
-            vel_real = -abs(velocidad)
-        else:
-            print("Error: La dirección debe ser 'positivo' o 'negativo'.")
-            return None
-        angulo_tope = self.motor_eje_central.run_until_stalled(vel_real, then=Stop.HOLD, duty_limit=limite_potencia)
-        return angulo_tope
-
-    def mover_garra_trasera(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        self.mover_eje_central(grados, velocidad, wait_after, frenado, margen_grados)
-    # endregion
-
     def identificar_combinacion(self, sensor, distancia_si_verde):
         color_principal = sensor.color()
         if color_principal not in config.MOSAICOS: # <-- Cambio aquí
