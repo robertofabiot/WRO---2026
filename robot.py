@@ -1,6 +1,6 @@
 from pybricks.hubs import PrimeHub
 from pybricks.parameters import Axis, Direction, Stop, Color
-from pybricks.pupdevices import Motor, ColorSensor
+from pybricks.pupdevices import Motor
 from pybricks.robotics import DriveBase
 from pybricks.tools import wait, StopWatch
 
@@ -13,9 +13,6 @@ mosaicos = {
 
 class Robot:
     def __init__(self, port_izq, port_der, port_eje_central, port_garra_delantera): 
-        """
-        Configuración inicial del robot.
-        """
         self.hub = PrimeHub(top_side=Axis.Z, front_side=Axis.X)
         
         # Motores de tracción
@@ -83,7 +80,7 @@ class Robot:
                 wait(2)
         else:
             self.drive_base.turn(grados, wait=wait_after)
-    
+
     def giro_preciso(self, angulo_objetivo, kp_nuevo=2.5, tolerancia=1, margen_grados=0):
         self.hub.imu.reset_heading(0) 
         kp = kp_nuevo
@@ -91,7 +88,6 @@ class Robot:
         while True:
             angulo_actual = self.hub.imu.heading()
             error = angulo_objetivo - angulo_actual
-            # Si se pasa un margen, el bucle se rompe antes de llegar a la tolerancia estricta
             if abs(error) <= max(tolerancia, margen_grados):
                 break
             turn_rate = error * kp
@@ -151,26 +147,6 @@ class Robot:
         self.motor_izquierda.hold()
         self.motor_derecha.hold()
 
-    def seguir_linea(self, sensor_color, distancia_cm=None, velocidad=150, kp=3.6, kd=1.0, margen_cm=0):
-        last_error = 0 
-        if distancia_cm is not None:
-            self.drive_base.reset()
-            distancia_mm = distancia_cm * 10
-            margen_mm = margen_cm * 10
-        while True: 
-            if distancia_cm is not None and abs(self.drive_base.distance()) >= (distancia_mm - margen_mm):
-                break
-            current_reflection = sensor_color.reflection()
-            error = current_reflection - 35
-            derivative = error - last_error
-            correction = (error * kp) + (derivative * kd)
-            self.motor_izquierda.dc(velocidad + correction)
-            self.motor_derecha.dc(velocidad - correction)
-            last_error = error
-            self.esperar(10)
-        self.motor_izquierda.brake()
-        self.motor_derecha.brake()
-
     def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800, kp = 0.85, kd = 2.5, k_freno = 0.6, margen_cm=0):
         diametro_rueda = 5.6
         circunferencia = 3.1416 * diametro_rueda
@@ -222,7 +198,6 @@ class Robot:
         cronometro.pause()
 
     def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo, lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None, lecturas_confirmacion=3):
-        # NOTA: Los seguidores de color o intersección paran por evento (cuando detectan), no requieren margen.
         cronometro = StopWatch()
         velocidad_minima = 25
         velocidad_enfoque = 50 
@@ -357,57 +332,6 @@ class Robot:
         self.motor_izquierda.stop()
         self.motor_derecha.stop()
         cronometro.pause()
-
-    def acomodar_en_linea(self, sensor_color, velocidad_base=50, lado="derecha", tiempo_estabilizado_ms=250, distancia_max_cm=15):
-        diametro_rueda = 5.6
-        circunferencia = 3.1416 * diametro_rueda
-        grados_maximos = (distancia_max_cm / circunferencia) * 360 if distancia_max_cm else None
-        self.motor_izquierda.reset_angle(0)
-        self.motor_derecha.reset_angle(0)
-        cronometro = StopWatch()
-        velocidad_minima = 25
-        kp = 0.85 
-        kd = 2.5  
-        k_freno = 0.6 
-        last_error = 0
-        objetivo_reflexion = 35
-        multiplicador_lado = 1 if lado == "derecha" else -1
-        tiempo_estable_inicio = 0
-        tolerancia_error = 5      
-        tolerancia_correccion = 5 
-        cronometro.reset()
-        cronometro.resume()
-        while True:
-            grados_actuales = (abs(self.motor_izquierda.angle()) + abs(self.motor_derecha.angle())) / 2
-            if grados_maximos and grados_actuales >= grados_maximos:
-                break 
-            current_reflection = sensor_color.reflection()
-            error = current_reflection - objetivo_reflexion
-            derivative = error - last_error
-            correction = ((error * kp) + (derivative * kd)) * multiplicador_lado
-            if abs(error) <= tolerancia_error and abs(correction) <= tolerancia_correccion:
-                if tiempo_estable_inicio == 0:
-                    tiempo_estable_inicio = cronometro.time()
-                elif cronometro.time() - tiempo_estable_inicio >= tiempo_estabilizado_ms:
-                    break 
-            else:
-                tiempo_estable_inicio = 0 
-            velocidad_actual = velocidad_base - (abs(error) * k_freno)
-            velocidad_actual = max(velocidad_minima, velocidad_actual) 
-            potencia_izq = velocidad_actual - correction
-            potencia_der = velocidad_actual + correction
-            potencia_izq = max(-100, min(100, potencia_izq))
-            potencia_der = max(-100, min(100, potencia_der))
-            self.motor_izquierda.dc(potencia_izq)
-            self.motor_derecha.dc(potencia_der)
-            last_error = error
-            wait(10) 
-        self.motor_izquierda.stop()
-        self.motor_derecha.stop()
-        cronometro.pause()
-        grados_finales = (abs(self.motor_izquierda.angle()) + abs(self.motor_derecha.angle())) / 2
-        distancia_recorrida_cm = (grados_finales / 360) * circunferencia
-        return distancia_recorrida_cm
     
     def seguir_hasta_interseccion(self, sensor_delantero, sensor_trasero, velocidad_base=35, lado="derecha", kp=0.85, kd=2.5):
         objetivo_reflexion = 35 
@@ -442,17 +366,9 @@ class Robot:
 
         self.motor_izquierda.hold()
         self.motor_derecha.hold()
-
-    def avanzar_hasta_color(self, sensor_color, color_objetivo, velocidad=300):
-        self.drive_base.drive(velocidad, 0)
-        while True:
-            if self.detectar_color_preciso(sensor_color) == color_objetivo:
-                break
-            wait(1)
-        self.drive_base.stop()
     # endregion
 
-    # region MOTORES DE TRACCIÓN (Individuales y Operaciones Especiales)
+    # region MOTORES DE TRACCIÓN (Individuales)
     def mover_motor_izquierdo(self, grados, velocidad=500, wait_after=True, margen_grados=0):
         if wait_after and margen_grados > 0:
             angulo_meta = self.motor_izquierda.angle() + grados
@@ -485,21 +401,6 @@ class Robot:
         self.motor_izquierda.brake()
         self.motor_derecha.brake()
         wait(100) 
-    
-    def empuje_repetitivo(self, iteraciones=2, potencia=70, tiempo_empuje_ms=500, tiempo_retroceso_ms=400):
-        self.drive_base.stop() 
-        for _ in range(iteraciones):
-            self.motor_izquierda.dc(potencia)
-            self.motor_derecha.dc(potencia)
-            wait(tiempo_empuje_ms)
-            self.motor_izquierda.dc(-potencia)
-            self.motor_derecha.dc(-potencia)
-            wait(tiempo_retroceso_ms)
-        self.motor_izquierda.dc(potencia)
-        self.motor_derecha.dc(potencia)
-        wait(400)
-        self.motor_izquierda.brake()
-        self.motor_derecha.brake()
     # endregion
 
     # region MECANISMOS - Garra Delantera
@@ -512,16 +413,6 @@ class Robot:
                 wait(2)
         else:
             self.motor_garra_delantera.run_angle(velocidad, abs(grados), then=frenado, wait=wait_after)
-
-    def cerrar_garra_delantera(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        if wait_after and margen_grados > 0:
-            angulo_meta = self.motor_garra_delantera.angle() - abs(grados)
-            self.motor_garra_delantera.run_angle(velocidad, -abs(grados), then=frenado, wait=False)
-            while abs(angulo_meta - self.motor_garra_delantera.angle()) > margen_grados:
-                if self.motor_garra_delantera.stalled(): break
-                wait(2)
-        else:
-            self.motor_garra_delantera.run_angle(velocidad, -abs(grados), then=frenado, wait=wait_after)
     
     def abrir_garra_delantera_al_tope(self, velocidad=800, limite_potencia=50):
         self.motor_garra_delantera.run_until_stalled(abs(velocidad), then=Stop.HOLD, duty_limit=limite_potencia)
@@ -532,7 +423,6 @@ class Robot:
 
     # region MECANISMOS - Eje Central y Garra Trasera
     def mover_eje_central(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        """Función base que controla el eje central de los engranajes."""
         if wait_after and margen_grados > 0:
             angulo_meta = self.motor_eje_central.angle() + grados
             self.motor_eje_central.run_angle(velocidad, grados, then=frenado, wait=False)
@@ -555,43 +445,6 @@ class Robot:
 
     def mover_garra_trasera(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         self.mover_eje_central(grados, velocidad, wait_after, frenado, margen_grados)
-        
-    def subir_garra_trasera(self, grados, velocidad=600, margen_grados=0):
-        self.mover_eje_central(abs(grados), velocidad, True, Stop.HOLD, margen_grados)
-
-    def bajar_garra_trasera(self, grados, velocidad=600, margen_grados=0):
-        self.mover_eje_central(-abs(grados), velocidad, True, Stop.HOLD, margen_grados)
-
-    def mover_garra_trasera_segura(self, grados, velocidad=600, empuje_cm=1, margen_grados=0):
-        angulo_meta = self.motor_eje_central.angle() + grados
-        self.motor_eje_central.run_angle(velocidad, grados, wait=False)
-        while abs(angulo_meta - self.motor_eje_central.angle()) > margen_grados:
-            if self.motor_eje_central.done(): break
-            if self.motor_eje_central.stalled():
-                self.avanzar_recto(empuje_cm)
-            wait(10)
-    
-    def mover_garra_trasera_dc(self, grados, potencia=100, empuje_cm=1, margen_grados=0):
-        angulo_inicial = self.motor_eje_central.angle()
-        angulo_meta = angulo_inicial + grados
-        direccion = 1 if grados >= 0 else -1
-        
-        potencia_real = max(-100, min(100, potencia)) * direccion
-        self.motor_eje_central.dc(potencia_real)
-        wait(50)
-        
-        while True:
-            angulo_actual = self.motor_eje_central.angle()
-            if direccion == 1 and angulo_actual >= (angulo_meta - margen_grados):
-                break
-            elif direccion == -1 and angulo_actual <= (angulo_meta + margen_grados):
-                break
-                
-            if abs(self.motor_eje_central.speed()) < 15:
-                self.avanzar_recto(empuje_cm)
-                wait(50) 
-            wait(10)
-        self.motor_eje_central.hold()
     # endregion
 
     # region SENSORES Y UTILIDADES
@@ -613,7 +466,6 @@ class Robot:
         color_principal = sensor.color()
         if color_principal not in mosaicos:
             print("Error: Color principal no reconocido")
-            print(f"Color escaneado: {color_principal}") 
             return -1  
         decision = mosaicos[color_principal]
         if type(decision) is dict:
@@ -624,13 +476,4 @@ class Robot:
                 return -1
             return decision[color_anterior]
         return decision
-    
-    def esperar(self, milisegundos):
-        wait(milisegundos)
-
-    def resetear_giroscopio(self):
-        self.hub.imu.reset_heading(0)
-        
-    def obtener_angulo(self):
-        return self.hub.imu.heading()
     # endregion
