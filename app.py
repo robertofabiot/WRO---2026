@@ -4,7 +4,7 @@ from pybricks.parameters import Stop, Color
 from robot import Robot
 from ArmadorMosaicos import ArmadorMosaicos
 from RevisadorBateria import RevisadorBateria
-import config # <-- Importamos el nuevo archivo
+import config
 
 # Configuración de Hardware usando config.py
 mi_robot = Robot(
