@@ -53,7 +53,7 @@ class Misiones:
 
     def dejar_bloques_blancos(self):
         self.robot.chasis.avanzar_recto(5, velocidad=1000, frenado=Stop.NONE)
-        self.robot.chasis.mover_motor_izquierdo(370, velocidad=1000)
+        self.robot.chasis.mover_motor_izquierdo(370, velocidad=1000, frenado=Stop.NONE)
         self.robot.chasis.mover_en_arco(radio_cm=-114, angulo=24, stop=Stop.NONE)
         self.robot.navegacion.seguidor_linea_color(self.sensor, 100, Color.GREEN, lado="derecha", distancia_cm=17)
         self.robot.chasis.avanzar_recto(-0.5)

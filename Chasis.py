@@ -78,17 +78,17 @@ class Chasis:
             wait(10)
         self.drive_base.stop()
 
-    def mover_motor_izquierdo(self, grados, velocidad=500, wait_after=True, margen_grados=0):
+    def mover_motor_izquierdo(self, grados, velocidad=500, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         if wait_after and margen_grados > 0:
             angulo_meta = self.motor_izquierda.angle() + grados
-            self.motor_izquierda.run_angle(velocidad, grados, wait=False)
+            self.motor_izquierda.run_angle(velocidad, grados, then=frenado, wait=False) # <- Añadido then=frenado
             while abs(angulo_meta - self.motor_izquierda.angle()) > margen_grados:
                 if self.motor_izquierda.stalled(): break
                 wait(2)
         else:
-            self.motor_izquierda.run_angle(velocidad, grados, wait=wait_after)
+            self.motor_izquierda.run_angle(velocidad, grados, then=frenado, wait=wait_after) # <- Añadido then=frenado
 
-    def mover_motor_derecho(self, grados, velocidad=800, wait_after=True, margen_grados=0):
+    def mover_motor_derecho(self, grados, velocidad=800, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         if wait_after and margen_grados > 0:
             angulo_meta = self.motor_derecha.angle() + grados
             self.motor_derecha.run_angle(velocidad, grados, wait=False)
@@ -96,7 +96,7 @@ class Chasis:
                 if self.motor_derecha.stalled(): break
                 wait(2)
         else:
-            self.motor_derecha.run_angle(velocidad, grados, wait=wait_after)
+            self.motor_derecha.run_angle(velocidad, grados, then=frenado, wait=wait_after)
             
     def sacudir(self, iteraciones=5, potencia=100, tiempo_ms=60):
         self.drive_base.stop() 
@@ -110,3 +110,9 @@ class Chasis:
         self.motor_izquierda.brake()
         self.motor_derecha.brake()
         wait(100)
+
+    def compensar_voltaje(self, potencia_deseada):
+        voltaje_actual = self.hub.battery.voltage()
+        if voltaje_actual == 0: return potencia_deseada
+        potencia_compensada = potencia_deseada * (8000 / voltaje_actual)
+        return max(-100, min(100, potencia_compensada))

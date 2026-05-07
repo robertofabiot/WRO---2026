@@ -107,10 +107,13 @@ class Navegacion:
             potencia_der = velocidad_base + correction
             potencia_izq = max(-100, min(100, potencia_izq))
             potencia_der = max(-100, min(100, potencia_der))
-            self.chasis.motor_izquierda.dc(potencia_izq)
-            self.chasis.motor_derecha.dc(potencia_der)
+            
+            # --- Aplicando compensación de voltaje ---
+            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(potencia_izq))
+            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(potencia_der))
             last_error = error
             wait(1)
+            
         self.chasis.motor_izquierda.stop()
         self.chasis.motor_derecha.stop()
         cronometro.pause()
@@ -181,8 +184,9 @@ class Navegacion:
             potencia_izq = max(-100, min(100, potencia_izq))
             potencia_der = max(-100, min(100, potencia_der))
             
-            self.chasis.motor_izquierda.dc(potencia_izq)
-            self.chasis.motor_derecha.dc(potencia_der)
+            # --- Aplicando compensación de voltaje ---
+            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(potencia_izq))
+            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(potencia_der))
             last_error = error
             wait(1)
             
@@ -242,8 +246,9 @@ class Navegacion:
             potencia_izq = max(-100, min(100, potencia_izq))
             potencia_der = max(-100, min(100, potencia_der))
             
-            self.chasis.motor_izquierda.dc(potencia_izq)
-            self.chasis.motor_derecha.dc(potencia_der)
+            # --- Aplicando compensación de voltaje ---
+            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(potencia_izq))
+            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(potencia_der))
             last_error = error
             wait(1)
             
@@ -276,8 +281,9 @@ class Navegacion:
             potencia_izq = max(-100, min(100, potencia_izq))
             potencia_der = max(-100, min(100, potencia_der))
 
-            self.chasis.motor_izquierda.dc(potencia_izq)
-            self.chasis.motor_derecha.dc(potencia_der)
+            # --- Aplicando compensación de voltaje ---
+            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(potencia_izq))
+            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(potencia_der))
         
             last_error = error
             wait(1)
