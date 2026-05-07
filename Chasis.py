@@ -91,7 +91,7 @@ class Chasis:
     def mover_motor_derecho(self, grados, velocidad=800, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         if wait_after and margen_grados > 0:
             angulo_meta = self.motor_derecha.angle() + grados
-            self.motor_derecha.run_angle(velocidad, grados, wait=False)
+            self.motor_derecha.run_angle(velocidad, grados, then=frenado, wait=False)
             while abs(angulo_meta - self.motor_derecha.angle()) > margen_grados:
                 if self.motor_derecha.stalled(): break
                 wait(2)
