@@ -28,8 +28,6 @@ class Robot:
         # 3. Subsistemas (Patrón Facade)
         self.chasis = Chasis(self.drive_base, self.motor_izquierda, self.motor_derecha, self.hub, config.VELOCIDAD_BASE)
         self.navegacion = Navegacion(self.chasis)
-        self.motor_garra_trasera = Motor(port_garra_trasera, Direction.COUNTERCLOCKWISE)
-        self.motor_garra_delantera = Motor(port_garra_delantera)
         
         # Subsistemas actualizados
         self.garra_delantera = GarraDelantera(self.motor_garra_delantera)
