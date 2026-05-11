@@ -97,6 +97,36 @@ class Chasis:
                 wait(2)
         else:
             self.motor_derecha.run_angle(velocidad, grados, then=frenado, wait=wait_after)
+
+    def avanzar_hasta_choque(self, potencia=100, umbral_velocidad=50, tiempo_arranque_ms=300):
+        """
+        Avanza aplicando voltaje directo (.dc) hasta detectar un choque mecánico.
+        Puedes usar potencia negativa (-100) para chocar de reversa.
+        """
+        self.drive_base.stop() # Desactivamos temporalmente el control de DriveBase
+        
+        # Inyectar la potencia cruda a los motores
+        self.motor_izquierda.dc(potencia)
+        self.motor_derecha.dc(potencia)
+        
+        # Pequeña pausa para que el robot venza la inercia inicial y no detecte 
+        # un falso choque al estar arrancando desde velocidad 0.
+        wait(tiempo_arranque_ms)
+        
+        while True:
+            vel_izq = abs(self.motor_izquierda.speed())
+            vel_der = abs(self.motor_derecha.speed())
+            
+            # Si la velocidad cae por debajo del umbral a pesar de tener máxima potencia,
+            # significa que físicamente chocó contra un obstáculo.
+            if vel_izq < umbral_velocidad and vel_der < umbral_velocidad:
+                break
+                
+            wait(10)
+            
+        # Freno mecánico firme para no rebotar
+        self.motor_izquierda.hold()
+        self.motor_derecha.hold()
             
     def sacudir(self, iteraciones=5, potencia=100, tiempo_ms=60):
         self.drive_base.stop() 
