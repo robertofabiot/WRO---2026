@@ -1,9 +1,10 @@
 from pybricks.parameters import Stop, Color
 from pybricks.tools import wait
 import config
+from robot import Robot
 
 class Misiones:
-    def __init__(self, robot, sensor_frente):
+    def __init__(self, robot : Robot, sensor_frente):
         self.robot = robot
         self.sensor = sensor_frente
 
@@ -19,6 +20,19 @@ class Misiones:
             if color_anterior not in decision: return -1
             return decision[color_anterior]
         return decision
+    
+    def agarrar_bloques_blancos(self):
+        """Empieza en el inicio y llega hasta agarrar los bloques"""
+        self.robot.chasis.mover_en_arco(radio_cm=13, distancia_cm=15, stop=Stop.NONE)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 157, tiempo_acomodo_ms=0)
+        self.robot.chasis.avanzar_recto(25, velocidad=1000)
+        self.robot.chasis.mover_motor_izquierdo(-514, 1000, frenado=Stop.NONE)
+        self.robot.chasis.avanzar_hasta_choque(-100, tiempo_arranque_ms=0)
+        self.robot.navegacion.avanzar_hasta_color(self.sensor, Color.BLACK, 500)
+        self.robot.chasis.mover_motor_derecho(514, 1000, frenado=Stop.COAST)
+        self.robot.garra_trasera.mover(100, 1000, wait_after=False) #AJUSTAR GRADOS
+        self.robot.chasis.avanzar_hasta_choque(-70, 60)
+        self.robot.garra_trasera.cerrar_al_tope(1000, 100)
 
     def cemento_y_llana(self):
         self.robot.chasis.mover_en_arco(radio_cm=13, distancia_cm=15, stop=Stop.NONE)
@@ -38,16 +52,6 @@ class Misiones:
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 69, tiempo_acomodo_ms=0, margen_cm=8)
         self.robot.chasis.mover_motor_derecho(-420, velocidad=1000, margen_grados=20)
         self.robot.garra_trasera.mover(-70, velocidad=1000, margen_grados=20)
-
-    def agarrar_bloques_blancos(self):
-        self.robot.chasis.mover_en_arco(-14, distancia_cm=20, stop=Stop.BRAKE)
-        self.robot.garra_trasera.llevar_al_tope("positivo", limite_potencia=100)
-        self.robot.chasis.avanzar_recto(-10, velocidad=1000)
-        self.robot.garra_trasera.llevar_al_tope("negativo", limite_potencia=100)
-        self.robot.chasis.giro_preciso(-175, margen_grados=5)
-        self.robot.chasis.mover_motor_derecho(30)
-        self.robot.chasis.avanzar_recto(-20, margen_cm=3) 
-        self.robot.garra_trasera.llevar_al_tope("positivo", limite_potencia=100)
 
     def dejar_bloques_blancos(self):
         self.robot.chasis.avanzar_recto(5, velocidad=1000, frenado=Stop.NONE)
