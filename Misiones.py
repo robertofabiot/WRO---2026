@@ -67,13 +67,21 @@ class Misiones:
         self.robot.chasis.avanzar_hasta_choque(-1000)
         self.robot.navegacion.avanzar_hasta_color(self.sensor, Color.BLACK, 500)
         self.robot.chasis.mover_motor_izquierdo(514, 1000, frenado=Stop.COAST)
-        self.__recoger_bloques()        
+        self.__recoger_bloques()    
+
+    #MISMA LÓGICA (DE MOMENTO)
+    def dejar_bloques_amarillos(self):
+        self.robot.chasis.mover_motor_derecho(225, velocidad=1000, margen_grados=30)
+        self.robot.chasis.avanzar_recto(60, velocidad=1000, frenado=Stop.NONE)
+        self.robot.chasis.mover_motor_izquierdo(225, velocidad=1000, margen_grados=30)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 58, lado="izquierda", tiempo_acomodo_ms=800)
+        wait(500)
+        self.robot.navegacion.giro_preciso_pd(-90)
+        self.robot.chasis.avanzar_recto(-17, velocidad=1000)
+        self.robot.garra_trasera.mover(-55)    
 
     def cemento_y_llana(self):
-        self.robot.chasis.mover_en_arco(radio_cm=13, distancia_cm=15, stop=Stop.NONE)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 89, tiempo_acomodo_ms=0, margen_cm=10)
-        self.robot.navegacion.giro_preciso_pd(-94, margen_grados=5)
-        self.robot.garra_trasera.mover(53, velocidad=1200, wait_after=False) 
+        self.robot.navegacion.giro_preciso_pd(-94, margen_grados=5) 
         self.robot.chasis.avanzar_recto(-11, velocidad=1000, frenado=Stop.COAST, margen_cm=6)
         self.robot.garra_trasera.mover(50)
         self.robot.chasis.avanzar_recto(11, velocidad=1000, frenado=Stop.BRAKE, margen_cm=7)
@@ -87,16 +95,6 @@ class Misiones:
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 69, tiempo_acomodo_ms=0, margen_cm=8)
         self.robot.chasis.mover_motor_derecho(-420, velocidad=1000, margen_grados=20)
         self.robot.garra_trasera.mover(-70, velocidad=1000, margen_grados=20)
-
-    def dejar_bloques_amarillos(self):
-        self.robot.chasis.mover_motor_derecho(225, velocidad=1000, margen_grados=30)
-        self.robot.chasis.avanzar_recto(60, velocidad=1000, frenado=Stop.NONE)
-        self.robot.chasis.mover_motor_izquierdo(225, velocidad=1000, margen_grados=30)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 58, lado="izquierda", tiempo_acomodo_ms=800)
-        wait(500)
-        self.robot.navegacion.giro_preciso_pd(-90)
-        self.robot.chasis.avanzar_recto(-17, velocidad=1000)
-        self.robot.garra_trasera.mover(-55)
 
     def recoger_bloques_azules(self):
         self.robot.chasis.avanzar_recto(15, velocidad=1000)
