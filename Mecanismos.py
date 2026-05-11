@@ -43,5 +43,11 @@ class GarraDelantera(Garra):
 
 
 class GarraTrasera(Garra):
-    """Hereda directamente de Garra. Usa mover(), abrir_al_tope() y cerrar_al_tope()"""
-    pass
+    """Garra tipo jaula: abrir es levantar (negativo), cerrar es bajar para atrapar (positivo)."""
+    def abrir_al_tope(self, velocidad=800, limite_potencia=50):
+        # Abrir = Levantar = Negativo
+        return self.llevar_al_tope("negativo", velocidad, limite_potencia)
+
+    def cerrar_al_tope(self, velocidad=800, limite_potencia=50):
+        # Cerrar = Bajar (atrapar los bloques) = Positivo
+        return self.llevar_al_tope("positivo", velocidad, limite_potencia)
