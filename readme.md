@@ -27,12 +27,11 @@ El robot está construido sobre la plataforma LEGO Education SPIKE Prime, utiliz
 * Puerto B: Motor Derecho
 
 ### Mecanismos
-* Puerto C: Eje Central / Garra Trasera
+* Puerto C: Garra Trasera
 * Puerto F: Garra Delantera / Pala
 
 ### Sensores
 * Puerto D: Sensor de Color Principal (Frontal)
-* Puerto E: Sensor de Color Trasero
 
 > **Nota técnica sobre potencia:** Las rutinas de las garras que utilizan topes mecánicos (funciones `run_until_stalled`) deben ejecutarse con potencia y velocidad al máximo para vencer la resistencia de los hules tensores e inercia del mecanismo.
 
@@ -40,12 +39,12 @@ El robot está construido sobre la plataforma LEGO Education SPIKE Prime, utiliz
 
 ## Estado del Proyecto y Misiones
 
-Se ha estandarizado la recolección de bloques utilizando un flujo directo con el eje central, eliminando secuencias complejas. El estado actual de las tareas es el siguiente:
+Se ha estandarizado la recolección de bloques utilizando un flujo directo con la garra trasera, eliminando secuencias complejas. El estado actual de las tareas es el siguiente:
 
 ### Funcionalidades Implementadas
 * Construcción Inicial: [OK] Despliegue estable del bloque de cemento y la llana.
 * Bloques Blancos: [OK] Rutina de recolección unificada completada.
-* Mosaico: [OK] Escaneo exitoso y detección de combinaciones de colores.
+* Mosaico: [OK] Escaneo exitoso y detección de combinaciones de colores (integrado con el sensor frontal).
 * Bloques Amarillos y Azules: [OK] Recolección y reubicación operativa.
 * Armado de Mosaico: [Parcial] Soporte inicial (Caso 1: verde-verde, 4/12 bloques).
 
@@ -60,8 +59,8 @@ El núcleo del robot (`robot.py`) ha sido optimizado con las siguientes funcione
 
 * **Detección de Color Avanzada (HSV):** Se migró a un sistema de detección basado en valores HSV (`detectar_color_preciso`) con lógica anti-rebote (*debouncing*). Esto elimina lecturas inconsistentes (especialmente en los bordes de la línea negra/blanca) y hace al robot mucho más predecible.
 * **Seguidores de Línea PID:** Implementación de múltiples seguidores de línea (por distancia o por color) para máxima estabilidad. Incluye una función de frenado progresivo (`seguidor_linea_distancia_desacelerado`) para lograr detenciones milimétricas.
-* **Navegación en Intersecciones:** El sistema ahora utiliza un sistema de doble sensor (`seguir_hasta_interseccion`) para detectar cruces de forma exacta, minimizando errores de conteo de intersecciones.
-* **Manejo de Fricción (Sacudidas):** Implementación de inyección de voltaje directo (`dc`) con las funciones `sacudir` y `empuje_repetitivo` para asentar bloques pesados venciendo la fricción sin causar un estancamiento del código.
+* **Navegación y Detección de Cruces:** El sistema utiliza un modelo optimizado de seguimiento mediante un solo sensor frontal para la detección de intersecciones y finalización de tramos.
+* **Manejo de Fricción (Sacudidas):** Implementación de inyección de voltaje directo (`dc`) con la función `sacudir` para asentar bloques pesados venciendo la fricción sin causar un estancamiento del código.
 
 ---
 
@@ -73,8 +72,6 @@ El repositorio está configurado para un flujo de trabajo ágil utilizando Visua
 2.  Abre el repositorio en VS Code.
 3.  Utiliza la configuración incluida en `.vscode/launch.json` ejecutando la tarea "Python Debugger: Module" (F5). Esto compilará y enviará el script principal vía Bluetooth.
 4.  El punto de entrada es `app.py`.
-
-*Tip para pruebas:* Para medir el rendimiento en pista de forma objetiva, puedes utilizar la función `ejecutar_y_medir_tiempo()` incluida en `app.py`, la cual cronometrará la ronda completa en segundos automáticamente.
 
 ---
 

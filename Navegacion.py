@@ -255,38 +255,3 @@ class Navegacion:
         self.chasis.motor_izquierda.stop()
         self.chasis.motor_derecha.stop()
         cronometro.pause()
-    
-    def seguir_hasta_interseccion(self, sensor_delantero, sensor_trasero, velocidad_base=35, lado="derecha", kp=0.85, kd=2.5):
-        objetivo_reflexion = 35 
-        umbral_delantero = 15   
-        umbral_trasero = 15      
-
-        multiplicador_lado = 1 if lado == "derecha" else -1
-        last_error = 0
-
-        while True:
-            ref_delantero = sensor_delantero.reflection()
-            ref_trasero = sensor_trasero.reflection()
-
-            if ref_delantero <= umbral_delantero and ref_trasero <= umbral_trasero:
-                break
-
-            error = ref_delantero - objetivo_reflexion
-            derivative = error - last_error
-            correction = ((error * kp) + (derivative * kd)) * multiplicador_lado
-
-            potencia_izq = velocidad_base - correction
-            potencia_der = velocidad_base + correction
-
-            potencia_izq = max(-100, min(100, potencia_izq))
-            potencia_der = max(-100, min(100, potencia_der))
-
-            # --- Aplicando compensación de voltaje ---
-            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(potencia_izq))
-            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(potencia_der))
-        
-            last_error = error
-            wait(1)
-
-        self.chasis.motor_izquierda.hold()
-        self.chasis.motor_derecha.hold()

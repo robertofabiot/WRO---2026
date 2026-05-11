@@ -3,10 +3,9 @@ from pybricks.parameters import Port, Color
 # --- HARDWARE CONFIG (Puertos) ---
 PORT_MOTOR_IZQ = Port.A
 PORT_MOTOR_DER = Port.B
-PORT_EJE_CENTRAL = Port.C
+PORT_GARRA_TRASERA = Port.C
 PORT_GARRA_DELANTERA = Port.F
 PORT_SENSOR_FRENTE = Port.D
-PORT_SENSOR_TRASERO = Port.E
 
 # --- CHASIS CONFIG (Medidas físicas) ---
 DIAMETRO_RUEDA = 56

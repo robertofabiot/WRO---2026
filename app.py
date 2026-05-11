@@ -10,14 +10,13 @@ from Misiones import Misiones
 mi_robot = Robot(
     port_izq=config.PORT_MOTOR_IZQ, 
     port_der=config.PORT_MOTOR_DER, 
-    port_eje_central=config.PORT_EJE_CENTRAL, 
+    port_garra_trasera=config.PORT_GARRA_TRASERA, 
     port_garra_delantera=config.PORT_GARRA_DELANTERA
 )
 sensor = ColorSensor(config.PORT_SENSOR_FRENTE)
-sensor_trasero = ColorSensor(config.PORT_SENSOR_TRASERO)
 
 # 2. Controladores de alto nivel
-misiones = Misiones(mi_robot, sensor, sensor_trasero)
+misiones = Misiones(mi_robot, sensor)
 armador = ArmadorMosaicos(mi_robot, sensor)
 revisador_bateria = RevisadorBateria(mi_robot)
 
