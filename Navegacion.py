@@ -255,3 +255,32 @@ class Navegacion:
         self.chasis.motor_izquierda.stop()
         self.chasis.motor_derecha.stop()
         cronometro.pause()
+
+    def avanzar_hasta_color(self, sensor_color, color_objetivo, velocidad=300, lecturas_confirmacion=3):
+        """
+        Avanza en línea recta de forma indefinida hasta detectar un color específico,
+        usando el método HSV personalizado y lógica anti-rebote.
+        """
+        contador_color = 0
+        
+        # Comenzar a avanzar recto a la velocidad indicada
+        self.chasis.drive_base.drive(velocidad, 0)
+        
+        while True:
+            # Utilizamos tu función precisa basada en HSV en lugar de la nativa
+            color_detectado = self.detectar_color_preciso(sensor_color)
+            
+            if color_detectado == color_objetivo:
+                contador_color += 1
+                # Solo se detiene si lee el color X veces seguidas (anti-rebote)
+                if contador_color >= lecturas_confirmacion:
+                    break
+            else:
+                # Si el color cambia, reiniciamos el contador
+                contador_color = 0
+                
+            # Pequeña pausa de 10ms para no saturar la comunicación con el sensor
+            wait(10)
+            
+        # Frenar el chasis inmediatamente al confirmar el color
+        self.chasis.drive_base.stop()
