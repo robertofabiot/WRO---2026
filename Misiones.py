@@ -91,6 +91,7 @@ class Misiones:
         self.robot.chasis.mover_en_arco(19, angulo=22)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 44, tiempo_acomodo_ms=0, margen_cm=8)
         self.robot.garra_trasera.mover(-170, 1000, wait_after=False)
+        wait(0) #Tiempo de ventaja de la garra para subir
         self.robot.chasis.latigazo()
 
     #SOLO SE QUITÓ EL ACOMODO Y SE DISMINUYÓ DISTANCIA AL SEGUIDOR
