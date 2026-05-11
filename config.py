@@ -1,10 +1,11 @@
 from pybricks.parameters import Port, Color
 
 # --- HARDWARE CONFIG (Puertos) ---
-PORT_MOTOR_IZQ = Port.A
-PORT_MOTOR_DER = Port.B
-PORT_GARRA_TRASERA = Port.C
-PORT_GARRA_DELANTERA = Port.F
+PORT_MOTOR_IZQ = Port.B
+PORT_MOTOR_DER = Port.E
+PORT_GARRA_TRASERA = Port.F
+PORT_GARRA_DELANTERA = Port.C
+PORT_PINZA = Port.A
 PORT_SENSOR_FRENTE = Port.D
 
 # --- CHASIS CONFIG (Medidas físicas) ---
