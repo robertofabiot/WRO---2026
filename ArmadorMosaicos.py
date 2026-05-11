@@ -27,7 +27,7 @@ class ArmadorMosaicos:
     # --- RUTINAS PRIVADAS ---
     def _armar_verde_verde(self):
         # Mandar la garra central abajo si no lo está
-        self.robot.eje_central.llevar_al_tope("negativo")
+        self.robot.garra_trasera.llevar_al_tope("negativo")
         self.robot.garra_delantera.cerrar_al_tope(velocidad=1000, limite_potencia=100)
         
         # Acomodo para agarrar dos azules y dos verdes
@@ -53,7 +53,7 @@ class ArmadorMosaicos:
         self.robot.navegacion.seguidor_linea_color(self.sensor_color, 100, Color.BLUE, lado="izquierda", tiempo_acomodo_ms=0, distancia_cm=20)
         
         # Subida de garra
-        self.robot.eje_central.llevar_al_tope("positivo", velocidad=400, limite_potencia=100)
+        self.robot.garra_trasera.llevar_al_tope("positivo", velocidad=400, limite_potencia=100)
         
         # Acomodo para que queden en su lugar
         self.robot.chasis.mover_en_arco(-9, distancia_cm=3.6, stop=Stop.COAST)
@@ -62,7 +62,7 @@ class ArmadorMosaicos:
         self.robot.chasis.mover_motor_izquierdo(30)
         
         # Soltar
-        self.robot.eje_central.mover_garra_trasera(-110)
+        self.robot.garra_trasera.mover_garra_trasera(-110)
         self.robot.garra_delantera.abrir(grados=50, velocidad=400) 
         self.robot.chasis.sacudir(iteraciones=3, potencia=60, tiempo_ms=100)
         self.robot.garra_delantera.abrir_al_tope(velocidad=1200, limite_potencia=100) 
@@ -70,7 +70,7 @@ class ArmadorMosaicos:
         
         # Acomodo para buscar los otros
         self.robot.chasis.avanzar_recto(-30) # Retroceso limpio
-        self.robot.eje_central.llevar_al_tope("negativo", limite_potencia=100)
+        self.robot.garra_trasera.llevar_al_tope("negativo", limite_potencia=100)
         self.robot.chasis.giro_preciso(155)
         self.robot.chasis.avanzar_recto(28)
         self.robot.chasis.mover_motor_izquierdo(120)
@@ -94,18 +94,18 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(32) 
         self.robot.chasis.mover_motor_izquierdo(150)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor_color, 80, 20)
-        self.robot.eje_central.llevar_al_tope("positivo", limite_potencia=100)
+        self.robot.garra_trasera.llevar_al_tope("positivo", limite_potencia=100)
         self.robot.chasis.mover_en_arco(9, distancia_cm=3.8, stop=Stop.COAST)
         self.robot.chasis.mover_en_arco(-9, distancia_cm=3.8, stop=Stop.BRAKE) 
         self.robot.chasis.avanzar_recto(14)
-        self.robot.eje_central.llevar_al_tope("negativo", limite_potencia=100)
-        self.robot.eje_central.mover(90)
+        self.robot.garra_trasera.llevar_al_tope("negativo", limite_potencia=100)
+        self.robot.garra_trasera.mover(90)
         
         self.robot.garra_delantera.abrir(grados=50, velocidad=400) 
-        self.robot.eje_central.llevar_al_tope("negativo", limite_potencia=100)
+        self.robot.garra_trasera.llevar_al_tope("negativo", limite_potencia=100)
         self.robot.chasis.sacudir(iteraciones=4, potencia=60, tiempo_ms=100)
         self.robot.garra_delantera.abrir_al_tope(velocidad=1200, limite_potencia=100) 
-        self.robot.eje_central.llevar_al_tope(direccion="positivo", limite_potencia=100)
+        self.robot.garra_trasera.llevar_al_tope(direccion="positivo", limite_potencia=100)
         self.robot.chasis.avanzar_recto(-30) 
 
         # Acá se pretende agarrar los bloques azul y verde y dejarlos en la fila de atrás
@@ -134,9 +134,9 @@ class ArmadorMosaicos:
         # Acá agarra los 2 bloques restantes con la garra de atras
         self.robot.chasis.avanzar_recto(-30)
         self.robot.chasis.giro_preciso(180)
-        self.robot.eje_central.llevar_al_tope(direccion="positivo", limite_potencia=100)
+        self.robot.garra_trasera.llevar_al_tope(direccion="positivo", limite_potencia=100)
         self.robot.chasis.avanzar_recto(-30)
-        self.robot.eje_central.llevar_al_tope(direccion="negativo", limite_potencia=100)
+        self.robot.garra_trasera.llevar_al_tope(direccion="negativo", limite_potencia=100)
 
         # Acá irlo a dejar al mosaico desde el espacio de los verdes
         self.robot.chasis.avanzar_recto(30)
@@ -147,13 +147,13 @@ class ArmadorMosaicos:
         self.robot.navegacion.seguidor_linea_color(self.sensor_color, 1000, Color.GREEN, distancia_cm=40)
 
         # Acá el robot hp se acomoda para quedar recto con los colores
-        self.robot.eje_central.llevar_al_tope("positivo", velocidad=400, limite_potencia=100)
+        self.robot.garra_trasera.llevar_al_tope("positivo", velocidad=400, limite_potencia=100)
         self.robot.chasis.mover_motor_derecho(180, 1000)
         self.robot.chasis.avanzar_recto(3)
         self.robot.chasis.mover_motor_izquierdo(180, 1000)
 
         # Acá los deja
-        self.robot.eje_central.mover_garra_trasera(-110)
+        self.robot.garra_trasera.mover_garra_trasera(-110)
         self.robot.garra_delantera.abrir(grados=50, velocidad=400) 
         self.robot.chasis.sacudir(iteraciones=3, potencia=60, tiempo_ms=100)
         self.robot.garra_delantera.abrir_al_tope(velocidad=1200, limite_potencia=100) 
