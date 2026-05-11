@@ -3,10 +3,9 @@ from pybricks.tools import wait
 import config
 
 class Misiones:
-    def __init__(self, robot, sensor_frente, sensor_trasero):
+    def __init__(self, robot, sensor_frente):
         self.robot = robot
         self.sensor = sensor_frente
-        self.sensor_trasero = sensor_trasero
 
     def _identificar_combinacion(self, sensor, distancia_si_verde):
         """Lógica interna para el escaneo de mosaicos."""
