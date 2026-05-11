@@ -11,7 +11,8 @@ mi_robot = Robot(
     port_izq=config.PORT_MOTOR_IZQ, 
     port_der=config.PORT_MOTOR_DER, 
     port_garra_trasera=config.PORT_GARRA_TRASERA, 
-    port_garra_delantera=config.PORT_GARRA_DELANTERA
+    port_garra_delantera=config.PORT_GARRA_DELANTERA,
+    port_pinza=config.PORT_PINZA # <- Nuevo puerto
 )
 sensor = ColorSensor(config.PORT_SENSOR_FRENTE)
 
