@@ -90,7 +90,8 @@ class Misiones:
         self.robot.chasis.mover_en_arco(-65, distancia_cm=14, stop=Stop.NONE)
         self.robot.chasis.mover_en_arco(19, angulo=22)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 44, tiempo_acomodo_ms=0, margen_cm=8)
-        self.
+        self.robot.garra_trasera.mover(-170, 1000, wait_after=False)
+        self.robot.chasis.latigazo()
 
     def recoger_bloques_azules(self):
         self.robot.chasis.avanzar_recto(15, velocidad=1000)
