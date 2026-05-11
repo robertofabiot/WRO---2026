@@ -62,7 +62,7 @@ class ArmadorMosaicos:
         self.robot.chasis.mover_motor_izquierdo(30)
         
         # Soltar
-        self.robot.garra_trasera.mover_garra_trasera(-110)
+        self.robot.garra_trasera.mover(-110)
         self.robot.garra_delantera.abrir(grados=50, velocidad=400) 
         self.robot.chasis.sacudir(iteraciones=3, potencia=60, tiempo_ms=100)
         self.robot.garra_delantera.abrir_al_tope(velocidad=1200, limite_potencia=100) 
@@ -153,7 +153,7 @@ class ArmadorMosaicos:
         self.robot.chasis.mover_motor_izquierdo(180, 1000)
 
         # Acá los deja
-        self.robot.garra_trasera.mover_garra_trasera(-110)
+        self.robot.garra_trasera.mover(-110)
         self.robot.garra_delantera.abrir(grados=50, velocidad=400) 
         self.robot.chasis.sacudir(iteraciones=3, potencia=60, tiempo_ms=100)
         self.robot.garra_delantera.abrir_al_tope(velocidad=1200, limite_potencia=100) 
