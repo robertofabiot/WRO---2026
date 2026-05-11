@@ -93,10 +93,9 @@ class Misiones:
         self.robot.garra_trasera.mover(-170, 1000, wait_after=False)
         self.robot.chasis.latigazo()
 
+    #SOLO SE QUITÓ EL ACOMODO Y SE DISMINUYÓ DISTANCIA AL SEGUIDOR
     def recoger_bloques_azules(self):
-        self.robot.chasis.avanzar_recto(15, velocidad=1000)
-        self.robot.navegacion.giro_preciso_pd(-90)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 50)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 5)
         self.robot.navegacion.giro_preciso_pd(-45)
         self.robot.chasis.avanzar_recto(13, velocidad=1000)
         self.robot.chasis.mover_motor_izquierdo(300)
