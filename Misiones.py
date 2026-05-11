@@ -43,7 +43,6 @@ class Misiones:
     def agarrar_bloques_blancos(self):
         self.robot.chasis.mover_en_arco(-14, distancia_cm=20, stop=Stop.BRAKE)
         self.robot.eje_central.llevar_al_tope("positivo", limite_potencia=100)
-        self.robot.navegacion.seguir_hasta_interseccion(self.sensor, self.sensor_trasero, 50, kp=0.6)
         self.robot.chasis.avanzar_recto(-10, velocidad=1000)
         self.robot.eje_central.llevar_al_tope("negativo", limite_potencia=100)
         self.robot.chasis.giro_preciso(-175, margen_grados=5)
