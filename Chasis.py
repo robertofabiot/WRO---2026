@@ -127,6 +127,41 @@ class Chasis:
         # Freno mecánico firme para no rebotar
         self.motor_izquierda.hold()
         self.motor_derecha.hold()
+    
+    def latigazo(self, grados=45, velocidad_giro=1000, aceleracion=3000):
+        """
+        Da un giro rápido y violento para aventar un bloque, y regresa a la 
+        posición original compensando el deslizamiento de las llantas usando el IMU.
+        """
+        # 1. Guardamos tu configuración normal de velocidad
+        settings_originales = self.drive_base.settings()
+        
+        # 2. Tomamos una "fotografía" de tu ángulo actual exacto
+        angulo_inicial = self.hub.imu.heading()
+        
+        # 3. Inyectamos esteroides temporales al DriveBase
+        self.drive_base.settings(
+            turn_rate=velocidad_giro,
+            turn_acceleration=aceleracion
+        )
+        
+        # 4. ¡Latigazo! (Ida)
+        self.drive_base.turn(grados)
+        
+        # 5. Medimos dónde quedamos realmente tras el derrape
+        angulo_post_golpe = self.hub.imu.heading()
+        
+        # 6. Calculamos la compensación y regresamos
+        grados_de_regreso = angulo_inicial - angulo_post_golpe
+        self.drive_base.turn(grados_de_regreso)
+        
+        # 7. Restauramos la configuración original del chasis para no arruinar tu navegación
+        self.drive_base.settings(
+            straight_speed=settings_originales[0],
+            straight_acceleration=settings_originales[1],
+            turn_rate=settings_originales[2],
+            turn_acceleration=settings_originales[3]
+        )
             
     def sacudir(self, iteraciones=5, potencia=100, tiempo_ms=60):
         self.drive_base.stop() 
