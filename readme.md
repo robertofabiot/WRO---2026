@@ -5,7 +5,7 @@ Lógica de control, navegación avanzada y rutinas para la World Robot Olympiad.
 
 ![Language: MicroPython](https://img.shields.io/badge/language-MicroPython-306998)
 ![FrameWork: Pybricks](https://img.shields.io/badge/framework-Pybricks-ED1C24)
-![Status: In Development](https://img.shields.io/badge/status-In_Development-orange)
+![Status: Pending Testing](https://img.shields.io/badge/status-Pending_Testing-yellow)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
 </div>
@@ -20,15 +20,16 @@ El proyecto está estructurado de manera modular para separar el control de bajo
 
 ## Configuración de Hardware
 
-El robot está construido sobre la plataforma LEGO Education SPIKE Prime, utilizando un PrimeHub con la siguiente distribución de puertos:
+El robot está construido sobre la plataforma LEGO Education SPIKE Prime, utilizando un PrimeHub con la siguiente distribución de puertos actualizada (5 motores):
 
 ### Tracción (Chasis)
-* Puerto A: Motor Izquierdo
-* Puerto B: Motor Derecho
+* Puerto B: Motor Izquierdo
+* Puerto E: Motor Derecho
 
 ### Mecanismos
-* Puerto C: Garra Trasera
-* Puerto F: Garra Delantera / Pala
+* Puerto A: Pinza Delantera (Abre/Cierra garra)
+* Puerto C: Elevador / Garra Delantera (Sube/Baja estructura)
+* Puerto F: Garra Trasera (Sube/Baja jaula)
 
 ### Sensores
 * Puerto D: Sensor de Color Principal (Frontal)
@@ -39,17 +40,21 @@ El robot está construido sobre la plataforma LEGO Education SPIKE Prime, utiliz
 
 ## Estado del Proyecto y Misiones
 
-Se ha estandarizado la recolección de bloques utilizando un flujo directo con la garra trasera, eliminando secuencias complejas. El estado actual de las tareas es el siguiente:
+Se ha realizado una refactorización completa de la arquitectura orientada a objetos para simplificar la lógica de las garras y la navegación con un solo sensor. 
 
-### Funcionalidades Implementadas
-* Construcción Inicial: [OK] Despliegue estable del bloque de cemento y la llana.
-* Bloques Blancos: [OK] Rutina de recolección unificada completada.
-* Mosaico: [OK] Escaneo exitoso y detección de combinaciones de colores (integrado con el sensor frontal).
-* Bloques Amarillos y Azules: [OK] Recolección y reubicación operativa.
-* Armado de Mosaico: [Parcial] Soporte inicial (Caso 1: verde-verde, 4/12 bloques).
+**Estado actual:** Todas las misiones han sido programadas bajo el nuevo flujo de trabajo, pero se encuentran **pendientes de calibración física y testeo en pista**.
 
-### Limitaciones Conocidas / Pendientes
-* Llevada de la pala: Está pendiente desarrollar una mejor solución para el transporte de la pala en el inicio, debido a la ausencia de los brazos frontales con los que se agarraba en iteraciones anteriores del diseño.
+### Checklist de Misiones (app.py)
+- [ ] `agarrar_bloques_blancos()`
+- [ ] `dejar_bloques_blancos()`
+- [ ] `detectar_mosaico()`
+- [ ] `agarrar_bloques_verdes()`
+- [ ] `dejar_bloques_verdes()`
+- [ ] `agarrar_bloques_amarillos()`
+- [ ] `dejar_bloques_amarillos()`
+- [ ] `cemento_y_llana()`
+- [ ] `recoger_bloques_azules()`
+- [ ] `dejar_bloques_azules_y_pala()`
 
 ---
 
@@ -60,7 +65,7 @@ El núcleo del robot (`robot.py`) ha sido optimizado con las siguientes funcione
 * **Detección de Color Avanzada (HSV):** Se migró a un sistema de detección basado en valores HSV (`detectar_color_preciso`) con lógica anti-rebote (*debouncing*). Esto elimina lecturas inconsistentes (especialmente en los bordes de la línea negra/blanca) y hace al robot mucho más predecible.
 * **Seguidores de Línea PID:** Implementación de múltiples seguidores de línea (por distancia o por color) para máxima estabilidad. Incluye una función de frenado progresivo (`seguidor_linea_distancia_desacelerado`) para lograr detenciones milimétricas.
 * **Navegación y Detección de Cruces:** El sistema utiliza un modelo optimizado de seguimiento mediante un solo sensor frontal para la detección de intersecciones y finalización de tramos.
-* **Manejo de Fricción (Sacudidas):** Implementación de inyección de voltaje directo (`dc`) con la función `sacudir` para asentar bloques pesados venciendo la fricción sin causar un estancamiento del código.
+* **Manejo de Fricción (Sacudidas):** Implementación de inyección de voltaje directo (`dc`) con las funciones `sacudir` y `latigazo` para asentar o aventar bloques pesados venciendo la fricción sin causar un estancamiento del código.
 
 ---
 
