@@ -70,5 +70,24 @@ class GarraDelantera(Garra):
 
 
 class GarraTrasera(Garra):
-    """Es una jaula vertical. Hereda todo tal cual de Garra."""
-    pass
+    """
+    Es una jaula vertical. El motor está invertido físicamente, 
+    por lo que se sobrescriben los métodos para invertir su comportamiento 
+    llamando a los métodos opuestos de la clase padre (Garra).
+    """
+
+    def subir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
+        # Subir en la garra trasera equivale a bajar en la lógica base
+        super().bajar(grados, velocidad, wait_after, frenado, margen_grados)
+
+    def bajar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
+        # Bajar en la garra trasera equivale a subir en la lógica base
+        super().subir(grados, velocidad, wait_after, frenado, margen_grados)
+
+    def subir_al_tope(self, velocidad=800, limite_potencia=50):
+        # Subir al tope llama a bajar_al_tope del padre
+        return super().bajar_al_tope(velocidad, limite_potencia)
+
+    def bajar_al_tope(self, velocidad=800, limite_potencia=50):
+        # Bajar al tope llama a subir_al_tope del padre
+        return super().subir_al_tope(velocidad, limite_potencia)
