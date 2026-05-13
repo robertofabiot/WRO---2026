@@ -25,9 +25,10 @@ class Misiones:
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 157, tiempo_acomodo_ms=0)
         self.robot.chasis.avanzar_recto(25, velocidad=1000)
         self.robot.chasis.mover_motor_izquierdo(-514, 1000, frenado=Stop.NONE)
-        self.robot.chasis.avanzar_hasta_choque(-100, tiempo_arranque_ms=0)
+        self.robot.chasis.avanzar_hasta_choque(-100, 90, timeout_ms=2000)
         self.robot.navegacion.avanzar_hasta_color(self.sensor, Color.BLACK, 500)
-        self.robot.chasis.mover_motor_derecho(514, 1000, frenado=Stop.COAST)
+        self.robot.chasis.mover_motor_derecho(450, 1000, frenado=Stop.COAST)
+        self.robot.chasis.mover_motor_izquierdo(-200, 1000, frenado=Stop.COAST)
         self.__recoger_bloques()
 
     #MISMA LÓGICA (DE MOMENTO)
@@ -123,6 +124,6 @@ class Misiones:
 
     def __recoger_bloques(self):
         self.robot.garra_trasera.subir_al_tope(1000, limite_potencia=100)
-        self.robot.garra_trasera.bajar(100, 1000, wait_after=False) 
-        self.robot.chasis.avanzar_hasta_choque(-70, 60)
+        self.robot.garra_trasera.bajar(160)
+        self.robot.chasis.avanzar_hasta_choque(-60, 59)
         self.robot.garra_trasera.bajar_al_tope(1000, limite_potencia=100)
