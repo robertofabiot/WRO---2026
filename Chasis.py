@@ -98,10 +98,12 @@ class Chasis:
         else:
             self.motor_derecha.run_angle(velocidad, grados, then=frenado, wait=wait_after)
 
-    def avanzar_hasta_choque(self, potencia=100, umbral_velocidad=50, tiempo_arranque_ms=300):
+    def avanzar_hasta_choque(self, potencia=100, umbral_velocidad=50, tiempo_arranque_ms=300, timeout_ms=None):
         """
         Avanza aplicando voltaje directo (.dc) hasta detectar un choque mecánico.
         Puedes usar potencia negativa (-100) para chocar de reversa.
+        
+        :param timeout_ms: Tiempo máximo en milisegundos antes de abortar. Si es None, no hay límite.
         """
         self.drive_base.stop() # Desactivamos temporalmente el control de DriveBase
         
@@ -113,6 +115,10 @@ class Chasis:
         # un falso choque al estar arrancando desde velocidad 0.
         wait(tiempo_arranque_ms)
         
+        # Llevamos el registro del tiempo total (iniciando con el tiempo de arranque ya consumido)
+        tiempo_transcurrido = tiempo_arranque_ms
+        paso_ms = 10 # Los milisegundos que esperamos en cada ciclo
+        
         while True:
             vel_izq = abs(self.motor_izquierda.speed())
             vel_der = abs(self.motor_derecha.speed())
@@ -121,8 +127,14 @@ class Chasis:
             # significa que físicamente chocó contra un obstáculo.
             if vel_izq < umbral_velocidad and vel_der < umbral_velocidad:
                 break
+            
+            # Si definimos un timeout y el tiempo transcurrido lo supera, salimos del bucle
+            if timeout_ms is not None and tiempo_transcurrido >= timeout_ms:
+                print("Advertencia: Timeout alcanzado en avanzar_hasta_choque")
+                break
                 
-            wait(10)
+            wait(paso_ms)
+            tiempo_transcurrido += paso_ms
             
         # Freno mecánico firme para no rebotar
         self.motor_izquierda.hold()
