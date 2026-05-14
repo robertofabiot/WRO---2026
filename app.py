@@ -30,16 +30,18 @@ if __name__ == "__main__":
         misiones.agarrar_bloques_blancos()
         misiones.dejar_bloques_blancos()
         
+        misiones.agarrar_bloques_verdes()
+        
         numero_mosaico = misiones.detectar_mosaico()
         
-        misiones.agarrar_bloques_verdes()
         misiones.dejar_bloques_verdes()
         misiones.agarrar_bloques_amarillos()
-        misiones.dejar_bloques_amarillos()
         
+        misiones.agarrar_bloques_azules()
+        misiones.dejar_bloques_amarillos()
+
         misiones.cemento_y_llana()
         
-        misiones.recoger_bloques_azules()
         misiones.dejar_bloques_azules_y_pala()
     
         """

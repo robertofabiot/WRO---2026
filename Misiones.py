@@ -69,7 +69,7 @@ class Misiones:
         self.__recoger_bloques(20)  
     
             #SOLO SE QUITÓ EL ACOMODO Y SE DISMINUYÓ DISTANCIA AL SEGUIDOR
-    def recoger_bloques_azules(self):
+    def agarrar_bloques_azules(self):
         self.robot.chasis.avanzar_recto(67, 1000)
 
     #MISMA LÓGICA (DE MOMENTO)
