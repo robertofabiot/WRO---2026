@@ -16,7 +16,7 @@ class Garra:
         else:
             self.motor.run_angle(velocidad, grados, then=frenado, wait=wait_after)
 
-    def llevar_al_tope(self, direccion, velocidad=1000, limite_potencia=60):
+    def llevar_al_tope(self, direccion, velocidad=1000, limite_potencia=60, frenado=Stop.HOLD):
         if direccion in ("positivo", 1):
             vel_real = abs(velocidad)
         elif direccion in ("negativo", -1):
@@ -24,7 +24,7 @@ class Garra:
         else:
             print("Error: Dirección inválida.")
             return None
-        return self.motor.run_until_stalled(vel_real, then=Stop.HOLD, duty_limit=limite_potencia)
+        return self.motor.run_until_stalled(vel_real, then=frenado, duty_limit=limite_potencia)
 
     # --- MÉTODOS VERTICALES (Heredables) ---
     def subir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
@@ -33,11 +33,11 @@ class Garra:
     def bajar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         self.mover(abs(grados), velocidad, wait_after, frenado, margen_grados)
 
-    def subir_al_tope(self, velocidad=800, limite_potencia=50):
-        return self.llevar_al_tope("negativo", velocidad, limite_potencia)
+    def subir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+        return self.llevar_al_tope("negativo", velocidad, limite_potencia, frenado)
 
-    def bajar_al_tope(self, velocidad=800, limite_potencia=50):
-        return self.llevar_al_tope("positivo", velocidad, limite_potencia)
+    def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+        return self.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
 
 
 class GarraDelantera(Garra):
@@ -62,11 +62,11 @@ class GarraDelantera(Garra):
     def cerrar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         self.mover_pinza(-abs(grados), velocidad, wait_after, frenado, margen_grados)
 
-    def abrir_al_tope(self, velocidad=800, limite_potencia=50):
-        return self.pinza.llevar_al_tope("positivo", velocidad, limite_potencia)
+    def abrir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+        return self.pinza.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
 
-    def cerrar_al_tope(self, velocidad=800, limite_potencia=50):
-        return self.pinza.llevar_al_tope("negativo", velocidad, limite_potencia)
+    def cerrar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+        return self.pinza.llevar_al_tope("negativo", velocidad, limite_potencia, frenado)
 
 
 class GarraTrasera(Garra):
@@ -84,10 +84,10 @@ class GarraTrasera(Garra):
         # Bajar en la garra trasera equivale a subir en la lógica base
         super().subir(grados, velocidad, wait_after, frenado, margen_grados)
 
-    def subir_al_tope(self, velocidad=800, limite_potencia=50):
+    def subir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
         # Subir al tope llama a bajar_al_tope del padre
-        return super().bajar_al_tope(velocidad, limite_potencia)
+        return super().bajar_al_tope(velocidad, limite_potencia, frenado)
 
-    def bajar_al_tope(self, velocidad=800, limite_potencia=50):
+    def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
         # Bajar al tope llama a subir_al_tope del padre
-        return super().subir_al_tope(velocidad, limite_potencia)
+        return super().subir_al_tope(velocidad, limite_potencia, frenado)
