@@ -1,5 +1,6 @@
 from pybricks.tools import StopWatch, wait
 from pybricks.parameters import Color
+from Utils import Utils # <- Importamos la clase Utils
 
 class Navegacion:
     def __init__(self, chasis):
@@ -39,6 +40,7 @@ class Navegacion:
             error_previo = error
             wait(10)
         self.chasis.drive_base.stop()
+        Utils.emitir_sonido_confirmacion(self.chasis.hub) # <- Sonido al terminar
 
     def giro_eje_puro(self, angulo_relativo, kp=3.5, kd=15.0, max_speed=600, min_speed=30, margen_grados=0):
         self.chasis.drive_base.stop()
@@ -64,6 +66,7 @@ class Navegacion:
             wait(10)
         self.chasis.motor_izquierda.hold()
         self.chasis.motor_derecha.hold()
+        Utils.emitir_sonido_confirmacion(self.chasis.hub) # <- Sonido al terminar
 
     def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800, kp = 0.85, kd = 2.5, k_freno = 0.6, margen_cm=0):
         diametro_rueda = 5.6
@@ -117,6 +120,7 @@ class Navegacion:
         self.chasis.motor_izquierda.stop()
         self.chasis.motor_derecha.stop()
         cronometro.pause()
+        Utils.emitir_sonido_confirmacion(self.chasis.hub) # <- Sonido al terminar
 
     def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo, lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None, lecturas_confirmacion=3):
         cronometro = StopWatch()
@@ -193,6 +197,7 @@ class Navegacion:
         self.chasis.motor_izquierda.stop()
         self.chasis.motor_derecha.stop()
         cronometro.pause()
+        Utils.emitir_sonido_confirmacion(self.chasis.hub) # <- Sonido al terminar
     
     def seguidor_linea_distancia_desacelerado(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800, kp = 0.85, kd = 2.5, k_freno = 0.6, margen_cm=0):
         diametro_rueda = 5.6
@@ -255,6 +260,7 @@ class Navegacion:
         self.chasis.motor_izquierda.stop()
         self.chasis.motor_derecha.stop()
         cronometro.pause()
+        Utils.emitir_sonido_confirmacion(self.chasis.hub) # <- Sonido al terminar
 
     def avanzar_hasta_color(self, sensor_color, color_objetivo, velocidad=300, lecturas_confirmacion=3):
         """
@@ -284,3 +290,4 @@ class Navegacion:
             
         # Frenar el chasis inmediatamente al confirmar el color
         self.chasis.drive_base.stop()
+        Utils.emitir_sonido_confirmacion(self.chasis.hub) # <- Sonido al terminar
