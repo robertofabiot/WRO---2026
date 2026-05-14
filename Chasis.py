@@ -1,5 +1,6 @@
 from pybricks.parameters import Stop
 from pybricks.tools import wait
+import config
 
 class Chasis:
     def __init__(self, drive_base, motor_izq, motor_der, hub, velocidad_base):
@@ -26,6 +27,50 @@ class Chasis:
                 wait(2)
         else:
             self.drive_base.straight(distancia_mm, then=frenado, wait=wait_after)
+    
+    def avance_milimetrico(self, milimetros, velocidad=400):
+        """
+        Da un micro-paso preciso. Incluye relajación mecánica previa para 
+        evitar saltos (overshoot) cuando se usa después de chocar contra paredes.
+        """
+        # 1. IMPORTANTE: Relajamos los motores (Coast) para liberar la tensión 
+        # del choque previo en los engranajes y desatorar los PIDs.
+        self.motor_izquierda.stop()
+        self.motor_derecha.stop()
+        wait(100) # Damos 100ms para que el plástico regrese a su forma natural
+        
+        # 2. Calculamos los grados exactos (Usando tu variable de config)
+        circunferencia = config.DIAMETRO_RUEDA * 3.1416
+        grados_a_mover = (milimetros / circunferencia) * 360
+        
+        # 3. Movemos ambos motores simultáneamente
+        self.motor_izquierda.run_angle(velocidad, grados_a_mover, then=Stop.HOLD, wait=False)
+        self.motor_derecha.run_angle(velocidad, grados_a_mover, then=Stop.HOLD, wait=True)
+        
+        wait(50)
+    
+    def chocar_inteligente(self, distancia_acercamiento_cm, velocidad_acercamiento=800, potencia_choque=35, timeout_choque_ms=1500):
+        """
+        Avanza rápido la mayor parte del trayecto y luego reduce la potencia 
+        drásticamente para asegurar un choque mecánico sin derrape de llantas.
+        
+        Si distancia_acercamiento_cm es negativa, el acercamiento y el choque se hacen en reversa.
+        """
+        # 1. Ajustar los signos automáticamente
+        es_reversa = distancia_acercamiento_cm < 0
+        potencia_real = -abs(potencia_choque) if es_reversa else abs(potencia_choque)
+        
+        # 2. Fase de "Vuelo": Acercamiento a alta velocidad usando tu PID normal
+        self.avanzar_recto(distancia_acercamiento_cm, velocidad=velocidad_acercamiento, wait_after=True)
+        
+        # 3. Fase de "Toque": Potencia baja para evitar derrape. 
+        # Umbral bajo (20) porque al ir lento, el ruido de velocidad es menor.
+        self.avanzar_hasta_choque(
+            potencia=potencia_real, 
+            umbral_velocidad=20, 
+            tiempo_arranque_ms=150, 
+            timeout_ms=timeout_choque_ms
+        )
             
     def mover_en_arco(self, radio_cm, angulo=None, distancia_cm=None, stop=Stop.HOLD, wait_after=True, margen_grados=0, margen_cm=0):
         radio_mm = radio_cm * 10
