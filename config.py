@@ -1,10 +1,11 @@
 from pybricks.parameters import Port, Color
 
 # --- HARDWARE CONFIG (Puertos) ---
-PORT_MOTOR_IZQ = Port.A
-PORT_MOTOR_DER = Port.B
-PORT_GARRA_TRASERA = Port.C
-PORT_GARRA_DELANTERA = Port.F
+PORT_MOTOR_IZQ = Port.B
+PORT_MOTOR_DER = Port.E
+PORT_ELEVADOR_DELANTERO = Port.C  
+PORT_GARRA_DELANTERA = Port.A     
+PORT_GARRA_TRASERA = Port.F       
 PORT_SENSOR_FRENTE = Port.D
 
 # --- CHASIS CONFIG (Medidas físicas) ---
@@ -19,8 +20,8 @@ TURN_RATE = 500
 
 # --- REGLAS DEL JUEGO ---
 MOSAICOS = {
-    Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2}, 
-    Color.BLUE: 3, 
-    Color.YELLOW: 4, 
+    Color.GREEN: {Color.GREEN: 1, Color.YELLOW: 2},
+    Color.BLUE: 3,
+    Color.YELLOW: 4,
     Color.WHITE: 5
 }
