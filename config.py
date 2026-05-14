@@ -25,3 +25,6 @@ MOSAICOS = {
     Color.YELLOW: 4, 
     Color.WHITE: 5
 }
+
+# --- OPCIONES DE SISTEMA ---
+SONIDO_ACTIVO = True
