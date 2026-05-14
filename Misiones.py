@@ -23,60 +23,60 @@ class Misiones:
     def agarrar_bloques_blancos(self):
         self.robot.chasis.mover_en_arco(radio_cm=13, distancia_cm=15, stop=Stop.NONE)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 157, tiempo_acomodo_ms=0)
-        self.robot.chasis.avanzar_recto(25, velocidad=1000)
+        self.robot.chasis.avanzar_recto(21, velocidad=1000, frenado=Stop.NONE, margen_cm=5)
         self.robot.chasis.mover_motor_izquierdo(-514, 1000, frenado=Stop.NONE)
-        self.robot.chasis.avanzar_hasta_choque(-100, 90, timeout_ms=2000)
-        self.robot.navegacion.avanzar_hasta_color(self.sensor, Color.BLACK, 500)
-        self.robot.chasis.mover_motor_derecho(450, 1000, frenado=Stop.COAST)
-        self.robot.chasis.mover_motor_izquierdo(-200, 1000, frenado=Stop.COAST)
-        self.__recoger_bloques()
+        self.robot.chasis.avanzar_hasta_choque(-100, 99, tiempo_arranque_ms=0, timeout_ms=500)
+        self.robot.chasis.mover_motor_derecho(630, 1000, frenado=Stop.HOLD)
+        self.robot.chasis.mover_motor_izquierdo(120, margen_grados=80)
+        self.robot.chasis.mover_motor_derecho(120, margen_grados=80)
+        self.__recoger_bloques(30)
 
     #MISMA LÓGICA (DE MOMENTO)
     def dejar_bloques_blancos(self):
-        self.robot.chasis.avanzar_recto(5, velocidad=1000, frenado=Stop.NONE)
-        self.robot.chasis.mover_motor_izquierdo(370, velocidad=1000, frenado=Stop.NONE)
-        self.robot.chasis.mover_en_arco(radio_cm=-114, angulo=24, stop=Stop.NONE)
-        self.robot.navegacion.seguidor_linea_color(self.sensor, 100, Color.GREEN, lado="derecha", distancia_cm=17)
+        self.robot.chasis.avanzar_recto(5, velocidad=1000, frenado=Stop.COAST)
+        self.robot.chasis.mover_motor_izquierdo(370, velocidad=1000, frenado=Stop.COAST)
+        self.robot.chasis.avanzar_recto(60, 1000, margen_cm=5)
+        self.robot.chasis.mover_motor_derecho(370, velocidad=1000, frenado=Stop.NONE)
+        self.robot.navegacion.seguidor_linea_color(self.sensor, 70, Color.GREEN, lado="derecha", distancia_cm=3)
         self.robot.chasis.avanzar_recto(-0.5)
         self.robot.navegacion.giro_eje_puro(218, kp=5, kd=10, min_speed=200)
         self.robot.chasis.avanzar_recto(-24, velocidad=1000, margen_cm=2)
         self.robot.garra_trasera.subir(80, margen_grados=20)
+
+    def agarrar_bloques_verdes(self):
+        self.robot.chasis.avanzar_recto(25, velocidad=1000, frenado=Stop.COAST)
+        self.robot.chasis.mover_motor_derecho(300, velocidad=1000)
+        self.robot.navegacion.seguidor_linea_distancia_desacelerado(self.sensor, 1000, 25, tiempo_acomodo_ms=0)
+        self.robot.chasis.giro_preciso(180)
+        self.robot.chasis.mover_motor_izquierdo(120, margen_grados=80)
+        self.robot.chasis.mover_motor_derecho(120, margen_grados=80)
+        self.__recoger_bloques(5)
     
     def detectar_mosaico(self):
-        self.robot.chasis.avanzar_recto(14, velocidad=1000, frenado=Stop.NONE)
-        self.robot.chasis.girar_sobre_eje(135)
-        self.robot.chasis.avanzar_recto(23)
+        self.robot.chasis.avanzar_recto(90, velocidad=1000)
         mosaico = self._identificar_combinacion(self.sensor, 5)
         print(f"Mosaico detectado: {mosaico}" if mosaico != -1 else "Error en escaneo")
         return mosaico
 
-    def agarrar_bloques_verdes(self):
-        self.__recoger_bloques()
-
     def dejar_bloques_verdes(self):
-        self.robot.chasis.avanzar_recto(40)
-        self.robot.chasis.giro_preciso(180, kp_nuevo=5)
-        self.robot.chasis.avanzar_recto(38)
+        self.robot.chasis.avanzar_recto(-24)
+        self.robot.chasis.giro_preciso(180, kp_nuevo=3.5)
         self.robot.garra_trasera.subir_al_tope(1000, limite_potencia=100)
     
     def agarrar_bloques_amarillos(self):
         self.robot.chasis.avanzar_recto(60, 1000, frenado=Stop.NONE)
-        self.robot.chasis.mover_motor_derecho(-514)
-        self.robot.chasis.avanzar_hasta_choque(-1000)
-        self.robot.navegacion.avanzar_hasta_color(self.sensor, Color.BLACK, 500)
-        self.robot.chasis.mover_motor_izquierdo(514, 1000, frenado=Stop.COAST)
-        self.__recoger_bloques()    
+        self.robot.chasis.mover_motor_izquierdo(514, velocidad=1000)
+        self.__recoger_bloques(20)  
+    
+            #SOLO SE QUITÓ EL ACOMODO Y SE DISMINUYÓ DISTANCIA AL SEGUIDOR
+    def recoger_bloques_azules(self):
+        self.robot.chasis.avanzar_recto(67, 1000)
 
     #MISMA LÓGICA (DE MOMENTO)
     def dejar_bloques_amarillos(self):
-        self.robot.chasis.mover_motor_derecho(225, velocidad=1000, margen_grados=30)
-        self.robot.chasis.avanzar_recto(60, velocidad=1000, frenado=Stop.NONE)
-        self.robot.chasis.mover_motor_izquierdo(225, velocidad=1000, margen_grados=30)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 58, lado="izquierda", tiempo_acomodo_ms=800)
-        wait(500)
-        self.robot.navegacion.giro_preciso_pd(-90)
-        self.robot.chasis.avanzar_recto(-17, velocidad=1000)
-        self.robot.garra_trasera.subir_al_tope(1000, limite_potencia=100)
+        self.robot.chasis.mover_motor_izquierdo(514, velocidad=1000)
+        self.robot.chasis.avanzar_recto(50, velocidad=1000, frenado=Stop.NONE)
+        self.robot.navegacion()   
 
     def cemento_y_llana(self):
         self.robot.chasis.avanzar_recto(18)
@@ -91,20 +91,6 @@ class Misiones:
         self.robot.garra_trasera.subir(170, 1000, wait_after=False)
         wait(0) #Tiempo de ventaja de la garra para subir
         self.robot.chasis.latigazo()
-
-    #SOLO SE QUITÓ EL ACOMODO Y SE DISMINUYÓ DISTANCIA AL SEGUIDOR
-    def recoger_bloques_azules(self):
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 5)
-        self.robot.navegacion.giro_preciso_pd(-45)
-        self.robot.chasis.avanzar_recto(13, velocidad=1000)
-        self.robot.chasis.mover_motor_izquierdo(300)
-        self.robot.navegacion.seguidor_linea_color(self.sensor, 100, Color.BLUE, distancia_cm=25)
-        self.robot.chasis.avanzar_recto(-10)
-        self.robot.garra_trasera.subir_al_tope(limite_potencia=100)
-        self.robot.chasis.giro_preciso(-175)
-        self.robot.chasis.mover_motor_derecho(30)
-        self.robot.chasis.avanzar_recto(-20) 
-        self.robot.garra_trasera.bajar_al_tope(limite_potencia=100)
 
     def dejar_bloques_azules_y_pala(self):
         self.robot.garra_trasera.bajar_al_tope(limite_potencia=100)
@@ -122,8 +108,10 @@ class Misiones:
         self.robot.navegacion.giro_preciso_pd(-90)
         self.robot.garra_trasera.subir(55)
 
-    def __recoger_bloques(self):
+    def __recoger_bloques(self, distancia_acelerada):
         self.robot.garra_trasera.subir_al_tope(1000, limite_potencia=100)
         self.robot.garra_trasera.bajar(160)
-        self.robot.chasis.avanzar_hasta_choque(-60, 59)
-        self.robot.garra_trasera.bajar_al_tope(1000, limite_potencia=100)
+        self.robot.chasis.chocar_inteligente(-distancia_acelerada, 1000, timeout_choque_ms=None)
+        self.robot.chasis.avanzar_recto(3, velocidad=1000, wait_after=False)
+        wait(300)
+        self.robot.garra_trasera.bajar_al_tope(limite_potencia=60, frenado=Stop.COAST)
