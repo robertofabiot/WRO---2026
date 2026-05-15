@@ -68,6 +68,53 @@ class Navegacion:
         self.chasis.motor_derecha.hold()
         Utils.emitir_sonido_confirmacion(self.chasis.hub) # <- Sonido al terminar
 
+    # --- NUEVO MÉTODO PARA ABSOLUTE HEADING ---
+    def giro_absoluto_pd(self, angulo_objetivo, max_speed=800, min_speed=40, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True):
+        """
+        Gira hacia un ángulo absoluto en el mapa de la pista. 
+        Permite elegir entre la ruta más corta (predeterminada) o la ruta larga.
+        """
+        self.chasis.drive_base.stop()
+        tolerancia = 1    
+        error_previo = 0
+        
+        while True:
+            angulo_actual = self.chasis.hub.imu.heading()
+            error_bruto = angulo_objetivo - angulo_actual
+            
+            # Calculamos primero la ruta óptima (la más corta, nunca más de 180)
+            error_corto = (error_bruto + 180) % 360 - 180
+            
+            # Decidimos qué error usar basados en el parámetro
+            if ruta_corta:
+                error = error_corto
+            else:
+                # Si la ruta corta era positiva (derecha), la larga es negativa (izquierda) y viceversa
+                if error_corto > 0:
+                    error = error_corto - 360
+                elif error_corto < 0:
+                    error = error_corto + 360
+                else:
+                    error = 0 # Ya estamos exactamente en el ángulo
+            
+            if abs(error) <= max(tolerancia, margen_grados):
+                break
+                
+            derivada = error - error_previo
+            turn_rate = (error * kp) + (derivada * kd)
+            
+            if turn_rate > 0:
+                turn_rate = min(max(turn_rate, min_speed), max_speed)
+            else:
+                turn_rate = max(min(turn_rate, -min_speed), -max_speed)
+                
+            self.chasis.drive_base.drive(0, turn_rate)
+            error_previo = error
+            wait(10)
+            
+        self.chasis.drive_base.stop()
+        Utils.emitir_sonido_confirmacion(self.chasis.hub)
+
     def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800, kp = 0.85, kd = 2.5, k_freno = 0.6, margen_cm=0):
         diametro_rueda = 5.6
         circunferencia = 3.1416 * diametro_rueda
