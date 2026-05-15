@@ -24,7 +24,7 @@ class Misiones:
 
     def cemento_y_llana(self):
         self.robot.mecanismos.garra_delantera.llevar_al_tope("positivo", velocidad=1000, limite_potencia=60)
-        self.robot.chasis.mover_en_arco(radio_cm=13, distancia_cm=17, stop=Stop.NONE)
+        self.robot.chasis.mover_en_arco(radio_cm=14, distancia_cm=17, stop=Stop.NONE)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 110, 84, tiempo_acomodo_ms=0, margen_cm=10)
         self.robot.navegacion.giro_preciso_pd(-94, margen_grados=5)
         self.robot.mecanismos.garra_trasera.mover(167, velocidad=180, wait_after=False)
@@ -34,18 +34,17 @@ class Misiones:
         wait(1)
         self.robot.chasis.avanzar_recto(-23, velocidad=1300, frenado=Stop.NONE)
         wait(1)
-        self.robot.chasis.mover_en_arco(-50, distancia_cm=8, stop=Stop.NONE)
+        self.robot.chasis.mover_en_arco(-135, distancia_cm=30, stop=Stop.COAST)
+        self.robot.chasis.mover_motor_izquierdo(100)
         wait(1)
-        self.robot.chasis.mover_en_arco(30, distancia_cm=9, stop=Stop.BRAKE)
-        wait(1)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 110, 39)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 110, 33, tiempo_acomodo_ms=100)
         self.robot.navegacion.giro_preciso_pd(90, max_speed=1000, min_speed=40, kp=8.5, kd=115.0)
 
     def agarrar_bloques_blancos(self):
         self.robot.mecanismos.garra_trasera.mover(-100, velocidad= 1300, wait_after= False)
         self.robot.chasis.avanzar_recto(-5)
         self.robot.chasis.mover_en_arco(-10, distancia_cm=15, stop=Stop.BRAKE)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 110, distancia_cm=14, lado="derecha", tiempo_acomodo_ms=800)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, distancia_cm=10, lado="derecha", tiempo_acomodo_ms=800)
         wait(300)
         self.robot.navegacion.giro_preciso_pd(-180)
         self.robot.chasis.avanzar_recto(-10, velocidad=1000)
