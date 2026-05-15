@@ -10,6 +10,9 @@ class Misiones:
         self.sensor = sensor_frente
         self.sensor_trasero = sensor_frente
 
+
+    
+
     def _identificar_combinacion(self, sensor: ColorSensor, distancia_si_verde):
         color_principal = sensor.color()
         if color_principal not in config.MOSAICOS:
@@ -21,6 +24,10 @@ class Misiones:
             if color_anterior not in decision: return -1
             return decision[color_anterior]
         return decision
+
+    def pruebas(self):
+        # self.robot.chasis.mover_en_arco(-7, distancia_cm=11, stop=Stop.BRAKE)
+        self.robot.navegacion.seguidor_linea_distancia_prueba(self.sensor, velocidad_max=100, distancia_cm=50, lado="derecha", tiempo_acomodo_ms=800, kp=1.2, kd=3.5, k_freno=1.0, margen_cm=0)
 
     def cemento_y_llana(self):
         self.robot.mecanismos.garra_delantera.llevar_al_tope("positivo", velocidad=1000, limite_potencia=60)
@@ -41,19 +48,20 @@ class Misiones:
         self.robot.navegacion.giro_preciso_pd(90, max_speed=1000, min_speed=40, kp=8.5, kd=115.0)
 
     def agarrar_bloques_blancos(self):
-        self.robot.mecanismos.garra_trasera.mover(-100, velocidad= 1300, wait_after= False)
+        self.robot.mecanismos.garra_trasera.mover(-170, velocidad= 1300, wait_after= False)
         self.robot.chasis.avanzar_recto(-5)
-        self.robot.chasis.mover_en_arco(-10, distancia_cm=15, stop=Stop.BRAKE)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, distancia_cm=10, lado="derecha", tiempo_acomodo_ms=800)
+        self.robot.chasis.mover_en_arco(-7, distancia_cm=11, stop=Stop.BRAKE)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, distancia_cm=15, lado="derecha", tiempo_acomodo_ms=800)
         wait(300)
         self.robot.navegacion.giro_preciso_pd(-180)
-        self.robot.chasis.avanzar_recto(-10, velocidad=1000)
+        wait(100)
+        self.robot.chasis.avanzar_recto(-17, velocidad=1000)
         self.robot.mecanismos.garra_trasera.mover(170)
 
     def dejar_bloques_blancos(self):
         self.robot.chasis.avanzar_recto(5, velocidad=1000, frenado=Stop.NONE)
         self.robot.chasis.mover_motor_izquierdo(370, velocidad=1000, frenado=Stop.NONE)
-        self.robot.chasis.mover_en_arco(radio_cm=-114, angulo=24, stop=Stop.NONE)
+        self.robot.chasis.mover_en_arco(radio_cm=-114, angulo=30, stop=Stop.NONE)
         self.robot.navegacion.seguidor_linea_color(self.sensor, 100, Color.GREEN, lado="derecha", distancia_cm=17)
         self.robot.chasis.avanzar_recto(-0.5)
         self.robot.navegacion.giro_eje_puro(218, kp=5, kd=10, min_speed=200)
