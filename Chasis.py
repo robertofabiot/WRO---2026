@@ -44,6 +44,26 @@ class Chasis:
         
         wait(50)
         Utils.emitir_sonido_confirmacion(self.hub) # <- Sonido al terminar
+
+    # --- NUEVO MÉTODO PARA ABSOLUTE HEADING ---
+    def cuadrar_contra_pared(self, tiempo_ms=1000, potencia=30, angulo_referencia=0, reversa=True):
+        """
+        Choca contra la pared para alinear físicamente el robot y establece 
+        ese punto como el 'angulo_referencia' en el IMU absoluto.
+        """
+        self.drive_base.stop()
+        
+        potencia_aplicada = -potencia if reversa else potencia
+        
+        self.motor_izquierda.dc(potencia_aplicada)
+        self.motor_derecha.dc(potencia_aplicada)
+        wait(tiempo_ms) 
+        
+        self.motor_izquierda.brake()
+        self.motor_derecha.brake()
+        self.hub.imu.reset_heading(angulo_referencia) # Único reinicio permitido del IMU
+        
+        Utils.emitir_sonido_confirmacion(self.hub)
     
     def chocar_inteligente(self, distancia_acercamiento_cm, velocidad_acercamiento=800, potencia_choque=35, timeout_choque_ms=1500):
         es_reversa = distancia_acercamiento_cm < 0
@@ -96,13 +116,17 @@ class Chasis:
             
         Utils.emitir_sonido_confirmacion(self.hub) # <- Sonido al terminar
 
+    # --- MÉTODO CORREGIDO ---
     def giro_preciso(self, angulo_objetivo, kp_nuevo=2.5, tolerancia=1, margen_grados=0):
-        self.hub.imu.reset_heading(0) 
+        # Calculamos la meta de forma relativa sin borrar el mapa mental del robot
+        angulo_inicial = self.hub.imu.heading()
+        angulo_meta = angulo_inicial + angulo_objetivo
+        
         kp = kp_nuevo
         min_speed = 50 
         while True:
             angulo_actual = self.hub.imu.heading()
-            error = angulo_objetivo - angulo_actual
+            error = angulo_meta - angulo_actual
             if abs(error) <= max(tolerancia, margen_grados):
                 break
             turn_rate = error * kp
