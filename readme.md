@@ -7,6 +7,7 @@ Lógica de control, navegación avanzada y rutinas para la World Robot Olympiad.
 ![FrameWork: Pybricks](https://img.shields.io/badge/framework-Pybricks-ED1C24)
 ![Status: In Development](https://img.shields.io/badge/status-In_Development-orange)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![Branch: CharlieSexPath](https://img.shields.io/badge/branch-CharlieSexPath-8A2BE2)
 
 </div>
 
@@ -14,53 +15,57 @@ Lógica de control, navegación avanzada y rutinas para la World Robot Olympiad.
 
 Este repositorio contiene el código fuente completo para la operación del robot en la competencia WRO 2026. El código está escrito en Python y utiliza el framework Pybricks (MicroPython) para la comunicación con el PrimeHub.
 
-El proyecto está estructurado de manera modular para separar el control de bajo nivel del hardware (`robot.py`) de la orquestación de las misiones específicas en la pista (`app.py`). El enfoque principal del equipo es la estabilidad de navegación mediante algoritmos PID y un sistema de detección de color preciso y anti-rebote.
+El proyecto está estructurado de manera modular para separar el control de bajo nivel del hardware (`robot.py`), la configuración de constantes (`config.py`), y la orquestación de las misiones específicas en la pista (`app.py`, `Misiones.py`). El enfoque principal del equipo es la estabilidad de navegación mediante algoritmos PID, encadenamiento cinético para evitar latencias, y un sistema de detección de color de alta precisión.
 
 ---
 
 ## Configuración de Hardware
 
-El robot está construido sobre la plataforma LEGO Education SPIKE Prime, utilizando un PrimeHub con la siguiente distribución de puertos:
+El robot está construido sobre la plataforma LEGO Education SPIKE Prime, utilizando un PrimeHub con la siguiente distribución exacta de puertos (basada en `config.py`):
 
 ### Tracción (Chasis)
-* Puerto A: Motor Izquierdo
-* Puerto B: Motor Derecho
+* **Puerto B**: Motor Izquierdo
+* **Puerto E**: Motor Derecho
+*(Medidas: Diámetro de rueda 56mm, Separación 160mm)*
 
 ### Mecanismos
-* Puerto C: Garra Trasera
-* Puerto F: Garra Delantera / Pala
+* **Puerto C**: Elevador Delantero
+* **Puerto A**: Garra Delantera
+* **Puerto F**: Garra Trasera
 
 ### Sensores
-* Puerto D: Sensor de Color Principal (Frontal)
+* **Puerto D**: Sensor de Color Principal (Frontal)
 
-> **Nota técnica sobre potencia:** Las rutinas de las garras que utilizan topes mecánicos (funciones `run_until_stalled`) deben ejecutarse con potencia y velocidad al máximo para vencer la resistencia de los hules tensores e inercia del mecanismo.
+> **Nota técnica sobre potencia y control:** Las rutinas de las garras y elevadores que utilizan topes mecánicos (funciones `llevar_al_tope`) deben ejecutarse con límites de potencia altos para vencer la inercia. Además, se han integrado rutinas de voltaje directo (`dc`) y "sacudidas" para acomodar bloques superando la fricción estática del tapete.
 
 ---
 
 ## Estado del Proyecto y Misiones
 
-Se ha estandarizado la recolección de bloques utilizando un flujo directo con la garra trasera, eliminando secuencias complejas. El estado actual de las tareas es el siguiente:
+Se ha optimizado drásticamente la fluidez de las misiones implementando concurrencia (movimiento de mecanismos simultáneo al chasis) y eliminando tiempos de espera rígidos (`wait()`). 
 
 ### Funcionalidades Implementadas
-* Construcción Inicial: [OK] Despliegue estable del bloque de cemento y la llana.
-* Bloques Blancos: [OK] Rutina de recolección unificada completada.
-* Mosaico: [OK] Escaneo exitoso y detección de combinaciones de colores (integrado con el sensor frontal).
-* Bloques Amarillos y Azules: [OK] Recolección y reubicación operativa.
-* Armado de Mosaico: [Parcial] Soporte inicial (Caso 1: verde-verde, 4/12 bloques).
+* **Construcción Inicial:** [OK] Rutina de cemento y llana con arcos encadenados y giro rápido.
+* **Bloques Blancos:** [OK] Rutina de recolección unificada completada con cuadratura final para alineación perfecta y hack de aceleración en el giro de 180°.
+* **Mosaico:** [OK] Escaneo de intersecciones, detección de combinaciones de colores (integrado con el sensor frontal) y uso de pivotes anclados (`Stop.HOLD`) para precisión milimétrica.
+* **Bloques Amarillos y Azules:** [OK] Rutinas de recolección y reubicación completamente operativas.
+* **Manejo de la Pala:** [OK] Rutina de reubicación y entrega final de bloques azules y pala completada.
 
-### Limitaciones Conocidas / Pendientes
-* Llevada de la pala: Está pendiente desarrollar una mejor solución para el transporte de la pala en el inicio, debido a la ausencia de los brazos frontales con los que se agarraba en iteraciones anteriores del diseño.
+### Armado de Mosaico (ArmadorMosaicos)
+* **Caso 1 (Verde-Verde):** [OK] Rutina compleja implementada con sacudidas para asentar bloques.
+* **Casos 2, 3, 4 y 5:** [Pendiente] En fase de desarrollo.
 
 ---
 
 ## Lógica de Control y Mejoras Técnicas
 
-El núcleo del robot (`robot.py`) ha sido optimizado con las siguientes funciones personalizadas para superar las limitaciones del hardware estándar:
+El núcleo del robot ha sido fuertemente refactorizado para superar las limitaciones del hardware estándar y el "tartamudeo cinético":
 
-* **Detección de Color Avanzada (HSV):** Se migró a un sistema de detección basado en valores HSV (`detectar_color_preciso`) con lógica anti-rebote (*debouncing*). Esto elimina lecturas inconsistentes (especialmente en los bordes de la línea negra/blanca) y hace al robot mucho más predecible.
-* **Seguidores de Línea PID:** Implementación de múltiples seguidores de línea (por distancia o por color) para máxima estabilidad. Incluye una función de frenado progresivo (`seguidor_linea_distancia_desacelerado`) para lograr detenciones milimétricas.
-* **Navegación y Detección de Cruces:** El sistema utiliza un modelo optimizado de seguimiento mediante un solo sensor frontal para la detección de intersecciones y finalización de tramos.
-* **Manejo de Fricción (Sacudidas):** Implementación de inyección de voltaje directo (`dc`) con la función `sacudir` para asentar bloques pesados venciendo la fricción sin causar un estancamiento del código.
+* **Detección de Color Avanzada (HSV):** Detección basada en valores HSV (`detectar_color_preciso`) con umbrales optimizados para diferenciar colores de competencia eliminando lecturas inconsistentes en los bordes.
+* **Seguidores de Línea PID de Alta Frecuencia:** Implementación de múltiples seguidores de línea (distancia, color, desacelerado, y con **cuadratura final** para alineación perfecta perpendicular a la línea). 
+* **Control de Giro Agresivo:** Uso de control por voltaje directo (`giro_eje_puro`) y manipulación temporal de la configuración del `DriveBase` en C nativo para giros súper rápidos que vencen la inercia sin sobreoscilar.
+* **Encadenamiento Cinético:** Uso estratégico de `Stop.NONE`, `Stop.COAST` y márgenes de distancia para fluir entre movimientos sin frenar el chasis a cero.
+* **Compensación de Voltaje:** Función `compensar_voltaje` para ajustar dinámicamente la potencia de los motores dependiendo de la carga de la batería.
 
 ---
 
@@ -71,7 +76,7 @@ El repositorio está configurado para un flujo de trabajo ágil utilizando Visua
 1.  Enciende el PrimeHub y asegúrate de que el Bluetooth esté activo.
 2.  Abre el repositorio en VS Code.
 3.  Utiliza la configuración incluida en `.vscode/launch.json` ejecutando la tarea "Python Debugger: Module" (F5). Esto compilará y enviará el script principal vía Bluetooth.
-4.  El punto de entrada es `app.py`.
+4.  El punto de entrada principal del robot es `app.py`.
 
 ---
 
