@@ -29,13 +29,14 @@ if __name__ == "__main__":
         print("Ejecución caancelada por batería baja.")
     else:
         # ZONA DE PRUEBAS: Descomenta la misión que quieras ejecutar
-        misiones.cemento_y_llana()
-        misiones.agarrar_bloques_blancos()
+        # misiones.cemento_y_llana()
+        # misiones.agarrar_bloques_blancos()
+        numero_mosaico = misiones.detectar_mosaico()
+
         misiones.dejar_bloques_blancos()
-        # numero_mosaico = misiones.detectar_mosaico()
         # misiones.agarrar_bloques_amarillos()
         # misiones.dejar_bloques_amarillos()
-        # misiones.recoger_bloques_azules()
+        # misiones.recoger_blppoques_azules()
         # misiones.dejar_bloques_azules_y_pala()
         
         # armador.armar(numero_mosaico=1)
