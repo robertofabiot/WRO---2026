@@ -21,25 +21,24 @@ class Misiones:
         return decision
     
     def agarrar_bloques_blancos(self):
+        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=400, potencia=50, angulo_referencia=90)
+        self.robot.chasis.avanzar_recto(5, velocidad=1000, frenado=Stop.COAST)
         self.robot.chasis.mover_en_arco(radio_cm=13, distancia_cm=15, stop=Stop.NONE)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 157, tiempo_acomodo_ms=0)
-        self.robot.chasis.avanzar_recto(15, velocidad=1000, frenado=Stop.BRAKE, wait_after=False)
-        wait(100)
-        self.robot.chasis.mover_motor_izquierdo(-514, 1000, frenado=Stop.NONE)
-        self.robot.chasis.chocar_inteligente(-13, 1000, timeout_choque_ms=250)
-        self.robot.chasis.avanzar_recto(4, velocidad=600)
-        self.robot.chasis.mover_motor_derecho(630, 1000, frenado=Stop.HOLD)
-        self.__recoger_bloques(50)
+        self.robot.chasis.mover_motor_izquierdo(300, velocidad=1000, margen_grados=50)
+        self.robot.chasis.avanzar_recto(15, 1000, margen_cm=10)
+        self.robot.navegacion.giro_absoluto_pd(358, max_speed=400)
+        self.__recoger_bloques(18, 200)
 
     #MISMA LÓGICA (DE MOMENTO)
     def dejar_bloques_blancos(self):
-        self.robot.chasis.avanzar_recto(5, velocidad=1000, frenado=Stop.COAST)
+        self.robot.chasis.avanzar_recto(7, velocidad=1000, frenado=Stop.COAST, margen_cm=3)
         self.robot.chasis.mover_motor_izquierdo(370, velocidad=1000, frenado=Stop.COAST)
-        self.robot.chasis.avanzar_recto(60, 1000, margen_cm=5)
+        self.robot.chasis.avanzar_recto(61, 1000, margen_cm=5)
         self.robot.chasis.mover_motor_derecho(370, velocidad=1000, frenado=Stop.NONE)
         self.robot.navegacion.seguidor_linea_color(self.sensor, 70, Color.GREEN, lado="derecha", distancia_cm=3)
-        self.robot.chasis.avanzar_recto(-0.5)
-        self.robot.navegacion.giro_eje_puro(218, kp=5, kd=10, min_speed=200)
+        self.robot.chasis.avanzar_recto(1)
+        self.robot.navegacion.giro_absoluto_pd(225, max_speed=400, ruta_corta=False)
         self.robot.chasis.avanzar_recto(-24, velocidad=1000, margen_cm=2)
         self.robot.garra_trasera.subir(80, margen_grados=20)
 
@@ -105,10 +104,7 @@ class Misiones:
         self.robot.navegacion.giro_preciso_pd(-90)
         self.robot.garra_trasera.subir(55)
 
-    def __recoger_bloques(self, distancia_acelerada, bajar=160):
-        self.robot.garra_trasera.subir_al_tope(1000, limite_potencia=100)
-        self.robot.garra_trasera.bajar(bajar)
-        self.robot.chasis.chocar_inteligente(-distancia_acelerada, 1000, timeout_choque_ms=None)
-        self.robot.chasis.avanzar_recto(3, velocidad=1000, wait_after=False)
-        wait(300)
-        self.robot.garra_trasera.bajar_al_tope(limite_potencia=60, frenado=Stop.COAST)
+    def __recoger_bloques(self, distancia, wait_ms):
+        self.robot.chasis.avanzar_recto(-distancia, 1000, wait_after=False)
+        wait(wait_ms)
+        self.robot.garra_trasera.bajar(165, velocidad=1000)
