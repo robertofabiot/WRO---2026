@@ -78,24 +78,32 @@ class Navegacion:
         tolerancia = 1    
         error_previo = 0
         
+        # 1. Calculamos la ruta y la meta CONTINUA una sola vez ANTES del bucle
+        angulo_actual_inicial = self.chasis.hub.imu.heading()
+        error_bruto_inicial = angulo_objetivo - angulo_actual_inicial
+        
+        # Calculamos la ruta óptima inicial
+        error_corto_inicial = (error_bruto_inicial + 180) % 360 - 180
+        
+        # Decidimos cuántos grados relativos vamos a movernos basándonos en el parámetro
+        if ruta_corta:
+            giro_requerido = error_corto_inicial
+        else:
+            if error_corto_inicial > 0:
+                giro_requerido = error_corto_inicial - 360
+            elif error_corto_inicial < 0:
+                giro_requerido = error_corto_inicial + 360
+            else:
+                giro_requerido = 0 # Ya estamos exactamente en el ángulo
+                
+        # 2. Establecemos nuestra meta inamovible (evita la oscilación)
+        angulo_meta = angulo_actual_inicial + giro_requerido
+        
         while True:
             angulo_actual = self.chasis.hub.imu.heading()
-            error_bruto = angulo_objetivo - angulo_actual
             
-            # Calculamos primero la ruta óptima (la más corta, nunca más de 180)
-            error_corto = (error_bruto + 180) % 360 - 180
-            
-            # Decidimos qué error usar basados en el parámetro
-            if ruta_corta:
-                error = error_corto
-            else:
-                # Si la ruta corta era positiva (derecha), la larga es negativa (izquierda) y viceversa
-                if error_corto > 0:
-                    error = error_corto - 360
-                elif error_corto < 0:
-                    error = error_corto + 360
-                else:
-                    error = 0 # Ya estamos exactamente en el ángulo
+            # El error es simplemente la diferencia hacia la meta fija
+            error = angulo_meta - angulo_actual
             
             if abs(error) <= max(tolerancia, margen_grados):
                 break
