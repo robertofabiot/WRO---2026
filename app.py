@@ -29,7 +29,7 @@ if __name__ == "__main__":
         # --- ZONA DE PRUEBAS: Descomenta la misión que quieras ejecutar ---
         misiones.agarrar_bloques_blancos()
         misiones.dejar_bloques_blancos()
-        
+
         misiones.agarrar_bloques_verdes()
         
         numero_mosaico = misiones.detectar_mosaico()
