@@ -163,3 +163,138 @@ class Navegacion:
             self.chasis.motor_derecha.stop()
             cronometro.pause()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
+    
+    def giro_absoluto_motor_izquierdo(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False):
+        """
+        Gira hacia un ángulo absoluto pivotando sobre la rueda derecha (bloqueada).
+        Usa únicamente el motor izquierdo.
+        """
+        self.chasis.drive_base.stop()
+        self.chasis.motor_derecha.hold() 
+        
+        error_previo = 0
+        factor_conversion = 5.71 # Convierte grados del robot a grados del motor
+        
+        angulo_actual_inicial = self.chasis.hub.imu.heading()
+        error_bruto_inicial = angulo_objetivo - angulo_actual_inicial
+        error_corto_inicial = (error_bruto_inicial + 180) % 360 - 180
+        
+        if ruta_corta:
+            giro_requerido = error_corto_inicial
+        else:
+            giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else (error_corto_inicial + 360 if error_corto_inicial < 0 else 0)
+                
+        angulo_meta = angulo_actual_inicial + giro_requerido
+        
+        while True:
+            error = angulo_meta - self.chasis.hub.imu.heading()
+            if abs(error) <= max(1, margen_grados): break
+            
+            derivada = error - error_previo
+            turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
+            
+            velocidad_aplicar = min(max(turn_rate, min_speed), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed), -max_speed)
+                
+            self.chasis.motor_izquierda.run(velocidad_aplicar)
+            error_previo = error
+            wait(10)
+            
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            self.chasis.motor_izquierda.hold()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
+
+    def giro_absoluto_motor_derecho(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False):
+        """
+        Gira hacia un ángulo absoluto pivotando sobre la rueda izquierda (bloqueada).
+        Usa únicamente el motor derecho.
+        """
+        self.chasis.drive_base.stop()
+        self.chasis.motor_izquierda.hold() 
+        
+        error_previo = 0
+        factor_conversion = 5.71 # Convierte grados del robot a grados del motor
+        
+        angulo_actual_inicial = self.chasis.hub.imu.heading()
+        error_bruto_inicial = angulo_objetivo - angulo_actual_inicial
+        error_corto_inicial = (error_bruto_inicial + 180) % 360 - 180
+        
+        if ruta_corta:
+            giro_requerido = error_corto_inicial
+        else:
+            giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else (error_corto_inicial + 360 if error_corto_inicial < 0 else 0)
+                
+        angulo_meta = angulo_actual_inicial + giro_requerido
+        
+        while True:
+            error = angulo_meta - self.chasis.hub.imu.heading()
+            if abs(error) <= max(1, margen_grados): break
+            
+            derivada = error - error_previo
+            turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
+            
+            velocidad_aplicar = min(max(turn_rate, min_speed), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed), -max_speed)
+                
+            self.chasis.motor_derecha.run(-velocidad_aplicar) # Invertido por física
+            error_previo = error
+            wait(10)
+            
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            self.chasis.motor_derecha.hold()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
+    
+    def avanzar_manteniendo_rumbo(self, distancia_cm, velocidad=800, angulo_objetivo=None, kp=2.5, kd=10.0, margen_cm=0, encadenado=False):
+        """
+        Avanza una distancia manteniendo un rumbo fijo usando un Controlador PD.
+        Si se le pasa un 'angulo_objetivo', corregirá su trayectoria hacia ese ángulo absoluto del mapa mientras avanza.
+        Si no se le pasa, mantendrá exactamente el rumbo actual.
+        """
+        # 1. Determinamos el ángulo al que queremos aferrarnos
+        if angulo_objetivo is None:
+            angulo_meta = self.chasis.hub.imu.heading()
+        else:
+            angulo_meta = angulo_objetivo
+
+        # 2. Preparamos las distancias (en milímetros para la precisión del drive_base)
+        dist_inicial = self.chasis.drive_base.distance()
+        distancia_mm_objetivo = abs(distancia_cm * 10)
+        margen_mm = abs(margen_cm * 10)
+        
+        # Ajustamos el signo de la velocidad (soporta ir en reversa si distancia_cm es negativo)
+        velocidad_real = abs(velocidad) if distancia_cm > 0 else -abs(velocidad)
+        
+        error_previo = 0
+        
+        while True:
+            # Condición de salida por distancia recorrida
+            distancia_actual = abs(self.chasis.drive_base.distance() - dist_inicial)
+            if distancia_actual >= max(1, distancia_mm_objetivo - margen_mm):
+                break
+                
+            # Calculamos el error continuo (soporta cruces de 360 grados a negativos)
+            error_bruto = angulo_meta - self.chasis.hub.imu.heading()
+            error = (error_bruto + 180) % 360 - 180
+            
+            # Controlador PD para la rotación mientras se avanza
+            derivada = error - error_previo
+            turn_rate = (error * kp) + (derivada * kd)
+            
+            # Tope de seguridad: limitamos el giro máximo para evitar que el robot 
+            # sacrifique demasiado el avance lineal intentando girar de golpe
+            turn_rate = min(max(turn_rate, -200), 200) 
+            
+            # Aplicamos la velocidad constante y la corrección de rotación al mismo tiempo
+            self.chasis.drive_base.drive(velocidad_real, turn_rate)
+            
+            error_previo = error
+            wait(10)
+            
+        # Cierre del movimiento soportando tu sistema fluido
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            self.chasis.drive_base.stop()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
