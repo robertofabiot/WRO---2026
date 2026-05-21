@@ -10,13 +10,27 @@ class Misiones:
 
     def _identificar_combinacion(self, sensor, distancia_si_verde):
         color_principal = sensor.color()
-        if color_principal not in config.MOSAICOS: return -1  
+        if color_principal not in config.MOSAICOS: 
+            return -1  
+            
         decision = config.MOSAICOS[color_principal]
+        
+        # Si la decisión es un diccionario, significa que leyó Verde y necesita desempatar
         if type(decision) is dict:
-            self.robot.chasis.avanzar_recto(distancia_si_verde, encadenado=True)
+            # 1. Avanza para buscar el color secundario
+            self.robot.chasis.avanzar_recto(distancia_si_verde)
+            wait(50) # Micro-pausa para que el sensor lea sin vibraciones del motor
             color_anterior = sensor.color()
-            if color_anterior not in decision: return -1
+            
+            # 2. Restaura la posición exacta retrocediendo la misma distancia
+            self.robot.chasis.avanzar_recto(-distancia_si_verde)
+            
+            # 3. Evalúa la lectura secundaria
+            if color_anterior not in decision: 
+                return -1
             return decision[color_anterior]
+            
+        # Si no era verde, devuelve el color directamente y se queda en su lugar original
         return decision
     
     def agarrar_bloques_blancos(self):
@@ -29,33 +43,38 @@ class Misiones:
         self.robot.navegacion.giro_absoluto_pd(358, max_speed=400) # Cierra el combo fluido
         self.__recoger_bloques(25, 300)
 
-    def dejar_bloques_blancos(self):
+    def detectar_mosaico(self):
         self.robot.chasis.avanzar_recto(7, velocidad=1000, margen_cm=7, encadenado=True)
         self.robot.chasis.mover_motor_izquierdo(370, velocidad=1000, encadenado=True)
         self.robot.chasis.avanzar_recto(47, 1000, margen_cm=7, encadenado=True)
         self.robot.chasis.mover_motor_derecho(370, velocidad=1000, encadenado=True)
         self.robot.navegacion.seguidor_linea_color(self.sensor, 70, Color.GREEN, lado="derecha", distancia_cm=10, encadenado=True)
-        self.robot.chasis.avanzar_recto(-0.5, encadenado=False)
+        self.robot.chasis.mover_motor_derecho(90, velocidad=1000)
+        self.robot.navegacion.giro_absoluto_pd(0, max_speed=400)
+        self.robot.chasis.avanzar_recto(14, 1000)
+        mosaico = self._identificar_combinacion(self.sensor, 5)
+        print(f"Mosaico detectado: {mosaico}" if mosaico != -1 else "Error en escaneo")
+        
+        return mosaico
+
+    def dejar_bloques_blancos(self):
+        self.robot.chasis.avanzar_recto(-16, encadenado=False)
         self.robot.navegacion.giro_absoluto_pd(225, max_speed=400, ruta_corta=False, encadenado=False)
-        self.robot.chasis.avanzar_recto(-29, velocidad=1000, margen_cm=7)
+        self.robot.chasis.avanzar_recto(-21, velocidad=1000, margen_cm=7)
         self.robot.garra_trasera.subir_al_tope(velocidad=1000, limite_potencia=100)
 
     def agarrar_bloques_verdes(self):
-        self.robot.chasis.avanzar_recto(27, velocidad=1000, encadenado=True)
+        self.robot.chasis.avanzar_recto(17, velocidad=1000, encadenado=True)
         self.robot.chasis.mover_motor_derecho(300, velocidad=1000, encadenado=True)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 23, tiempo_acomodo_ms=0, encadenado=True)
-        self.robot.chasis.giro_preciso(180)
-        self.__recoger_bloques(5, bajar=170)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 35, tiempo_acomodo_ms=150, encadenado=True, margen_cm=7)
+        self.robot.chasis.mover_motor_derecho(110, velocidad=600, margen_grados=50, encadenado=True)
+        self.robot.chasis.avanzar_recto(1, velocidad=1000, encadenado=True)
+        self.robot.navegacion.giro_absoluto_pd(0, max_speed=400)
+        self.__recoger_bloques(20, bajar=173)
     
-    def detectar_mosaico(self):
-        self.robot.chasis.avanzar_recto(88, velocidad=1000)
-        mosaico = self._identificar_combinacion(self.sensor, 5)
-        print(f"Mosaico detectado: {mosaico}" if mosaico != -1 else "Error en escaneo")
-        return mosaico
-
     def dejar_bloques_verdes(self):
-        self.robot.chasis.avanzar_recto(-24, encadenado=True)
-        self.robot.chasis.giro_preciso(180, kp_nuevo=3.5)
+        self.robot.navegacion.giro_absoluto_pd(180, encadenado=True)
+        self.robot.chasis.avanzar_recto(-67, velocidad=1000, encadenado=True, margen_cm=7)
         self.robot.garra_trasera.subir_al_tope(1000, limite_potencia=100)
     
     def agarrar_bloques_amarillos(self):
