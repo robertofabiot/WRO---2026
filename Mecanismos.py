@@ -47,10 +47,7 @@ class GarraDelantera(Garra):
     - Agrega mover_pinza(), abrir() y cerrar() para el Motor 2 (Pinza).
     """
     def __init__(self, motor_elevador, motor_pinza):
-        # 1. Le mandamos el motor elevador a la clase padre (Motor 1)
         super().__init__(motor_elevador) 
-        
-        # 2. Guardamos el motor de la pinza (Motor 2) creando una "sub-garra" interna
         self.pinza = Garra(motor_pinza)
 
     def mover_pinza(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
@@ -77,17 +74,13 @@ class GarraTrasera(Garra):
     """
 
     def subir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        # Subir en la garra trasera equivale a bajar en la lógica base
         super().bajar(grados, velocidad, wait_after, frenado, margen_grados)
 
     def bajar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        # Bajar en la garra trasera equivale a subir en la lógica base
         super().subir(grados, velocidad, wait_after, frenado, margen_grados)
 
     def subir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
-        # Subir al tope llama a bajar_al_tope del padre
         return super().bajar_al_tope(velocidad, limite_potencia, frenado)
 
     def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
-        # Bajar al tope llama a subir_al_tope del padre
         return super().subir_al_tope(velocidad, limite_potencia, frenado)
