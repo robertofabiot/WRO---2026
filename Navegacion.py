@@ -298,3 +298,48 @@ class Navegacion:
         else:
             self.chasis.drive_base.stop()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
+    
+    def avanzar_tiempo_luego_color(self, sensor_color, tiempo_ciego_s, color_objetivo, velocidad_alta=950, velocidad_escaneo=150, lecturas_confirmacion=2, encadenado=False):
+        """
+        Avanza a máxima velocidad durante un tiempo ciego (ignorando derrapes), 
+        luego reduce la velocidad abruptamente y avanza hasta detectar un color específico.
+        """
+        from pybricks.tools import StopWatch, wait # (Asegúrate de que estas estén importadas arriba)
+        
+        cronometro = StopWatch()
+        contador_color = 0
+        
+        # 1. ETAPA DE AVANCE CIEGO
+        cronometro.reset()
+        cronometro.resume()
+        
+        # Le decimos que avance recto. Al tener use_gyro(True) en el drive_base,
+        # Pybricks corregirá automáticamente cualquier giro no deseado.
+        self.chasis.drive_base.drive(velocidad_alta, 0)
+        
+        # Esperamos bloqueando el código hasta que pasen los segundos solicitados
+        while cronometro.time() < (tiempo_ciego_s * 1000):
+            wait(10)
+            
+        # 2. ETAPA DE ESCANEO LENTO
+        self.chasis.drive_base.drive(velocidad_escaneo, 0)
+        
+        while True:
+            # Usamos tu misma lógica de detección precisa y confiable
+            if self.detectar_color_preciso(sensor_color) == color_objetivo:
+                contador_color += 1
+                # Pedimos confirmaciones consecutivas para evitar falsos positivos
+                # por destellos de luz o el borde difuminado de la línea
+                if contador_color >= lecturas_confirmacion: 
+                    break
+            else:
+                contador_color = 0 
+                
+            wait(5) # Frecuencia de escaneo
+            
+        # 3. TERMINACIÓN
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            self.chasis.drive_base.stop()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
