@@ -34,19 +34,20 @@ class Misiones:
         return decision
     
     def agarrar_bloques_blancos(self):
-        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=400, potencia=50, angulo_referencia=90)
-        self.robot.chasis.avanzar_recto(2, velocidad=1000, encadenado=True)
-        self.robot.chasis.mover_en_arco(radio_cm=13, distancia_cm=15, encadenado=True)
+        self.robot.garra_trasera.bajar(165, velocidad=1000)
+        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=300, potencia=40, angulo_referencia=90)
+        self.robot.navegacion.giro_absoluto_motor_izquierdo(180, min_speed=800,encadenado=True)
+        self.robot.garra_trasera.subir(185, velocidad=1000, wait_after=False)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 157, tiempo_acomodo_ms=0, encadenado=True, margen_cm=7)
         self.robot.chasis.mover_motor_izquierdo(300, velocidad=1000, margen_grados=50, encadenado=True)
         self.robot.chasis.avanzar_recto(12, 1000, margen_cm=7, encadenado=True)
-        self.robot.navegacion.giro_absoluto_pd(358, max_speed=400) # Cierra el combo fluido
-        self.__recoger_bloques(25, 300)
+        self.robot.navegacion.giro_absoluto_pd(2, max_speed=200) # Cierra el combo fluido
+        self.__recoger_bloques(25, 100, bajar=200)
 
     def detectar_mosaico(self):
         self.robot.chasis.avanzar_recto(7, velocidad=1000, margen_cm=7, encadenado=True)
-        self.robot.chasis.mover_motor_izquierdo(370, velocidad=1000, encadenado=True)
-        self.robot.chasis.avanzar_recto(47, 1000, margen_cm=7, encadenado=True)
+        self.robot.chasis.mover_motor_izquierdo(300, velocidad=600, encadenado=True)
+        self.robot.chasis.avanzar_recto(50, velocidad=1000, margen_cm=7, encadenado=True)        
         self.robot.chasis.mover_motor_derecho(370, velocidad=1000, encadenado=True)
         self.robot.navegacion.seguidor_linea_color(self.sensor, 70, Color.GREEN, lado="derecha", distancia_cm=10, encadenado=True)
         self.robot.chasis.mover_motor_derecho(90, velocidad=1000)
@@ -59,49 +60,53 @@ class Misiones:
 
     def dejar_bloques_blancos(self):
         self.robot.chasis.avanzar_recto(-16, encadenado=False)
-        self.robot.navegacion.giro_absoluto_pd(222, max_speed=400, ruta_corta=False, encadenado=False)
-        self.robot.garra_trasera.subir_al_tope(velocidad=1000, limite_potencia=100)
+        self.robot.navegacion.giro_absoluto_pd(226, max_speed=400, ruta_corta=False, encadenado=False)
         self.robot.chasis.avanzar_recto(-16, velocidad=1000, margen_cm=7)
+        self.robot.garra_trasera.subir(185, velocidad=1000, wait_after=False)
 
     def agarrar_bloques_verdes(self):
-        self.robot.chasis.avanzar_recto(10, velocidad=1000, encadenado=False)
+        self.robot.chasis.avanzar_recto(14, velocidad=1000)
         self.robot.chasis.mover_motor_derecho(300, velocidad=1000, encadenado=True)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 35, tiempo_acomodo_ms=150, encadenado=True, margen_cm=7)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 45, tiempo_acomodo_ms=150, encadenado=True, margen_cm=7)
         self.robot.chasis.mover_motor_derecho(110, velocidad=600, margen_grados=50, encadenado=True)
-        self.robot.chasis.avanzar_recto(1, velocidad=1000, encadenado=True)
+        self.robot.chasis.avanzar_recto(2, velocidad=1000, encadenado=False)
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=400)
-        self.__recoger_bloques(19, wait_ms=150 ,bajar=173)
+        self.__recoger_bloques(14, wait_ms=100 ,bajar=185)
+        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=400, potencia=70)
     
     def dejar_bloques_verdes(self):
-        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=400, potencia=70)
         self.robot.navegacion.giro_absoluto_pd(180, encadenado=True)
         self.robot.chasis.avanzar_recto(-70, velocidad=1000, encadenado=True, margen_cm=7)
         self.robot.garra_trasera.subir_al_tope(1000, limite_potencia=100)
     
     def agarrar_bloques_amarillos(self):
-        self.robot.chasis.avanzar_recto(57, 1000, encadenado=True)
+        self.robot.chasis.avanzar_recto(60, 1000, encadenado=True)
         self.robot.navegacion.giro_absoluto_pd(270, encadenado=True)
         self.__recoger_bloques(33, wait_ms=600, bajar=178)  
     
     def agarrar_bloques_azules(self):
-        self.robot.chasis.avanzar_recto(53, 1000)
+        self.robot.chasis.avanzar_recto(60, 1000)
 
     def dejar_bloques_amarillos(self):
-        self.robot.navegacion.giro_absoluto_motor_izquierdo(0, encadenado=True)
-        self.robot.navegacion.avanzar_manteniendo_rumbo(50, velocidad=1000, angulo_objetivo=0, margen_cm=7, encadenado=True)
+        self.robot.navegacion.giro_absoluto_motor_izquierdo(0)
+        self.robot.navegacion.avanzar_manteniendo_rumbo(125, velocidad=1000, angulo_objetivo=0, margen_cm=7, encadenado=True)
         self.robot.navegacion.giro_absoluto_pd(270, encadenado=True)
 
     def cemento_y_llana(self):
-        self.robot.chasis.avanzar_recto(18, encadenado=True)
-        self.robot.navegacion.giro_preciso_pd(-180, margen_grados=5)
-        self.robot.garra_trasera.bajar(170, velocidad=180, wait_after=False)
-        self.robot.chasis.avanzar_recto(-13, velocidad=1000, margen_cm=2, encadenado=True)
-        self.robot.navegacion.giro_preciso_pd(90, max_speed=1000, min_speed=40, kp=8.5, kd=115.0, encadenado=True)
-        self.robot.chasis.avanzar_recto(-23, velocidad=1000, margen_cm=3, encadenado=True)
-        self.robot.chasis.mover_en_arco(-65, distancia_cm=14, encadenado=True)
-        self.robot.chasis.mover_en_arco(19, angulo=22, encadenado=True)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 44, tiempo_acomodo_ms=0, margen_cm=8)
-        self.robot.garra_trasera.subir(170, 1000, wait_after=False)
+        self.robot.navegacion.giro_absoluto_pd(90, encadenado=True)
+        self.robot.garra_trasera.mover(167, velocidad=180, wait_after=False)
+        
+        self.robot.chasis.avanzar_recto(-11, velocidad=1000, margen_cm=2, encadenado=True)
+        self.robot.navegacion.giro_preciso_pd(90, max_speed=1000, min_speed=40, kp=8.5, kd=115.0, margen_grados=2, encadenado=True)
+        
+        self.robot.chasis.avanzar_recto(-23, velocidad=1300, margen_cm=4, encadenado=True)
+
+        self.robot.chasis.mover_en_arco(-142, distancia_cm=30, margen_cm=3, encadenado=True)
+        self.robot.chasis.mover_motor_izquierdo(130)
+        
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 110, 38, tiempo_acomodo_ms=0, encadenado=True)
+        
+        self.robot.garra_trasera.subir(100, velocidad=800, wait_after=False)
         self.robot.chasis.latigazo()
 
     def dejar_bloques_azules_y_pala(self):
