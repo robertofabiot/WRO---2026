@@ -2,6 +2,7 @@ from pybricks.parameters import Stop, Color
 from pybricks.tools import wait
 import config
 from robot import Robot
+import Utils
 
 class Misiones:
     def __init__(self, robot : Robot, sensor_frente):
@@ -35,7 +36,7 @@ class Misiones:
     
     def agarrar_bloques_blancos(self):
         self.robot.garra_trasera.bajar(165, velocidad=1000)
-        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=300, potencia=40, angulo_referencia=90)
+        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=300, potencia=60, angulo_referencia=90)
         self.robot.navegacion.giro_absoluto_motor_izquierdo(180, min_speed=800,encadenado=True)
         self.robot.garra_trasera.subir(185, velocidad=1000, wait_after=False)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 157, tiempo_acomodo_ms=0, encadenado=True, margen_cm=7)
@@ -89,12 +90,16 @@ class Misiones:
 
     def dejar_bloques_amarillos(self):
         self.robot.navegacion.giro_absoluto_motor_izquierdo(0)
-        self.robot.navegacion.avanzar_manteniendo_rumbo(125, velocidad=1000, angulo_objetivo=0, margen_cm=7, encadenado=True)
+        self.robot.chasis.avanzar_recto(25, velocidad=1000, margen_cm=7, encadenado=True)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 3, lado="izquierda", tiempo_acomodo_ms=500, encadenado=True)
         self.robot.navegacion.giro_absoluto_pd(270, encadenado=True)
+        self.robot.garra_trasera.subir(185, velocidad=1000, wait_after=False)
+        self.robot.chasis.avanzar_recto(-10, velocidad=1000, margen_cm=7, encadenado=True)
 
     def cemento_y_llana(self):
+        self.robot.chasis.avanzar_recto(10, velocidad=1000, encadenado=True)
         self.robot.navegacion.giro_absoluto_pd(90, encadenado=True)
-        self.robot.garra_trasera.mover(167, velocidad=180, wait_after=False)
+        self.robot.garra_trasera.mover(-167, velocidad=180, wait_after=False)
         
         self.robot.chasis.avanzar_recto(-11, velocidad=1000, margen_cm=2, encadenado=True)
         self.robot.navegacion.giro_preciso_pd(90, max_speed=1000, min_speed=40, kp=8.5, kd=115.0, margen_grados=2, encadenado=True)
