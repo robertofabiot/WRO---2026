@@ -4,7 +4,7 @@ import config
 from robot import Robot
 from ArmadorMosaicos import ArmadorMosaicos
 from RevisadorBateria import RevisadorBateria
-from MisionesSinAzules import Misiones
+from Misiones import Misiones
 
 # 1. Inicialización de Hardware
 mi_robot = Robot(

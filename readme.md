@@ -33,9 +33,13 @@ Esta rama integra dos arquitecturas de software críticas para la velocidad y pr
 La arquitectura de las misiones (`app.py` y `Misiones.py`) ha sido completamente refactorizada para explotar las transiciones fluidas, alterando el orden estratégico de la ronda. Los espacios de alta precisión mantienen frenos totales (`encadenado=False`).
 
 **Progreso de las Misiones:**
-* 🟢 **Recogida Bloques Blancos:** Rutina de captura completada y **completamente estable**.
-* 🟡 **Misión Bloques Verdes:** Rutina de entrega integrada, pendiente de calibración física y testeo en lona.
-* 🟡 **Ajuste Cinemático:** Pendiente calibración general de variables `margen_cm` y `margen_grados` para sincronizar los tiempos de corte con la velocidad de derrape del robot.
+* 🟢 **Bloques Blancos:** Rutina de captura y entrega completada y **estable**.
+* 🟢 **Bloques Verdes:** Rutina de captura y entrega completada y **estable**.
+* 🟡 **Bloques Amarillos:** Rutina integrada, **casi lista** (en proceso de ajuste final).
+* 🔴 **Bloques Azules:** En desarrollo.
+
+**Problemas Conocidos:**
+* **Método `latigazo` (en `Chasis.py`):** Actualmente no funcional debido a un error `ValueError: Invalid argument` al intentar configurar los límites del control de giro. Se está investigando la compatibilidad con el firmware actual de Pybricks.
 
 **Para ejecutar las pruebas:**
 1. Conecta el PrimeHub vía Bluetooth.
