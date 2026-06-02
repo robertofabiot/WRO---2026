@@ -343,3 +343,59 @@ class Navegacion:
         else:
             self.chasis.drive_base.stop()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
+    
+    def seguidor_linea_cruces(self, sensor_color, velocidad_max, cruces_objetivo, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, encadenado=False):
+        """
+        Sigue la línea y cuenta las intersecciones perpendiculares negras.
+        Se detiene al alcanzar el número de cruces objetivo.
+        """
+        cronometro = StopWatch()
+        last_error = 0
+        multiplicador_lado = 1 if lado == "derecha" else -1
+        
+        cruces_detectados = 0
+        en_cruce = False # Bandera para no contar el mismo cruce varias veces
+        umbral_negro = 15 # Valor de reflexión para negro puro (ajústalo según tu calibración)
+        umbral_salida = 25 # Valor para considerar que ya volvimos al borde
+        
+        self.chasis.motor_izquierda.reset_angle(0)
+        self.chasis.motor_derecha.reset_angle(0)
+        
+        cronometro.reset()
+        cronometro.resume()
+        
+        while cruces_detectados < cruces_objetivo:
+            t = cronometro.time()
+            velocidad_actual = 25 if t < tiempo_acomodo_ms else velocidad_max
+
+            # 1. Leer sensor
+            reflexion_actual = sensor_color.reflection()
+            error = reflexion_actual - 35
+            
+            # 2. Lógica de detección de cruces
+            if reflexion_actual <= umbral_negro and not en_cruce:
+                # Acabamos de entrar a una intersección negra
+                cruces_detectados += 1
+                en_cruce = True
+                print(f"Cruce {cruces_detectados}/{cruces_objetivo} detectado")
+            elif reflexion_actual >= umbral_salida and en_cruce:
+                # Ya salimos de la intersección y volvimos al borde
+                en_cruce = False
+
+            # 3. Lógica PD (Control de tracción)
+            correction = ((error * kp) + ((error - last_error) * kd)) * multiplicador_lado
+            velocidad_base = max(25, velocidad_actual - (abs(error) * k_freno))
+            
+            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base - correction))))
+            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base + correction))))
+            last_error = error
+            wait(1)
+            
+        # 4. Terminación fluida o total
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            self.chasis.motor_izquierda.stop()
+            self.chasis.motor_derecha.stop()
+            cronometro.pause()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
