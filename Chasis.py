@@ -211,15 +211,26 @@ class Chasis:
         self.motor_derecha.hold()
         Utils.emitir_sonido_confirmacion(self.hub)
     
-    def latigazo(self, grados=45, velocidad_giro=1000, aceleracion=3000):
-        settings_originales = self.drive_base.settings()
+    def latigazo(self, grados=45, velocidad_giro=400, aceleracion=3000):
+        # 1. Guardamos los límites originales SOLO del control de giro.
+        # Esto devuelve una tupla de 3 valores: (speed, acceleration, actuation)
+        limites_originales = self.drive_base.heading_control.limits()
+        
         angulo_inicial = self.hub.imu.heading()
-        self.drive_base.settings(turn_rate=velocidad_giro, turn_acceleration=aceleracion)
+        
+        # 2. Aplicamos los nuevos límites temporalmente al PID de giro
+        # Usando heading_control sí podemos usar las palabras clave
+        self.drive_base.heading_control.limits(speed=velocidad_giro, acceleration=aceleracion)
+        
+        # 3. Ejecutamos el latigazo
         self.drive_base.turn(grados)
         angulo_post_golpe = self.hub.imu.heading()
         grados_de_regreso = angulo_inicial - angulo_post_golpe
         self.drive_base.turn(grados_de_regreso)
-        self.drive_base.settings(*settings_originales)
+        
+        # 4. Restauramos los límites originales inyectando la tupla completa
+        self.drive_base.heading_control.limits(*limites_originales)
+        
         Utils.emitir_sonido_confirmacion(self.hub)
             
     def sacudir(self, iteraciones=5, potencia=100, tiempo_ms=60):

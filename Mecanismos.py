@@ -16,6 +16,7 @@ class Garra:
         else:
             self.motor.run_angle(velocidad, grados, then=frenado, wait=wait_after)
 
+    # Quitamos wait_after porque run_until_stalled no lo soporta
     def llevar_al_tope(self, direccion, velocidad=1000, limite_potencia=60, frenado=Stop.HOLD):
         if direccion in ("positivo", 1):
             vel_real = abs(velocidad)
