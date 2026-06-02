@@ -1,4 +1,5 @@
 from robot import Robot # Importamos la clase para que el editor sepa qué es
+import config
 
 class RevisadorBateria:
     def __init__(self, robot_instancia: Robot):
@@ -6,9 +7,10 @@ class RevisadorBateria:
 
     def revisar_bateria(self):
         bateria = self._obtener_bateria()
+        bateria_minima = config.BATERIA_MINIMA
         print(f"Bateria actual = {bateria}")
-        if bateria < 8000:
-            print("Batería menor a 8000")
+        if bateria < bateria_minima:
+            print(f"Batería menor a {bateria_minima}")
             continuar = input("¿Desea continuar? (y/n): ")
 
             return continuar == "y"
