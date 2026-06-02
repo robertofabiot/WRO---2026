@@ -4,7 +4,7 @@ import config
 from robot import Robot
 from ArmadorMosaicos import ArmadorMosaicos
 from RevisadorBateria import RevisadorBateria
-from Misiones import Misiones
+from MisionesSinAzules import Misiones
 
 # 1. Inicialización de Hardware
 mi_robot = Robot(
@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
         misiones.cemento_y_llana()
         
-        misiones.dejar_bloques_azules_y_pala()
+        #misiones.dejar_bloques_azules_y_pala()
     
         """
         Para pruebas completas: quita el '= 1' y usa la variable 'numero_mosaico' 
