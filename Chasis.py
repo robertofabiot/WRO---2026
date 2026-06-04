@@ -251,3 +251,48 @@ class Chasis:
         voltaje_actual = self.hub.battery.voltage()
         if voltaje_actual == 0: return potencia_deseada
         return max(-100, min(100, potencia_deseada * (8000 / voltaje_actual)))
+
+    def avanzar_y_accionar_en_recorrido(self, distancia_total_cm, distancia_accion_cm, accion_callback, frenado=Stop.BRAKE, margen_cm=0, encadenado=False):
+        """
+        Avanza (o retrocede) una distancia total y ejecuta una función (callback) 
+        al alcanzar un centímetro específico sin detener el movimiento del chasis.
+        """
+        distancia_total_mm = distancia_total_cm * 10
+        # Usamos valor absoluto para soportar recorridos en reversa (distancia_total_cm negativo)
+        distancia_accion_mm = abs(distancia_accion_cm * 10) 
+        margen_mm = abs(margen_cm * 10)
+
+        if encadenado:
+            frenado = Stop.NONE
+
+        dist_inicial = self.drive_base.distance()
+        meta_mm = abs(distancia_total_mm)
+        accion_ejecutada = False
+
+        # Iniciar el movimiento del chasis en segundo plano (wait=False)
+        self.drive_base.straight(distancia_total_mm, then=frenado, wait=False)
+
+        while True:
+            # Monitoreo constante de la distancia recorrida actual
+            dist_actual = abs(self.drive_base.distance() - dist_inicial)
+
+            # 1. Condición para accionar la garra (se ejecuta una sola vez)
+            if not accion_ejecutada and dist_actual >= distancia_accion_mm:
+                accion_callback() # Ejecutamos la función inyectada
+                accion_ejecutada = True
+
+            # 2. Condición de salida: Se alcanzó la meta total
+            if dist_actual >= (meta_mm - margen_mm):
+                break
+
+            # 3. Condición de seguridad por atasco
+            if self.drive_base.stalled():
+                break
+
+            wait(2) # Micro-pausa para no saturar el procesador del hub
+
+        # Manejo de cierre compatible con tu sistema de encadenamiento
+        if encadenado:
+            self._terminar_movimiento_encadenado()
+        else:
+            Utils.emitir_sonido_confirmacion(self.hub)

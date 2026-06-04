@@ -399,3 +399,78 @@ class Navegacion:
             self.chasis.motor_derecha.stop()
             cronometro.pause()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
+
+    def seguidor_linea_cruces_y_distancia(self, sensor_color, velocidad_max, cruces_objetivo, distancia_extra_cm, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, margen_cm=0, encadenado=False):
+        """
+        Combina la detección de cruces y un avance extra por distancia en un solo movimiento fluido.
+        Mantiene el mismo lazo PID para evitar derrapes por picos de corrección.
+        """
+        from pybricks.tools import StopWatch, wait # (Asegúrate de que existan)
+        from Utils import Utils
+        
+        cronometro = StopWatch()
+        last_error = 0
+        multiplicador_lado = 1 if lado == "derecha" else -1
+        
+        cruces_detectados = 0
+        en_cruce = False
+        umbral_negro = 15 
+        umbral_salida = 25 
+        
+        buscando_cruces = True
+        grados_objetivo_extra = max(0, ((distancia_extra_cm - margen_cm) / (3.1416 * 5.6)) * 360)
+        grados_inicio_extra = 0
+        
+        self.chasis.motor_izquierda.reset_angle(0)
+        self.chasis.motor_derecha.reset_angle(0)
+        
+        cronometro.reset()
+        cronometro.resume()
+        
+        while True:
+            # --- EVALUACIÓN DE SALIDA ---
+            if not buscando_cruces:
+                # Calculamos cuánto ha avanzado desde que terminó el último cruce
+                grados_recorridos_extra = ((abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2) - grados_inicio_extra
+                if grados_recorridos_extra >= grados_objetivo_extra:
+                    break
+                    
+            t = cronometro.time()
+            velocidad_actual = 25 if t < tiempo_acomodo_ms else velocidad_max
+
+            # 1. Leer sensor
+            reflexion_actual = sensor_color.reflection()
+            error = reflexion_actual - 35
+            
+            # 2. Lógica de cruces (Se apaga al encontrarlos todos)
+            if buscando_cruces:
+                if reflexion_actual <= umbral_negro and not en_cruce:
+                    cruces_detectados += 1
+                    en_cruce = True
+                    print(f"Cruce {cruces_detectados}/{cruces_objetivo} detectado")
+                    
+                    if cruces_detectados >= cruces_objetivo:
+                        buscando_cruces = False
+                        # Guardamos el odómetro actual para empezar a medir la distancia extra desde este punto
+                        grados_inicio_extra = (abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2
+                
+                elif reflexion_actual >= umbral_salida and en_cruce:
+                    en_cruce = False
+
+            # 3. Lógica PD ininterrumpida
+            correction = ((error * kp) + ((error - last_error) * kd)) * multiplicador_lado
+            velocidad_base = max(25, velocidad_actual - (abs(error) * k_freno))
+            
+            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base - correction))))
+            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base + correction))))
+            last_error = error
+            wait(1)
+            
+        # 4. Terminación fluida o total
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            self.chasis.motor_izquierda.stop()
+            self.chasis.motor_derecha.stop()
+            cronometro.pause()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
