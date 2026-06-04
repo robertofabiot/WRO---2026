@@ -114,17 +114,20 @@ class Misiones:
         self.robot.chasis.avanzar_recto(-8, velocidad=1000, margen_cm=2, encadenado=True)
         self.robot.navegacion.giro_preciso_pd(90, max_speed=1000, min_speed=40, kp=8.5, kd=115.0, margen_grados=2, encadenado=True)
         
-        self.robot.chasis.avanzar_recto(-23, velocidad=1300, margen_cm=4, encadenado=True)
+        self.robot.chasis.avanzar_recto(-25, velocidad=1300, margen_cm=4, encadenado=True)
 
         self.robot.chasis.mover_en_arco(-142, distancia_cm=30, margen_cm=3, encadenado=True)
         self.robot.chasis.mover_motor_izquierdo(130)
         
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 35, tiempo_acomodo_ms=0, encadenado=True)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 20, tiempo_acomodo_ms=0, encadenado=True)
         self.robot.chasis.mover_motor_derecho(500, velocidad=1000, margen_grados=50, encadenado=True)
+        self.robot.garra_trasera.subir(100, velocidad=1000, wait_after=False)
+        self.robot.chasis.avanzar_recto(-10, velocidad=1000, encadenado=True)
+        self.robot.garra_trasera.bajar(100, velocidad=1000)
         
         self.robot.chasis.avanzar_y_accionar_en_recorrido(
             20, 
-            10,  
+            15,  
             lambda: self.robot.garra_trasera.subir(185, velocidad=1000, wait_after=False),
             encadenado=True)
 
