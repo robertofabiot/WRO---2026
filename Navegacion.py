@@ -400,10 +400,10 @@ class Navegacion:
             cronometro.pause()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
 
-    def seguidor_linea_cruces_y_distancia(self, sensor_color, velocidad_max, cruces_objetivo, distancia_extra_cm, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, margen_cm=0, encadenado=False):
+    def seguidor_linea_cruces_y_distancia(self, sensor_color, velocidad_max, cruces_objetivo, distancia_extra_cm, distancia_inicial_cm=0, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, margen_cm=0, encadenado=False):
         """
-        Combina la detección de cruces y un avance extra por distancia en un solo movimiento fluido.
-        Mantiene el mismo lazo PID para evitar derrapes por picos de corrección.
+        Combina un avance inicial ciego a cruces, la detección de cruces y un avance extra por distancia 
+        en un solo movimiento fluido. Mantiene el mismo lazo PID para evitar derrapes.
         """
         from pybricks.tools import StopWatch, wait # (Asegúrate de que existan)
         from Utils import Utils
@@ -417,7 +417,11 @@ class Navegacion:
         umbral_negro = 15 
         umbral_salida = 25 
         
-        buscando_cruces = True
+        # --- Variables de fases ---
+        en_distancia_inicial = distancia_inicial_cm > 0
+        grados_objetivo_inicial = max(0, (distancia_inicial_cm / (3.1416 * 5.6)) * 360)
+        
+        buscando_cruces = cruces_objetivo > 0
         grados_objetivo_extra = max(0, ((distancia_extra_cm - margen_cm) / (3.1416 * 5.6)) * 360)
         grados_inicio_extra = 0
         
@@ -428,10 +432,17 @@ class Navegacion:
         cronometro.resume()
         
         while True:
-            # --- EVALUACIÓN DE SALIDA ---
-            if not buscando_cruces:
-                # Calculamos cuánto ha avanzado desde que terminó el último cruce
-                grados_recorridos_extra = ((abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2) - grados_inicio_extra
+            # Medida global de grados para las distancias (inicial y extra)
+            grados_recorridos_totales = (abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2
+
+            # --- EVALUACIÓN DE SALIDA Y FASES ---
+            if en_distancia_inicial:
+                # 1. Fase: Avance inicial ignorando cruces
+                if grados_recorridos_totales >= grados_objetivo_inicial:
+                    en_distancia_inicial = False # Termina avance inicial, empieza a buscar cruces
+            elif not buscando_cruces:
+                # 3. Fase: Avance extra después de haber encontrado los cruces
+                grados_recorridos_extra = grados_recorridos_totales - grados_inicio_extra
                 if grados_recorridos_extra >= grados_objetivo_extra:
                     break
                     
@@ -442,8 +453,8 @@ class Navegacion:
             reflexion_actual = sensor_color.reflection()
             error = reflexion_actual - 35
             
-            # 2. Lógica de cruces (Se apaga al encontrarlos todos)
-            if buscando_cruces:
+            # 2. Lógica de cruces (Solo se activa si ya pasamos la distancia inicial)
+            if not en_distancia_inicial and buscando_cruces:
                 if reflexion_actual <= umbral_negro and not en_cruce:
                     cruces_detectados += 1
                     en_cruce = True
@@ -451,8 +462,8 @@ class Navegacion:
                     
                     if cruces_detectados >= cruces_objetivo:
                         buscando_cruces = False
-                        # Guardamos el odómetro actual para empezar a medir la distancia extra desde este punto
-                        grados_inicio_extra = (abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2
+                        # Guardamos el odómetro actual para empezar a medir la distancia extra desde este punto exacto
+                        grados_inicio_extra = grados_recorridos_totales
                 
                 elif reflexion_actual >= umbral_salida and en_cruce:
                     en_cruce = False

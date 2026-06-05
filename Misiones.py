@@ -87,7 +87,7 @@ class Misiones:
         self.robot.chasis.mover_motor_derecho(700, velocidad=1000, margen_grados=50, encadenado=True)
         self.robot.chasis.avanzar_recto(16, 1000, margen_cm=7, encadenado=True)
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=200) # Cierra el combo fluido
-        self.__recoger_bloques(27, 100, bajar=180)
+        self.__recoger_bloques(27, 100, bajar=185)
 
     def dejar_bloques_amarillos(self):
         self.robot.chasis.girar_sobre_eje(-60)
@@ -111,20 +111,20 @@ class Misiones:
         self.robot.navegacion.giro_absoluto_pd(90, encadenado=True)
         self.robot.garra_trasera.mover(-185, velocidad=500, wait_after=False)
         
-        self.robot.chasis.avanzar_recto(-8, velocidad=1000, margen_cm=2, encadenado=True)
-        self.robot.navegacion.giro_preciso_pd(90, max_speed=1000, min_speed=40, kp=8.5, kd=115.0, margen_grados=2, encadenado=True)
-        
-        self.robot.chasis.avanzar_recto(-25, velocidad=1300, margen_cm=4, encadenado=True)
-
-        self.robot.chasis.mover_en_arco(-142, distancia_cm=30, margen_cm=3, encadenado=True)
-        self.robot.chasis.mover_motor_izquierdo(130)
-        
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 20, tiempo_acomodo_ms=0, encadenado=True)
-        self.robot.chasis.mover_motor_derecho(500, velocidad=1000, margen_grados=50, encadenado=True)
+        self.robot.chasis.avanzar_recto(-7.5, velocidad=1000, margen_cm=2, encadenado=True)
+        self.robot.chasis.mover_motor_derecho(-100, velocidad=1000, encadenado=True)
+        self.robot.navegacion.giro_absoluto_pd(172, min_speed=600, encadenado=True)
+        self.robot.chasis.avanzar_recto(-37, velocidad=1000, encadenado=False)
+        self.robot.navegacion.giro_absoluto_pd(160, min_speed=400, encadenado=True)
+        self.robot.chasis.avanzar_recto(27, velocidad=1000, encadenado=False)
+        self.robot.chasis.mover_motor_izquierdo(200, velocidad=1000, encadenado=True)
+        self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor, 100, 1, 22, distancia_inicial_cm=7, tiempo_acomodo_ms=300, encadenado=True)
+        self.robot.chasis.mover_motor_derecho(440, velocidad=1000, margen_grados=50, encadenado=True)
         self.robot.garra_trasera.subir(100, velocidad=1000, wait_after=False)
-        self.robot.chasis.avanzar_recto(-10, velocidad=1000, encadenado=True)
+        self.robot.chasis.avanzar_recto(-13, velocidad=1000, encadenado=True)
+        self.robot.navegacion.giro_absoluto_motor_derecho(180, min_speed=300, encadenado=True)
         self.robot.garra_trasera.bajar(100, velocidad=1000)
-        
+        self.robot.chasis.mover_motor_derecho(180, velocidad=1000)
         self.robot.chasis.avanzar_y_accionar_en_recorrido(
             20, 
             15,  
