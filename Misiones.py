@@ -27,120 +27,124 @@ class Misiones:
         return decision
 
     def pruebas(self):
-        self.robot.navegacion.seguidor_linea_atras(self.sensor, velocidad_max=100, distancia_cm=30)
+        while True:
+            self.robot.navegacion.giro_preciso_pd(90, max_speed=2000, min_speed=100, kp=10, kd=120)
+            wait(800)
 
 
     def cemento_y_llana(self):
-
+# Preparación inicial
         self.robot.mecanismos.garra_delantera.llevar_al_tope("positivo", velocidad=1000, limite_potencia=60)
 
-       
-
-        # 2. ENCADENAMIENTO: Aumentamos el margen para no frenar a 0 antes del seguidor de línea.
-
+        # 1. ARRANQUE FLUIDO: Aprovechamos la inercia sin frenar (Stop.NONE)
         self.robot.chasis.mover_en_arco(radio_cm=14, distancia_cm=17, stop=Stop.NONE, margen_cm=3)
 
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 110, 88, tiempo_acomodo_ms=0, margen_cm=10)
-
-        self.robot.navegacion.giro_preciso_pd(-94, margen_grados=5)
-
-       
-
-        # 3. DEPURACIÓN DE LATENCIAS: Eliminamos todos los wait(1) entre llamadas
-
-        self.robot.mecanismos.garra_trasera.mover(167, velocidad=180, wait_after=False)
-
-        self.robot.chasis.avanzar_recto(-10, velocidad=1000, frenado=Stop.COAST, margen_cm=2)
-
-       
-
-        # Transición inmediata al giro
-
-        self.robot.navegacion.giro_preciso_pd(90, max_speed=1000, min_speed=40, kp=8.5, kd=115.0, margen_grados=2)
-
-       
-
-        # Transición suave del avance al arco
-
-        self.robot.chasis.avanzar_recto(-27, velocidad=1300, frenado=Stop.NONE, margen_cm=4)
-
-        self.robot.chasis.mover_en_arco(-142, distancia_cm=30, stop=Stop.COAST, margen_cm=3)
-
-       
-
-        # # CONCURRENCIA 2: Bajamos el motor mientras el robot se estabiliza para el seguidor
-
-        self.robot.chasis.mover_motor_izquierdo(130, wait_after=False)
-
-       
-
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 110, 38, tiempo_acomodo_ms=100)
-
-        self.robot.navegacion.giro_preciso_pd(90, max_speed=1000, min_speed=40, kp=8.5, kd=115.0)
-
-    def agarrar_bloques_blancos(self):
-        # 1. Movimiento asíncrono y encadenado
-        self.robot.mecanismos.garra_trasera.mover(-170, velocidad=1000, wait_after=False)
-        self.robot.chasis.avanzar_recto(-5, frenado=Stop.NONE, margen_cm=1)
-        self.robot.chasis.mover_en_arco(-12, distancia_cm=14, stop=Stop.NONE, margen_cm=1)
-        
-        # 2. CUADRATURA PERFECTA: Usamos la versión "_prueba" que tiene la Fase 2 de acomodo final.
-        # Esto reemplaza al wait(200) y asegura que el robot quede 100% paralelo a la línea.
-        self.robot.navegacion.seguidor_linea_distancia_prueba(
+        # 2. SEGUIDOR BLINDADO: Ya tiene el Control de Tracción y frenado exacto en grados por defecto.
+        self.robot.navegacion.seguidor_linea_distancia(
             self.sensor, 
             velocidad_max=100, 
-            distancia_cm=10, 
+            distancia_cm=91, 
+            lado="derecha", 
+            tiempo_acomodo_ms=0
+        )
+
+        # 3. ASENTAMIENTO FÍSICO: 
+        # Esos 150ms dejan que la estructura plástica deje de vibrar tras el frenado en seco
+        # del seguidor, garantizando que el giroscopio lea un CERO perfecto.
+        self.robot.hub.imu.reset_heading(0)
+
+        # 4. PRIMER GIRO VIOLENTO: Nuestro Caballo de Troya controlado por hardware
+        self.robot.navegacion.giro_preciso_pd(-90)
+
+        # 5. TRANSICIÓN ASÍNCRONA: Bajamos garra mientras retrocedemos.
+        self.robot.mecanismos.garra_trasera.mover(170, velocidad=250, wait_after=False)
+        
+        # Freno Stop.HOLD estricto para no derrapar antes del siguiente giro
+        self.robot.chasis.avanzar_recto(-8, velocidad=1000, frenado=Stop.HOLD, margen_cm=0)
+
+
+        # LA CURA: Liberamos el modo "HOLD" del DriveBase para que suelte el giroscopio
+        self.robot.chasis.drive_base.stop() 
+        
+        self.robot.hub.imu.reset_heading(0)
+        self.robot.navegacion.giro_preciso_pd(90)
+
+        # 7. SPRINT LARGO ENCADENADO: Pura velocidad sin detener el chasis a cero
+        self.robot.chasis.avanzar_recto(-27, velocidad=1300, frenado=Stop.NONE, margen_cm=4)
+        self.robot.chasis.mover_en_arco(-140, distancia_cm=28, stop=Stop.NONE, margen_cm=1)
+
+        # 8. CONCURRENCIA: Acomodamos el motor izquierdo al vuelo
+        self.robot.chasis.mover_motor_izquierdo(160, wait_after=False)
+
+        # 9. SEGUNDO SEGUIDOR: Clavado exacto a los 55 cm
+        self.robot.navegacion.seguidor_linea_distancia(
+            self.sensor, 
+            velocidad_max=100, 
+            distancia_cm=52, 
+            lado="derecha", 
+            tiempo_acomodo_ms=0
+        )
+
+
+        # 10. TERCER GIRO VIOLENTO (Y final de la misión)
+        self.robot.hub.imu.reset_heading(0)
+        self.robot.navegacion.giro_preciso_pd(90)
+
+    def agarrar_bloques_blancos(self):
+        # 1. ARRANQUE ASÍNCRONO: Aceleramos la apertura de garra a 1000 para no perder tiempo
+        self.robot.mecanismos.garra_trasera.mover(-170, velocidad=1000, wait_after=False)
+        self.robot.chasis.avanzar_recto(-5, frenado=Stop.NONE, margen_cm=1)
+        
+        # Encadenamiento fluido (Stop.NONE)
+        self.robot.chasis.mover_en_arco(-14.5, distancia_cm=17.5, stop=Stop.NONE, margen_cm=2)
+        
+        # 2. SEGUIDOR BLINDADO: Aterriza exacto a los 15 cm, el Congelador Dinámico elimina el temblor
+        self.robot.navegacion.seguidor_linea_distancia(
+            self.sensor, 
+            velocidad_max=100, 
+            distancia_cm=13, 
             lado="derecha", 
             tiempo_acomodo_ms=0, 
             kp=1.2, 
             kd=3.5
         )
         
-        # 3. Limpiamos el giroscopio ahora que el robot está perfectamente recto
+        # 3. ASENTAMIENTO FÍSICO Y BLINDAJE DEL IMU (Cero crasheos, Cero grados de error)
+        self.robot.chasis.drive_base.stop() # <-- EL SALVAVIDAS: Libera el giroscopio
         self.robot.hub.imu.reset_heading(0)
         
-        # 4. EL GIRO VIOLENTO: Al límite del hardware.
-        # Calculado: (1000 max_motor * 56) / 160 = 350 max turn_rate.
-        self.robot.chasis.drive_base.settings(
-            straight_speed=config.STRAIGHT_SPEED, 
-            straight_acceleration=config.STRAIGHT_ACCEL, 
-            turn_rate=350,          # Límite físico absoluto para que no de ValueError
-            turn_acceleration=1500  # Latigazo instantáneo para romper la inercia
-        )
+        # 4. EL GIRO VIOLENTO 180°
+        # Borramos el bloque inmenso de settings. ¡El Caballo de Troya lo hace automático!
+        self.robot.navegacion.giro_preciso_pd(180)
         
-        wait(200)
-        self.robot.navegacion.giro_preciso_pd(-185)
+        # 5. RECOLECCIÓN LETAL
+        # Aceleramos la garra a 1000 y atacamos en reversa
+        self.robot.mecanismos.garra_trasera.mover(172, velocidad=1500, wait_after=False)
         
-        # Restauramos la configuración
-        self.robot.chasis.drive_base.settings(
-            straight_speed=config.STRAIGHT_SPEED, 
-            straight_acceleration=config.STRAIGHT_ACCEL, 
-            turn_rate=config.TURN_RATE, 
-            turn_acceleration=config.STRAIGHT_ACCEL
-        )
-        self.robot.mecanismos.garra_trasera.mover(172, velocidad=350, wait_after=False)
-
-        self.robot.chasis.avanzar_recto(-23, velocidad=1000, frenado=Stop.BRAKE)
+        # ARREGLO CRÍTICO: Cambiamos BRAKE por HOLD. 
+        # Al embestir los bloques, el chasis se convierte en una pared de concreto. Cero rebotes.
+        self.robot.chasis.avanzar_recto(-19, velocidad=1000, frenado=Stop.HOLD)
        
 
     def dejar_bloques_blancos(self):
-         # 1. PIVOTES CONTROLADOS
+        
+        # 1. PRIMER PIVOTE CONTROLADO
         self.robot.chasis.motor_derecha.hold() 
         self.robot.chasis.mover_motor_izquierdo(400, velocidad=1000, frenado=Stop.HOLD)
         
-        # 2. EL SPRINT HACKEADO (BLINDADO CONTRA ERRORES)
-        # Pasamos los 4 argumentos obligatorios para que Pybricks no tire ValueError
+        # 2. EL SPRINT HACKEADO
         self.robot.chasis.drive_base.settings(
-            straight_speed=950,           # Velocidad tope segura
-            straight_acceleration=1500,   # Aceleración agresiva (bajamos de 2000 a 1500 por seguridad)
-            turn_rate=config.TURN_RATE,   # Mantenemos el giro normal
+            straight_speed=930,          # Emparejamos a 1000 para máximo poder
+            straight_acceleration=1500,   
+            turn_rate=config.TURN_RATE,   
             turn_acceleration=config.STRAIGHT_ACCEL 
         )
         
-        # El robot saltará hacia adelante al instante
-        self.robot.chasis.avanzar_recto(43.5, velocidad=950, frenado=Stop.NONE)
+        # ARREGLO CRÍTICO: Frenamos con Stop.HOLD. 
+        # Cero derrapes antes del siguiente pivote.
+        self.robot.chasis.avanzar_recto(57, velocidad=930, frenado=Stop.HOLD)
         
-        # 3. RESTAURAMOS LA ACELERACIÓN A LA NORMALIDAD
+        # Restauramos aceleración
         self.robot.chasis.drive_base.settings(
             straight_speed=config.STRAIGHT_SPEED, 
             straight_acceleration=config.STRAIGHT_ACCEL,
@@ -148,25 +152,39 @@ class Misiones:
             turn_acceleration=config.STRAIGHT_ACCEL
         )
         
-        # 4. SEGUNDO PIVOTE CONTROLADO
-        self.robot.chasis.motor_izquierda.hold()
-        self.robot.chasis.mover_motor_derecho(450, velocidad=1000, frenado=Stop.HOLD)
+        # 3. SEGUNDO PIVOTE CONTROLADO
+        self.robot.navegacion.giro_preciso_pd(-45)
         
-        # 5. EL SEGUIDOR BLINDADO PARA EL ESCANEO
-        self.robot.navegacion.seguidor_linea_color(self.sensor, 100, Color.GREEN, distancia_cm=40)
+        # 4. SEGUIDOR POR COLOR 
+        self.robot.navegacion.seguidor_linea_color(
+            self.sensor, 
+            100, 
+            Color.GREEN, 
+            lado="derecha", 
+            distancia_cm=35
+        )
         
-        # # Acercamiento final y escaneo
-        self.robot.chasis.mover_motor_derecho(70)        
+        # 5. ACERCAMIENTO FINAL Y MICRO-AJUSTES
+        # Frenamos el pivote en seco
+        self.robot.chasis.mover_motor_derecho(80, velocidad=800, frenado=Stop.HOLD)        
+        
+        # EL TRUCO DEL MICRO-MOVIMIENTO: 
+        # Para movernos 5 milímetros (-0.5) sin patinar, bajamos la velocidad a 300.
+        self.robot.chasis.avanzar_recto(-1, velocidad=300, frenado=Stop.HOLD)
 
-        self.robot.navegacion.giro_preciso_pd(227)       
-
-
-        # self.robot.chasis.avanzar_recto(-9)
-        # self.robot.navegacion.giro_preciso_pd(55)
-        self.robot.mecanismos.garra_trasera.mover(-170, velocidad=150, wait_after=False, margen_grados=3)
-        self.robot.chasis.avanzar_recto(-18, velocidad=1000, margen_cm=2)
+        # 6. ASENTAMIENTO Y GIRO MASIVO (230°)
+        # Ritual sagrado para no crashear el giroscopio y lograr exactitud pura
+   
+        self.robot.chasis.drive_base.stop() 
+        self.robot.hub.imu.reset_heading(0)
+        
+        self.robot.navegacion.giro_preciso_pd(235)       
+        
+        # 7. ENTREGA LETAL
+        # Subimos la velocidad de la garra a 1000 (250 era muy lento) y clavamos el retroceso
+        self.robot.mecanismos.garra_trasera.mover(-170, velocidad=1000, wait_after=False)
+        self.robot.chasis.avanzar_recto(-18, velocidad=1000, frenado=Stop.HOLD)
        
-
 
     def agarrar_bloques_verdes(self):
         
@@ -175,30 +193,27 @@ class Misiones:
 
         # 2. EL ANCLA PERFECTA: Clavamos el motor izquierdo para que el derecho pivotee a vel 1000 sin derrapar
         self.robot.chasis.motor_izquierda.hold()
-        self.robot.chasis.mover_motor_derecho(310, velocidad=1000, margen_grados=30)
+        self.robot.chasis.mover_motor_derecho(330, velocidad=1000, margen_grados=30)
         
         # 3. SEGUIDOR CON CUADRATURA: Reemplazamos el seguidor normal por el de "prueba" 
         # para que se alinee perfectamente al final y podamos BORRAR el wait(300)
-        self.robot.navegacion.seguidor_linea_distancia_prueba(
+        self.robot.navegacion.seguidor_linea_distancia(
             self.sensor, 
             velocidad_max=100, 
-            distancia_cm=39, 
-            lado="derecha", 
+            distancia_cm=42, 
+            lado="izquierda", 
             tiempo_acomodo_ms=0, 
             kp=1.2, 
             kd=3.5
         )
-        
-        self.robot.navegacion.giro_preciso_pd(-180)
-        
-        
-        self.robot.mecanismos.garra_trasera.mover(170, velocidad=180, frenado=Stop.HOLD, wait_after=False)
-        self.robot.chasis.avanzar_recto(-21, velocidad=1000)
+        self.robot.navegacion.giro_preciso_pd(180)
+        self.robot.mecanismos.garra_trasera.mover(170, velocidad=800, frenado=Stop.HOLD, wait_after=False)
+        self.robot.chasis.avanzar_recto(-19, velocidad=1000)
   
   
 
     def dejar_bloques_verdes_y_detectar_mosaico(self):
-        self.robot.navegacion.seguidor_linea_color(self.sensor, 100, Color.GREEN, tiempo_acomodo_ms=200, distancia_cm=65)
+        self.robot.navegacion.seguidor_linea_color(self.sensor, 100, Color.GREEN, lado="derecha", tiempo_acomodo_ms=200, distancia_cm=70)
 
         self.robot.chasis.mover_motor_derecho(80)
         self.robot.chasis.avanzar_recto(15)
@@ -213,25 +228,80 @@ class Misiones:
 
         self.robot.chasis.avanzar_recto(-20, velocidad=1000)
         self.robot.navegacion.giro_preciso_pd(180)
-        self.robot.mecanismos.garra_trasera.mover(-170, wait_after=False)
-        self.robot.chasis.avanzar_recto(-5, velocidad=1000)
+        self.robot.mecanismos.garra_trasera.mover(-170, velocidad=100,wait_after=False)
+        self.robot.chasis.avanzar_recto(-6, velocidad=1000)
         return mosaico 
 
 
+    def agarrar_bloques_amarillos(self):
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, distancia_cm=17, lado="izquierda")
+        self.robot.navegacion.giro_preciso_pd(-45)
+        self.robot.chasis.avanzar_recto(33, velocidad=1000)
+        self.robot.navegacion.giro_preciso_pd(45)
 
 
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=13 , tiempo_acomodo_ms=100)
+        self.robot.navegacion.giro_preciso_pd(-180)
+        self.robot.mecanismos.garra_trasera.mover(170, velocidad=300, wait_after=False)
+        self.robot.chasis.avanzar_recto(-20)
+
+
+    def dejar_bloques_amarillos(self):
+        self.robot.navegacion.giro_preciso_pd(-55)
+        self.robot.chasis.avanzar_recto(distancia_cm=80, velocidad=1000)
+        self.robot.navegacion.giro_preciso_pd(55)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=55, lado="izquierda")
+        self.robot.navegacion.giro_preciso_pd(-90)
+        self.robot.mecanismos.garra_trasera.mover(-170, velocidad=100, wait_after=False)
+        self.robot.chasis.avanzar_recto(distancia_cm=-15.5, velocidad=1000)
+
+
+
+    def agarrar_bloques_azules_y_pala(self):
+        self.robot.chasis.avanzar_recto(distancia_cm=17, velocidad=1000)
+        self.robot.navegacion.giro_preciso_pd(-90)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=47)
+        self.robot.navegacion.giro_preciso_pd(-50)
+        self.robot.mecanismos.garra_trasera.mover(170, velocidad=250, wait_after=False)
+        self.robot.chasis.avanzar_recto(distancia_cm=-10, velocidad=1000)
+        self.robot.mecanismos.garra_trasera.avanzar_y_gatillar(chasis=self.robot.chasis, distancia_total_cm=34, vel_chasis=1000, distancia_trigger_cm=15, grados_garra=-170)
+        self.robot.navegacion.giro_preciso_pd(55)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor,  velocidad_max=100, distancia_cm=16 ,tiempo_acomodo_ms=100)
+        self.robot.navegacion.giro_preciso_pd(-180)
+        self.robot.mecanismos.garra_trasera.mover(170, velocidad=200, wait_after=False)
+        self.robot.chasis.avanzar_recto(-20)
+        self.robot.navegacion.giro_preciso_pd(-30)
+        self.robot.chasis.avanzar_recto(distancia_cm=36, velocidad=950)
+        self.robot.navegacion.giro_preciso_pd(30, margen_grados=10)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=160, lado="izquierda")   
+
+
+""" --------PARTE DE IDEA OLVIDADA---------
     def agarrar_bloques_amarillos_y_azules(self):
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, distancia_cm=60, lado="izquierda")
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, distancia_cm=64, lado="izquierda")
         self.robot.chasis.mover_motor_izquierdo(700, frenado=Stop.BRAKE)
         self.robot.mecanismos.garra_trasera.mover(170,velocidad=130, wait_after=False)
         self.robot.chasis.avanzar_recto(-35)
-        self.robot.chasis.avanzar_recto(50)
+        self.robot.chasis.avanzar_recto(65)
         self.robot.chasis.mover_motor_izquierdo(700)
 
     def dejar_bloques_amarillos_azules_y_pala(self):
-        self.robot.chasis.avanzar_recto(25)
-        # self.robot.
-        
+        self.robot.chasis.avanzar_recto(15)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=110, distancia_cm=24 ,margen_cm=30)
+        self.robot.navegacion.giro_preciso_pd(-45)
+        self.robot.chasis.avanzar_recto(10)
+        self.robot.mecanismos.elevador_delantero.mover(90, wait_after=False)
+        self.robot.mecanismos.garra_delantera.cerrar_al_tope()
+        self.robot.chasis.avanzar_recto(-10)
+        self.robot.navegacion.giro_preciso_pd(45)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=26) 
+        self.robot.navegacion.giro_preciso_pd(-90)
+        self.robot.chasis.avanzar_recto(-7)
+        self.robot.mecanismos.garra_trasera(-170)
+        """
+
+
+                
     # # # def agarrar_bloques_amarillos(self):
     # # #     self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 25)
     # # #     self.robot.navegacion.giro_preciso_pd(-45)
