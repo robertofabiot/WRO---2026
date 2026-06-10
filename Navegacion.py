@@ -78,8 +78,17 @@ class Navegacion:
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
             if abs(error) <= max(1, margen_grados): break
-            turn_rate = (error * kp) + ((error - error_previo) * kd)
-            turn_rate = min(max(turn_rate, min_speed), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed), -max_speed)
+            
+            derivada = error - error_previo
+            turn_rate = (error * kp) + (derivada * kd)
+            
+            # --- ZONA DINÁMICA ---
+            # Si faltan menos de 15 grados, quitamos la restricción de 400 
+            # y dejamos que el PD frene suavemente hasta 40 para no oscilar.
+            min_speed_actual = min_speed if abs(error) > 15 else 40 
+            
+            turn_rate = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
+            
             self.chasis.drive_base.drive(0, turn_rate)
             error_previo = error
             wait(10)
@@ -484,4 +493,117 @@ class Navegacion:
             self.chasis.motor_izquierda.stop()
             self.chasis.motor_derecha.stop()
             cronometro.pause()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
+
+    def curva_coordenada_local(self, x_cm, y_cm, velocidad=600, kp_giro=4.5, tolerancia_cm=1.0, encadenado=False):
+        """
+        Hace que el robot dibuje una curva fluida hacia el punto relativo (x_cm, y_cm).
+        Implementación 100% nativa sin depender del módulo 'math'.
+        x_cm: Distancia hacia adelante (positivo) o atrás (negativo).
+        y_cm: Desplazamiento lateral (positivo izquierda, negativo derecha).
+        """
+        # 1. Constantes matemáticas locales
+        PI = 3.14159265
+        HALF_PI = 1.57079632
+        TWO_PI = 6.28318530
+
+        # 2. Mini-motor trigonométrico interno (Aproximaciones eficientes)
+        def seno(a):
+            # Normaliza el ángulo entre -PI y PI
+            a = (a + PI) % TWO_PI - PI
+            a2 = a * a
+            # Serie de Taylor (grado 7) para altísima precisión en odometría
+            return a - (a * a2) / 6.0 + (a2 * a2 * a) / 120.0 - (a2 * a2 * a2 * a) / 5040.0
+
+        def coseno(a):
+            return seno(a + HALF_PI)
+
+        def atan2_aprox(y, x):
+            # Manejo de la singularidad x = 0
+            if x == 0:
+                return HALF_PI if y > 0 else (-HALF_PI if y < 0 else 0)
+            
+            z = y / x
+            # Aproximación polinomial racional (muy rápida para procesadores sin FPU fuerte)
+            # Calcula atan(z)
+            abs_z = z if z > 0 else -z
+            if abs_z <= 1:
+                atan = z / (1.0 + 0.28086 * z * z)
+            else:
+                inv_z = 1.0 / z
+                atan = HALF_PI - inv_z / (1.0 + 0.28086 * inv_z * inv_z)
+                if y < 0: 
+                    atan -= PI
+            
+            # Ajuste por cuadrantes
+            if x < 0:
+                if y >= 0:
+                    atan += PI
+                else:
+                    atan -= PI
+            return atan
+
+        # Conversión a milímetros
+        target_x = x_cm * 10.0
+        target_y = y_cm * 10.0
+        
+        # Registrar estado inicial
+        dist_inicial = self.chasis.drive_base.distance()
+        angulo_inicial = self.chasis.hub.imu.heading()
+        
+        x_act, y_act = 0.0, 0.0
+        dist_previa = 0.0
+        
+        while True:
+            # Integración de odometría diferencial
+            dist_actual = self.chasis.drive_base.distance() - dist_inicial
+            delta_dist = dist_actual - dist_previa
+            
+            # Ángulo relativo actual (Conversión de grados a radianes manual)
+            angulo_relativo_rad = (self.chasis.hub.imu.heading() - angulo_inicial) * PI / 180.0
+            
+            # Proyección del movimiento
+            x_act += delta_dist * coseno(angulo_relativo_rad)
+            y_act += delta_dist * seno(angulo_relativo_rad)
+            dist_previa = dist_actual
+            
+            # Error hacia la coordenada objetivo
+            error_x = target_x - x_act
+            error_y = target_y - y_act
+            
+            # Pitágoras sin math.sqrt (usando exponente fraccionario)
+            distancia_restante = (error_x**2 + error_y**2) ** 0.5
+            
+            if distancia_restante <= (tolerancia_cm * 10.0):
+                break
+                
+            # Calcular el ángulo del vector objetivo
+            alfa_objetivo_rad = atan2_aprox(error_y, error_x)
+            error_angulo_rad = alfa_objetivo_rad - angulo_relativo_rad
+            
+            # Normalizar el ángulo entre -PI y PI (previene oscilaciones y bucles infinitos)
+            error_angulo_rad = (error_angulo_rad + PI) % TWO_PI - PI
+            
+            # Conversión de radianes a grados manual
+            error_angulo_grados = error_angulo_rad * 180.0 / PI
+            
+            # Control dinámico
+            velocidad_lineal = velocidad * coseno(error_angulo_rad)
+            
+            if x_cm < 0:
+                abs_velocidad = velocidad_lineal if velocidad_lineal > 0 else -velocidad_lineal
+                velocidad_lineal = -abs_velocidad
+            else:
+                velocidad_lineal = 50 if velocidad_lineal < 50 else velocidad_lineal
+                
+            turn_rate = error_angulo_grados * kp_giro
+            
+            self.chasis.drive_base.drive(velocidad_lineal, turn_rate)
+            wait(10)
+            
+        # Gestión del cierre (encadenamiento)
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            self.chasis.drive_base.stop()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
