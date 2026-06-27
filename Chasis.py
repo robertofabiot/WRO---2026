@@ -15,15 +15,28 @@ class Chasis:
     def avanzar_recto(self, distancia_cm, velocidad=None, frenado=Stop.BRAKE, wait_after=True, margen_cm=0):
         if velocidad is None:
             velocidad = self.velocidad_base
-        velocidad = max(min(velocidad, 976), -976)
-        distancia_mm = distancia_cm * 10
+            
+        # 1. BLINDAJE DE TIPO: Convertimos a int() para que el procesador no rechace decimales.
+        vel_segura = int(min(abs(velocidad), 930))
+        
+        # 2. FIX DE CONFIGURACIÓN: En vez de extraer todas las variables y arriesgarnos a un crash,
+        # solo sobreescribimos el parámetro exacto que nos interesa. Pybricks respeta lo demás.
+        self.drive_base.settings(straight_speed=vel_segura)
+        
+        distancia_mm = int(distancia_cm * 10)
         
         if wait_after and margen_cm > 0:
             distancia_inicial = self.drive_base.distance()
             margen_mm = abs(margen_cm * 10)
+            
+            # Lanzamos el movimiento asíncrono
             self.drive_base.straight(distancia_mm, then=frenado, wait=False)
+            
+            # El espía de distancia
             while abs(self.drive_base.distance() - distancia_inicial) < (abs(distancia_mm) - margen_mm):
-                if self.drive_base.stalled(): 
+                # 3. FIX CRÍTICO: done() es 100% universal. Si el robot choca o se traba, 
+                # la maniobra se aborta, done() da True, y el bucle se rompe salvando tu código.
+                if self.drive_base.done(): 
                     break
                 wait(2)
         else:

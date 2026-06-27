@@ -19,7 +19,7 @@ class MecanismoBase:
         else:
             self.motor.run_angle(velocidad, grados, then=frenado, wait=wait_after)
 
-    def llevar_al_tope(self, direccion: str, velocidad=1000, limite_potencia=60):
+    def llevar_al_tope(self, direccion: str, velocidad=1000, limite_potencia=10):
         if direccion in ["positivo", 1]:
             vel_real = abs(velocidad)
         elif direccion in ["negativo", -1]:
@@ -32,17 +32,27 @@ class MecanismoBase:
         return angulo_tope
 
 class GarraDelantera(MecanismoBase):
-    def abrir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        self.mover_angulo(abs(grados), velocidad, wait_after, frenado, margen_grados)
+    
+    # --- AQUÍ ESTÁ LA MAGIA ---
+    def __init__(self, motor: Motor):
+        # 1. Llamamos a la clase padre para que guarde el motor (self.motor = motor)
+        super().__init__(motor)
+        
+        # 2. Le inyectamos los límites destrabados ÚNICAMENTE a esta garra
+        self.motor.control.limits(speed=1500, acceleration=5000)
+    # --------------------------
 
-    def cerrar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
+    def abrir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         self.mover_angulo(-abs(grados), velocidad, wait_after, frenado, margen_grados)
 
+    def cerrar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
+        self.mover_angulo(abs(grados), velocidad, wait_after, frenado, margen_grados)
+
     def abrir_al_tope(self, velocidad=800, limite_potencia=50):
-        self.motor.run_until_stalled(abs(velocidad), then=Stop.HOLD, duty_limit=limite_potencia)
+        self.motor.run_until_stalled(-abs(velocidad), then=Stop.HOLD, duty_limit=limite_potencia)
 
     def cerrar_al_tope(self, velocidad=800, limite_potencia=50):
-        self.motor.run_until_stalled(-abs(velocidad), then=Stop.HOLD, duty_limit=limite_potencia)
+        self.motor.run_until_stalled(abs(velocidad), then=Stop.HOLD, duty_limit=limite_potencia)
 
 class ElevadorDelantero(MecanismoBase):
     def mover(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):

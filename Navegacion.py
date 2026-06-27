@@ -26,8 +26,7 @@ class Navegacion:
         Caballo de Troya: Mantiene los argumentos viejos para que Misiones.py no tire error, 
         pero usa control de hardware en C (DriveBase) para un giro violento, sin lag y 100% exacto.
         """
-        import config # Aseguramos la configuración
-        
+    
         # 1. Guardamos la configuración de pista
         turn_rate_original = config.TURN_RATE
         
