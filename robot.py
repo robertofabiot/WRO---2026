@@ -6,6 +6,7 @@ import config
 from Chasis import Chasis
 from Navegacion import Navegacion
 from Mecanismos import GarraDelantera, GarraTrasera
+from MotorSimulado import MotorSimulado
 
 class Robot:
     def __init__(self, port_izq, port_der, port_garra_trasera, port_garra_delantera, port_pinza): 
@@ -17,7 +18,12 @@ class Robot:
         # Motores de mecanismos
         self.motor_garra_trasera = Motor(port_garra_trasera, Direction.COUNTERCLOCKWISE)
         self.motor_garra_delantera = Motor(port_garra_delantera) 
-        self.motor_pinza = Motor(port_pinza)                     
+        try:
+            self.motor_pinza = Motor(port_pinza)
+        except OSError:
+            # Si falla, usamos el simulado para no trabar el programa
+            self.motor_pinza = MotorSimulado(port_pinza)    
+            print("MOTOR SIMULADO")               
         
         # 2. Configuración de DriveBase
         self.drive_base = DriveBase(self.motor_izquierda, self.motor_derecha, config.DIAMETRO_RUEDA, config.SEPARACION_RUEDAS)
@@ -33,6 +39,6 @@ class Robot:
         self.navegacion = Navegacion(self.chasis)
         
         # Subsistemas actualizados
-        self.garra_trasera = GarraTrasera(self.motor_garra_trasera)
+        self.garra_trasera = GarraTrasera(self.motor_garra_trasera, rango_maximo_grados=-166)
         # Le pasamos AMBOS motores a la garra delantera
         self.garra_delantera = GarraDelantera(self.motor_garra_delantera, self.motor_pinza)

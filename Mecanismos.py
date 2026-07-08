@@ -40,7 +40,6 @@ class Garra:
     def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
         return self.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
 
-
 class GarraDelantera(Garra):
     """
     Mecanismo compuesto: 
@@ -66,7 +65,6 @@ class GarraDelantera(Garra):
     def cerrar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
         return self.pinza.llevar_al_tope("negativo", velocidad, limite_potencia, frenado)
 
-
 class GarraTrasera(Garra):
     """
     Es una jaula vertical. El motor está invertido físicamente, 
@@ -74,6 +72,39 @@ class GarraTrasera(Garra):
     llamando a los métodos opuestos de la clase padre (Garra).
     """
 
+    def __init__(self, motor, rango_maximo_grados=None):
+        super().__init__(motor)
+        self.rango_maximo = rango_maximo_grados
+
+    def establecer_cero(self, velocidad=800, limite_potencia=50):
+        """Lleva la garra al tope físico superior seguro y establece el origen absoluto."""
+        self.subir_al_tope(velocidad=velocidad, limite_potencia=limite_potencia)
+        self.motor.reset_angle(0)
+
+    def ir_a_porcentaje(self, porcentaje, velocidad=800, wait_after=True, frenado=Stop.HOLD):
+        """
+        Mueve la garra a una posición absoluta.
+        0% = Arriba (Guardada totalmente)
+        100% = Abajo (Rozando el piso, equivalente a -166 grados)
+        """
+        if self.rango_maximo is None:
+            raise ValueError("Debes configurar el rango_maximo_grados al instanciar la garra")
+            
+        # Limitamos por seguridad física (nunca pasará de 100 ni bajará de 0)
+        porcentaje_seguro = max(0.0, min(100.0, float(porcentaje)))
+        
+        # Mapeo lineal
+        angulo_objetivo = (porcentaje_seguro / 100.0) * self.rango_maximo
+        
+        # run_target va al ángulo exacto sin importar la posición actual
+        self.motor.run_target(
+            speed=velocidad, 
+            target_angle=angulo_objetivo, 
+            then=frenado, 
+            wait=wait_after
+        )
+
+    # --- MÉTODOS RELATIVOS (Mantenidos por compatibilidad) ---
     def subir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         super().bajar(grados, velocidad, wait_after, frenado, margen_grados)
 

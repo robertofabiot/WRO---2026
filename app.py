@@ -4,7 +4,9 @@ import config
 from robot import Robot
 from ArmadorMosaicos import ArmadorMosaicos
 from RevisadorBateria import RevisadorBateria
-from Misiones import Misiones
+from MisionesSinAzules import Misiones
+from MotorSimulado import MotorSimulado
+import Utils
 
 # 1. Inicialización de Hardware
 mi_robot = Robot(
@@ -12,8 +14,9 @@ mi_robot = Robot(
     port_der=config.PORT_MOTOR_DER, 
     port_garra_trasera=config.PORT_GARRA_TRASERA, 
     port_garra_delantera=config.PORT_GARRA_DELANTERA,
-    port_pinza=config.PORT_PINZA # <- Nuevo puerto
+    port_pinza=config.PORT_PINZA  # <- Pasas el puerto normal
 )
+
 sensor = ColorSensor(config.PORT_SENSOR_FRENTE)
 
 # 2. Controladores de alto nivel
@@ -27,6 +30,7 @@ if __name__ == "__main__":
         print("Ejecución cancelada.")
     else:
         # --- ZONA DE PRUEBAS: Descomenta la misión que quieras ejecutar ---
+        mi_robot.garra_trasera.establecer_cero()
         misiones.agarrar_bloques_blancos()
 
         numero_mosaico = misiones.detectar_mosaico()
@@ -37,15 +41,16 @@ if __name__ == "__main__":
         misiones.dejar_bloques_verdes()
         misiones.agarrar_bloques_amarillos()
         
-        misiones.agarrar_bloques_azules()
         misiones.dejar_bloques_amarillos()
 
         misiones.cemento_y_llana()
+        misiones.agarrar_bloques_azules()
         
-        #misiones.dejar_bloques_azules_y_pala()
+        misiones.dejar_bloques_azules_y_pala()
     
         """
         Para pruebas completas: quita el '= 1' y usa la variable 'numero_mosaico' 
         devuelta por la función detectar_mosaico()
         """
-        armador.armar(numero_mosaico = 1)
+        #armador.armar(numero_mosaico = 1)
+        Utils.Utils.sonido_de_la_victoria(mi_robot.hub)

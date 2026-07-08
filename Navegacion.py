@@ -9,9 +9,16 @@ class Navegacion:
     def detectar_color_preciso(self, sensor):
         color_hsv = sensor.hsv()
         h, s, v = color_hsv.h, color_hsv.s, color_hsv.v
+        
+        # Colores acromáticos (Blanco, Gris, Negro)
         if s < 35:
-            if v > 60: return Color.WHITE
-            else: return Color.BLACK
+            if v > 65: 
+                return Color.WHITE
+            elif v >= 40: 
+                return Color.GRAY
+            else: 
+                return Color.BLACK
+        # Colores cromáticos (Amarillo, Verde, Azul)
         else:
             if h < 95 or h > 310: return Color.YELLOW
             elif h < 185: return Color.GREEN
@@ -75,17 +82,24 @@ class Navegacion:
                 
         angulo_meta = angulo_actual_inicial + giro_requerido
         
+        # Guardamos la dirección inicial para detectar si la inercia nos hace cruzar la meta
+        error_inicial_signo = 1 if giro_requerido > 0 else -1
+        
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
-            if abs(error) <= max(1, margen_grados): break
+            
+            # ROMPIMIENTO SEGURO: Salir si entra al margen o si el error cambia de signo (cruzó la meta)
+            if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
+                break
             
             derivada = error - error_previo
             turn_rate = (error * kp) + (derivada * kd)
             
-            # --- ZONA DINÁMICA ---
-            # Si faltan menos de 15 grados, quitamos la restricción de 400 
-            # y dejamos que el PD frene suavemente hasta 40 para no oscilar.
-            min_speed_actual = min_speed if abs(error) > 15 else 40 
+            # DECAIMIENTO A CERO: Apagar la velocidad mínima forzada si está muy cerca
+            if abs(error) < 5:
+                min_speed_actual = 0
+            else:
+                min_speed_actual = min_speed if abs(error) > 15 else 40 
             
             turn_rate = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
             
@@ -174,15 +188,11 @@ class Navegacion:
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
     
     def giro_absoluto_motor_izquierdo(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False):
-        """
-        Gira hacia un ángulo absoluto pivotando sobre la rueda derecha (bloqueada).
-        Usa únicamente el motor izquierdo.
-        """
         self.chasis.drive_base.stop()
         self.chasis.motor_derecha.hold() 
         
         error_previo = 0
-        factor_conversion = 5.71 # Convierte grados del robot a grados del motor
+        factor_conversion = 5.71 
         
         angulo_actual_inicial = self.chasis.hub.imu.heading()
         error_bruto_inicial = angulo_objetivo - angulo_actual_inicial
@@ -194,15 +204,22 @@ class Navegacion:
             giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else (error_corto_inicial + 360 if error_corto_inicial < 0 else 0)
                 
         angulo_meta = angulo_actual_inicial + giro_requerido
+        error_inicial_signo = 1 if giro_requerido > 0 else -1
         
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
-            if abs(error) <= max(1, margen_grados): break
+            
+            # CRUCE DE META Y MARGEN: Detención inmediata si cambia el signo del error o entra en tolerancia
+            if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
+                break
             
             derivada = error - error_previo
             turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
             
-            velocidad_aplicar = min(max(turn_rate, min_speed), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed), -max_speed)
+            # DECAIMIENTO DINÁMICO: Suprime la velocidad mínima en los últimos 8 grados para absorber la inercia
+            min_speed_actual = min_speed if abs(error) > 8 else 0
+            
+            velocidad_aplicar = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
                 
             self.chasis.motor_izquierda.run(velocidad_aplicar)
             error_previo = error
@@ -215,15 +232,11 @@ class Navegacion:
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
 
     def giro_absoluto_motor_derecho(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False):
-        """
-        Gira hacia un ángulo absoluto pivotando sobre la rueda izquierda (bloqueada).
-        Usa únicamente el motor derecho.
-        """
         self.chasis.drive_base.stop()
         self.chasis.motor_izquierda.hold() 
         
         error_previo = 0
-        factor_conversion = 5.71 # Convierte grados del robot a grados del motor
+        factor_conversion = 5.71 
         
         angulo_actual_inicial = self.chasis.hub.imu.heading()
         error_bruto_inicial = angulo_objetivo - angulo_actual_inicial
@@ -235,17 +248,24 @@ class Navegacion:
             giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else (error_corto_inicial + 360 if error_corto_inicial < 0 else 0)
                 
         angulo_meta = angulo_actual_inicial + giro_requerido
+        error_inicial_signo = 1 if giro_requerido > 0 else -1
         
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
-            if abs(error) <= max(1, margen_grados): break
+            
+            # Protección contra sobreimpulso
+            if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
+                break
             
             derivada = error - error_previo
             turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
             
-            velocidad_aplicar = min(max(turn_rate, min_speed), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed), -max_speed)
+            # Decaimiento dinámico para amortiguar el freno del motor
+            min_speed_actual = min_speed if abs(error) > 8 else 0
+            
+            velocidad_aplicar = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
                 
-            self.chasis.motor_derecha.run(-velocidad_aplicar) # Invertido por física
+            self.chasis.motor_derecha.run(-velocidad_aplicar)
             error_previo = error
             wait(10)
             
@@ -253,7 +273,7 @@ class Navegacion:
             self.chasis._terminar_movimiento_encadenado()
         else:
             self.chasis.motor_derecha.hold()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)   
     
     def avanzar_manteniendo_rumbo(self, distancia_cm, velocidad=800, angulo_objetivo=None, kp=2.5, kd=10.0, margen_cm=0, encadenado=False):
         """
@@ -308,12 +328,14 @@ class Navegacion:
             self.chasis.drive_base.stop()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
     
-    def avanzar_tiempo_luego_color(self, sensor_color, tiempo_ciego_s, color_objetivo, velocidad_alta=950, velocidad_escaneo=150, lecturas_confirmacion=2, encadenado=False):
+    def avanzar_tiempo_luego_color(self, sensor_color, tiempo_ciego_s, color_objetivo, distancia_extra_cm=0, velocidad_alta=950, velocidad_escaneo=150, lecturas_confirmacion=2, encadenado=False):
         """
         Avanza a máxima velocidad durante un tiempo ciego (ignorando derrapes), 
-        luego reduce la velocidad abruptamente y avanza hasta detectar un color específico.
+        luego reduce la velocidad abruptamente, avanza hasta detectar un color específico
+        y opcionalmente continúa una distancia extra en centímetros antes de finalizar.
         """
-        from pybricks.tools import StopWatch, wait # (Asegúrate de que estas estén importadas arriba)
+        from pybricks.tools import StopWatch, wait
+        from Utils import Utils
         
         cronometro = StopWatch()
         contador_color = 0
@@ -322,8 +344,7 @@ class Navegacion:
         cronometro.reset()
         cronometro.resume()
         
-        # Le decimos que avance recto. Al tener use_gyro(True) en el drive_base,
-        # Pybricks corregirá automáticamente cualquier giro no deseado.
+        # Al tener use_gyro(True) en el drive_base, Pybricks corregirá automáticamente cualquier giro no deseado.
         self.chasis.drive_base.drive(velocidad_alta, 0)
         
         # Esperamos bloqueando el código hasta que pasen los segundos solicitados
@@ -334,11 +355,10 @@ class Navegacion:
         self.chasis.drive_base.drive(velocidad_escaneo, 0)
         
         while True:
-            # Usamos tu misma lógica de detección precisa y confiable
+            # Lógica de detección precisa y confiable
             if self.detectar_color_preciso(sensor_color) == color_objetivo:
                 contador_color += 1
                 # Pedimos confirmaciones consecutivas para evitar falsos positivos
-                # por destellos de luz o el borde difuminado de la línea
                 if contador_color >= lecturas_confirmacion: 
                     break
             else:
@@ -346,13 +366,24 @@ class Navegacion:
                 
             wait(5) # Frecuencia de escaneo
             
-        # 3. TERMINACIÓN
+        # 3. ETAPA DE DISTANCIA EXTRA (Opcional)
+        if distancia_extra_cm > 0:
+            distancia_inicial = self.chasis.drive_base.distance()
+            distancia_mm_objetivo = distancia_extra_cm * 10
+            
+            # Mantiene el bucle de tracción activo para conservar la corrección del giroscopio
+            while abs(self.chasis.drive_base.distance() - distancia_inicial) < distancia_mm_objetivo:
+                if self.chasis.drive_base.stalled():
+                    break
+                wait(5)
+            
+        # 4. TERMINACIÓN
         if encadenado:
             self.chasis._terminar_movimiento_encadenado()
         else:
             self.chasis.drive_base.stop()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
-    
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)  
+
     def seguidor_linea_cruces(self, sensor_color, velocidad_max, cruces_objetivo, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, encadenado=False):
         """
         Sigue la línea y cuenta las intersecciones perpendiculares negras.

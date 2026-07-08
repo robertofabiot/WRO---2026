@@ -211,28 +211,40 @@ class Chasis:
         self.motor_derecha.hold()
         Utils.emitir_sonido_confirmacion(self.hub)
     
-    def latigazo(self, grados=45, velocidad_giro=400, aceleracion=3000):
-        # 1. Guardamos los límites originales SOLO del control de giro.
-        # Esto devuelve una tupla de 3 valores: (speed, acceleration, actuation)
-        limites_originales = self.drive_base.heading_control.limits()
+    def latigazo(self, grados=45, velocidad=1000, wait_after=True, encadenado=False):
+        self.drive_base.stop()
         
-        angulo_inicial = self.hub.imu.heading()
+        pos_izq_inicial = self.motor_izquierda.angle()
+        pos_der_inicial = self.motor_derecha.angle()
         
-        # 2. Aplicamos los nuevos límites temporalmente al PID de giro
-        # Usando heading_control sí podemos usar las palabras clave
-        self.drive_base.heading_control.limits(speed=velocidad_giro, acceleration=aceleracion)
+        grados_rueda = abs(grados * 3.0)
         
-        # 3. Ejecutamos el latigazo
-        self.drive_base.turn(grados)
-        angulo_post_golpe = self.hub.imu.heading()
-        grados_de_regreso = angulo_inicial - angulo_post_golpe
-        self.drive_base.turn(grados_de_regreso)
+        dir_izq = 1 if grados > 0 else -1
+        dir_der = -1 if grados > 0 else 1
         
-        # 4. Restauramos los límites originales inyectando la tupla completa
-        self.drive_base.heading_control.limits(*limites_originales)
+        # 1. IDA: Se inyecta la máxima velocidad
+        self.motor_izquierda.run(velocidad * dir_izq)
+        self.motor_derecha.run(velocidad * dir_der)
         
-        Utils.emitir_sonido_confirmacion(self.hub)
+        # El procesador espera activamente a que se alcance el ángulo de impacto
+        while abs(self.motor_izquierda.angle() - pos_izq_inicial) < grados_rueda:
+            wait(1)
             
+        # 2. VUELTA: El motor izquierdo siempre recibe el comando en segundo plano
+        self.motor_izquierda.run_target(velocidad, pos_izq_inicial, wait=False)
+        
+        # El motor derecho determina si bloqueamos la ejecución o seguimos adelante
+        self.motor_derecha.run_target(velocidad, pos_der_inicial, wait=wait_after)
+        
+        # 3. MANEJO DE CIERRE Y ENCADENAMIENTO
+        if wait_after:
+            if encadenado:
+                self._terminar_movimiento_encadenado()
+            else:
+                self.motor_izquierda.hold()
+                self.motor_derecha.hold()
+                Utils.emitir_sonido_confirmacion(self.hub)
+
     def sacudir(self, iteraciones=5, potencia=100, tiempo_ms=60):
         self.drive_base.stop() 
         for _ in range(iteraciones):
