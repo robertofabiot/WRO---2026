@@ -638,3 +638,94 @@ class Navegacion:
         else:
             self.chasis.drive_base.stop()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
+
+    def avanzar_contando_lineas(self, sensor_color, lineas_objetivo, color_linea, tiempo_ciego_s=0.0, distancia_extra_cm=0.0, velocidad=1000, velocidad_lenta=150, encadenado=False, debug=True):
+        """
+        Avanza recto ignorando líneas por un tiempo ciego inicial, luego cuenta cuántas 
+        veces cruza una línea del color especificado. Al tocar la penúltima línea, 
+        desacelera para mayor precisión. Finaliza avanzando una distancia extra opcional.
+        
+        debug: True para imprimir logs en consola, False para silenciarlos.
+        """
+        from pybricks.tools import StopWatch, wait
+        from Utils import Utils
+        
+        # 1. INICIO DE MOVIMIENTO GENERAL
+        # Si el objetivo es solo 1 línea, aplicamos la velocidad lenta desde el inicio 
+        # para garantizar precisión, de lo contrario arrancamos a máxima velocidad.
+        velocidad_actual = velocidad_lenta if lineas_objetivo == 1 else velocidad
+        self.chasis.drive_base.drive(velocidad_actual, 0)
+        
+        # 2. ETAPA DE AVANCE CIEGO (Ignora lecturas iniciales/derrapes)
+        if tiempo_ciego_s > 0:
+            if debug:
+                print(f"--- ETAPA 1: Avance ciego por {tiempo_ciego_s}s a {velocidad_actual} mm/s ---")
+            
+            cronometro = StopWatch()
+            while cronometro.time() < (tiempo_ciego_s * 1000):
+                if self.chasis.drive_base.stalled():
+                    if debug:
+                        print("ALERTA: Robot atascado en tiempo ciego.")
+                    break
+                wait(10)
+
+        # 3. ETAPA DE ESCANEO Y CONTEO DE LÍNEAS
+        contador_lineas = 0
+        en_linea = False
+        
+        if debug:
+            print(f"--- ETAPA 2: Iniciando escaneo (Objetivo: {lineas_objetivo} líneas) ---")
+        
+        while contador_lineas < lineas_objetivo:
+            color_actual = self.detectar_color_preciso(sensor_color)
+            
+            if color_actual == color_linea:
+                if not en_linea:
+                    # Se detecta el flanco de entrada a la línea
+                    en_linea = True
+                    contador_lineas += 1
+                    if debug:
+                        distancia_actual = self.chasis.drive_base.distance()
+                        print(f"Línea #{contador_lineas} detectada a los {distancia_actual} mm.")
+                    
+                    # Verificamos si acabamos de cruzar la penúltima línea
+                    if contador_lineas == (lineas_objetivo - 1) and lineas_objetivo > 1:
+                        self.chasis.drive_base.drive(velocidad_lenta, 0)
+                        if debug:
+                            print(f"--- Penúltima línea alcanzada. Reduciendo velocidad a {velocidad_lenta} mm/s ---")
+            else:
+                if en_linea:
+                    # Se detecta el flanco de salida de la línea
+                    en_linea = False
+                    
+            if self.chasis.drive_base.stalled():
+                if debug:
+                    print("ALERTA: Robot atascado durante el conteo.")
+                break
+                
+            wait(5) # Frecuencia de escaneo para alta velocidad
+            
+        if debug:
+            print(f"--- Conteo finalizado: {contador_lineas} líneas detectadas ---")
+            
+        # 4. ETAPA DE DISTANCIA EXTRA (Ajuste de posición final)
+        if distancia_extra_cm > 0:
+            if debug:
+                print(f"--- ETAPA 3: Avanzando distancia extra de {distancia_extra_cm} cm ---")
+                
+            distancia_inicial = self.chasis.drive_base.distance()
+            distancia_mm_objetivo = distancia_extra_cm * 10.0
+            
+            while abs(self.chasis.drive_base.distance() - distancia_inicial) < distancia_mm_objetivo:
+                if self.chasis.drive_base.stalled():
+                    if debug:
+                        print("ALERTA: Robot atascado en distancia extra.")
+                    break
+                wait(5)
+                
+        # 5. TERMINACIÓN
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            self.chasis.drive_base.stop()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
