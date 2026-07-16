@@ -81,13 +81,13 @@ class Misiones:
     def dejar_bloques_blancos(self):
         self.robot.chasis.avanzar_recto(-17, encadenado=False)
         self.robot.navegacion.giro_absoluto_pd(228, max_speed=400, ruta_corta=False, encadenado=False)
-        self.robot.chasis.avanzar_recto(-16, velocidad=1000, margen_cm=7)
+        self.robot.chasis.avanzar_recto(-20, velocidad=1000, margen_cm=7)
         self.robot.garra_trasera.ir_a_porcentaje(0, velocidad=1000, wait_after=False)
 
     def agarrar_bloques_verdes(self):
         # OPTIMIZADO: Agregamos encadenado=True y un margen para fusionar la recta con el giro del motor
-        self.robot.chasis.avanzar_recto(9, velocidad=500, margen_cm=2, encadenado=True)
-        self.robot.chasis.mover_motor_derecho(300, velocidad=500, encadenado=True)
+        self.robot.chasis.avanzar_recto(9, velocidad=400, margen_cm=2, encadenado=True)
+        self.robot.chasis.mover_motor_derecho(300, velocidad=400, encadenado=True)
         
         # ACELERADO: tiempo_acomodo_ms=0 porque el robot ya trae inercia rotacional del movimiento anterior
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 40, tiempo_acomodo_ms=0, encadenado=False, margen_cm=7)
@@ -229,10 +229,10 @@ class Misiones:
         # AJUSTE PD 3: min_speed=400 requiere un freno agresivo. kd=32.0 asegura la estabilidad antes del escaneo.
         self.robot.navegacion.giro_absoluto_pd(160, max_speed=800, min_speed=400, kp=2.5, kd=32.0, encadenado=True)
         
-        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor, 0.5, Color.BLACK, encadenado=True)
+        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor, 0.5 , Color.BLACK, encadenado=True)
         
         # OPTIMIZADO: tiempo_acomodo_ms pasa a 0 porque ya trae inercia, exigiendo tracción máxima de inmediato.
-        self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor, 100, 2, 22, distancia_inicial_cm=7, tiempo_acomodo_ms=0, encadenado=True)
+        self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor, 100, 2, 22, distancia_inicial_cm=7, tiempo_acomodo_ms=300, encadenado=True)
         
         self.robot.chasis.mover_motor_derecho(440, velocidad=1000, margen_grados=50, encadenado=True)
         self.robot.garra_trasera.subir(100, velocidad=1000, wait_after=False)
