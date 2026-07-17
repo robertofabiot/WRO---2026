@@ -91,7 +91,7 @@ class Misiones:
         
         # ACELERADO: tiempo_acomodo_ms=0 porque el robot ya trae inercia rotacional del movimiento anterior
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 40, tiempo_acomodo_ms=0, encadenado=False, margen_cm=7)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 70, 10, tiempo_acomodo_ms=0, encadenado=False, margen_cm=7)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 40, 20, tiempo_acomodo_ms=0, encadenado=False, margen_cm=7)
         
         # # ACELERADO: Subimos la velocidad de 600 a 1000. El margen_grados absorbe el latigazo.
         # self.robot.chasis.mover_motor_derecho(110, velocidad=1000, margen_grados=50, encadenado=True)
@@ -103,9 +103,10 @@ class Misiones:
         # max_speed=800, min_speed=120 para mucha fuerza, kd=26.0 para frenar en seco y kp=3.0 para evitar correcciones nerviosas.
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=800, min_speed=120, kp=3.0, kd=26.0)
         
-        self.__recoger_bloques(14, wait_ms=150)
+        self.__recoger_bloques(11, wait_ms=250)
     
     def dejar_bloques_verdes(self):
+        self.robot.garra_trasera.soltar()
         self.robot.chasis.cuadrar_contra_pared(tiempo_ms=400, potencia=70)
         
         # La garra baja en segundo plano mientras el chasis empieza la secuencia de escape
@@ -123,7 +124,7 @@ class Misiones:
         self.robot.navegacion.giro_absoluto_pd(180, max_speed=800, min_speed=150, kp=3.0, kd=28.0, encadenado=True)             
         
         # SPRINT: Máxima velocidad en reversa. El margen de 7cm absorberá la transición final.
-        self.robot.chasis.avanzar_recto(-55, velocidad=1000, encadenado=True, margen_cm=7)
+        self.robot.chasis.avanzar_recto(-52, velocidad=1000, encadenado=True, margen_cm=7)
         
         # Tope final por detección de corriente (asegura que guarda la garra por completo)
         self.robot.garra_trasera.subir_al_tope(1000, limite_potencia=100)
@@ -174,7 +175,7 @@ class Misiones:
             max_speed=1000, 
             min_speed=400, 
             kp=2.5, 
-            kd=20.0, 
+            kd=15.0, 
             encadenado=True
         )
         
@@ -182,11 +183,11 @@ class Misiones:
         # eliminamos la espera pasando tiempo_acomodo_ms a 0. Tracción DC activa al 100% de inmediato.
         # Lo dejamos en encadenado=True para conectar con el giro final de escape.
         self.robot.navegacion.seguidor_linea_cruces_y_distancia(
-            self.sensor, 
+            self.sensor,
             velocidad_max=100, 
             cruces_objetivo=1, 
             distancia_extra_cm=15, 
-            distancia_inicial_cm=12,
+            distancia_inicial_cm=20,
             lado="izquierda", 
             tiempo_acomodo_ms=0,
             encadenado=True
@@ -208,45 +209,35 @@ class Misiones:
         self.robot.chasis.avanzar_recto(-8, velocidad=1000, encadenado=False)
 
     def cemento_y_llana(self):
-        # FLUIDEZ: Rompemos la primera parada total agregando margen y encadenado
-        self.robot.chasis.avanzar_recto(10, velocidad=1000, margen_cm=2, encadenado=True)
+        self.robot.garra_delantera.establecer_cero(velocidad=1000, limite_potencia=30)
+        self.robot.garra_delantera.establecer_cero_pinza(velocidad=1000, limite_potencia=30)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(70, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje(80, velocidad=1000)
+        self.robot.chasis.avanzar_recto(12, velocidad=50, margen_cm=2, encadenado=True)
         
-        # AJUSTE PD 1 (Despliegue de garra): max_speed=800 y un min_speed rápido pero controlable (150).
-        self.robot.navegacion.giro_absoluto_pd(90, max_speed=800, min_speed=150, kp=3.0, kd=26.0, encadenado=True)
-        self.robot.garra_trasera.ir_a_porcentaje(90, velocidad=500, wait_after=False)
+        # AGARRAR CEMENTO
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=1000, limite_potencia=100)
+        self.robot.garra_delantera.ir_a_porcentaje(30, velocidad=200, wait_after=False)
+
+        # DEJAR LLANA
+        self.robot.navegacion.giro_absoluto_pd(160, max_speed=800, min_speed=600, kp=2.0, kd=35.0, encadenado=False)
+        self.robot.garra_trasera.ir_a_porcentaje(96, velocidad=1000, wait_after=False)
+        self.robot.chasis.avanzar_recto(-50, velocidad=1000, margen_cm=7)
+        self.robot.garra_trasera.ir_a_porcentaje(0, velocidad=1000, wait_after=False)
+
+        # AGARRAR PALA
+        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor, 1, Color.BLACK, velocidad_escaneo=300)
+        self.robot.navegacion.avanzar_tiempo_luego_color(
+            self.sensor, 
+            tiempo_ciego_s=0.3, 
+            color_objetivo=Color.BLACK, 
+            distancia_extra_cm=0, 
+            velocidad_alta=1000, 
+            velocidad_escaneo=200, 
+            encadenado=True
+        )
         
-        self.robot.chasis.avanzar_recto(-7.5, velocidad=1000, margen_cm=2, encadenado=True)
-        self.robot.chasis.mover_motor_derecho(-100, velocidad=1000, encadenado=True)
-        
-        # AJUSTE PD EXTREMO (El culpable de la pared): 
-        # Conservamos tu min_speed=600 para que sea violento, pero bajamos kp a 2.0 (para no acelerar más) 
-        # e inyectamos un kd masivo de 35.0. Esto absorberá el impacto en seco, evitando que derrape hacia el muro.
-        self.robot.navegacion.giro_absoluto_pd(172, max_speed=800, min_speed=600, kp=2.0, kd=35.0, encadenado=True)
-        
-        # FLUIDEZ: Eliminamos la detención en reversa. Usará el impulso sobrante para entrar al siguiente giro.
-        self.robot.chasis.avanzar_recto(-37, velocidad=1000, margen_cm=5, encadenado=True)
-        
-        # AJUSTE PD 3: min_speed=400 requiere un freno agresivo. kd=32.0 asegura la estabilidad antes del escaneo.
-        self.robot.navegacion.giro_absoluto_pd(160, max_speed=800, min_speed=400, kp=2.5, kd=32.0, encadenado=True)
-        
-        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor, 0.5 , Color.BLACK, encadenado=True)
-        
-        # OPTIMIZADO: tiempo_acomodo_ms pasa a 0 porque ya trae inercia, exigiendo tracción máxima de inmediato.
-        self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor, 100, 2, 22, distancia_inicial_cm=7, tiempo_acomodo_ms=300, encadenado=True)
-        
-        self.robot.chasis.mover_motor_derecho(440, velocidad=1000, margen_grados=50, encadenado=True)
-        self.robot.garra_trasera.subir(100, velocidad=1000, wait_after=False)
-        self.robot.chasis.avanzar_recto(-13, velocidad=1000, encadenado=True)
-        
-        # AJUSTE PD MONOMOTOR: min_speed=300 requiere control. 
-        self.robot.navegacion.giro_absoluto_motor_derecho(175, max_speed=1000, min_speed=300, kp=2.5, kd=28.0, encadenado=True)
-        
-        # PAUSA ESTRATÉGICA: Esta línea NO DEBE tener wait_after=False.
-        # Al dejar el bloqueo por defecto de la clase Garra, nos aseguramos que el robot
-        # no se mueva hasta que la pala esté firmemente atrapada.
-        self.robot.garra_trasera.bajar(100, velocidad=1000)
-        
-        self.robot.chasis.mover_motor_derecho(400, velocidad=1000, encadenado=True)
+ 
         self.robot.chasis.avanzar_y_accionar_en_recorrido(
             20, 
             15,  

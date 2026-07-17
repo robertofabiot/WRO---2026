@@ -39,6 +39,13 @@ class Garra:
 
     def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
         return self.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
+    
+    def soltar(self):
+        """
+        Detiene el motor y lo libera (Coast). 
+        El motor dejará de hacer fuerza y se moverá libremente si se le aplica peso o fuerza externa.
+        """
+        self.motor.stop()
 
 class GarraDelantera(Garra):
     """
@@ -46,24 +53,72 @@ class GarraDelantera(Garra):
     - Hereda mover(), subir() y bajar() para el Motor 1 (Elevador).
     - Agrega mover_pinza(), abrir() y cerrar() para el Motor 2 (Pinza).
     """
-    def __init__(self, motor_elevador, motor_pinza):
-        super().__init__(motor_elevador) 
+    def __init__(self, motor_elevador, motor_pinza, rango_maximo_grados=None, rango_maximo_pinza=None):
+        super().__init__(motor_elevador)
+        self.rango_maximo = rango_maximo_grados
         self.pinza = Garra(motor_pinza)
+        self.pinza.rango_maximo = rango_maximo_pinza
 
     def mover_pinza(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         self.pinza.mover(grados, velocidad, wait_after, frenado, margen_grados)
 
     def abrir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        self.mover_pinza(abs(grados), velocidad, wait_after, frenado, margen_grados)
-
-    def cerrar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         self.mover_pinza(-abs(grados), velocidad, wait_after, frenado, margen_grados)
 
+    def cerrar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
+        self.mover_pinza(abs(grados), velocidad, wait_after, frenado, margen_grados)
+
     def abrir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
-        return self.pinza.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
+        return self.pinza.llevar_al_tope("negativo", velocidad, limite_potencia, frenado)
 
     def cerrar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
-        return self.pinza.llevar_al_tope("negativo", velocidad, limite_potencia, frenado)
+        return self.pinza.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
+
+    def establecer_cero(self, velocidad=800, limite_potencia=50):
+        """Lleva el elevador al tope físico superior seguro y establece el origen absoluto."""
+        self.subir_al_tope(velocidad=velocidad, limite_potencia=limite_potencia)
+        self.motor.reset_angle(0)
+
+    def ir_a_porcentaje(self, porcentaje, velocidad=800, wait_after=True, frenado=Stop.HOLD):
+        """
+        Mueve el elevador a una posición absoluta.
+        """
+        if self.rango_maximo is None:
+            raise ValueError("Debes configurar el rango_maximo_grados al instanciar la garra delantera")
+            
+        porcentaje_seguro = max(0.0, min(100.0, float(porcentaje)))
+        angulo_objetivo = (porcentaje_seguro / 100.0) * self.rango_maximo
+        
+        self.motor.run_target(
+            speed=velocidad, 
+            target_angle=angulo_objetivo, 
+            then=frenado, 
+            wait=wait_after
+        )
+
+    def establecer_cero_pinza(self, velocidad=800, limite_potencia=50):
+        """Lleva la pinza al tope físico (abierta) y establece el origen absoluto."""
+        self.abrir_al_tope(velocidad=velocidad, limite_potencia=limite_potencia)
+        self.pinza.motor.reset_angle(0)
+
+    def ir_a_porcentaje_pinza(self, porcentaje, velocidad=800, wait_after=True, frenado=Stop.HOLD):
+        """
+        Mueve la pinza a una posición absoluta.
+        0% = Posición del cero establecido (típicamente cerrada)
+        100% = Apertura máxima
+        """
+        if self.pinza.rango_maximo is None:
+            raise ValueError("Debes configurar el rango_maximo_pinza al instanciar la garra delantera")
+            
+        porcentaje_seguro = max(0.0, min(100.0, float(porcentaje)))
+        angulo_objetivo = (porcentaje_seguro / 100.0) * self.pinza.rango_maximo
+        
+        self.pinza.motor.run_target(
+            speed=velocidad, 
+            target_angle=angulo_objetivo, 
+            then=frenado, 
+            wait=wait_after
+        )
 
 class GarraTrasera(Garra):
     """
