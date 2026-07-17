@@ -86,8 +86,8 @@ class Misiones:
 
     def agarrar_bloques_verdes(self):
         # OPTIMIZADO: Agregamos encadenado=True y un margen para fusionar la recta con el giro del motor
-        self.robot.chasis.avanzar_recto(9, velocidad=400, margen_cm=2, encadenado=True)
-        self.robot.chasis.mover_motor_derecho(300, velocidad=400, encadenado=True)
+        self.robot.chasis.avanzar_recto(9, velocidad=300, margen_cm=2, encadenado=True)
+        self.robot.chasis.mover_motor_derecho(300, velocidad=300, encadenado=True)
         
         # ACELERADO: tiempo_acomodo_ms=0 porque el robot ya trae inercia rotacional del movimiento anterior
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 40, tiempo_acomodo_ms=0, encadenado=False, margen_cm=7)
@@ -103,7 +103,7 @@ class Misiones:
         # max_speed=800, min_speed=120 para mucha fuerza, kd=26.0 para frenar en seco y kp=3.0 para evitar correcciones nerviosas.
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=800, min_speed=120, kp=3.0, kd=26.0)
         
-        self.__recoger_bloques(14, wait_ms=300)
+        self.__recoger_bloques(14, wait_ms=150)
     
     def dejar_bloques_verdes(self):
         self.robot.chasis.cuadrar_contra_pared(tiempo_ms=400, potencia=70)

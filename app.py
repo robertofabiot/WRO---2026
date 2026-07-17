@@ -5,7 +5,6 @@ from robot import Robot
 from ArmadorMosaicos import ArmadorMosaicos
 from RevisadorBateria import RevisadorBateria
 from Misiones import Misiones
-from MotorSimulado import MotorSimulado
 import Utils
 
 # 1. Inicialización de Hardware

@@ -18,16 +18,4 @@ class MotorSimulado:
 
     def angle(self):
         return 0 # Finge que el ángulo actual siempre es 0
-
-# 2. Intentamos conectar el motor real
-try:
-    motor_izquierdo = Motor(Port.A)
-except OSError:
-    # 3. Si falla (porque no está conectado), usamos el simulado
-    motor_izquierdo = MotorSimulado(Port.A)
-
-# --- A partir de aquí tu código fluye normal ---
-# Pybricks creerá que tiene un motor, ya sea real o el simulado.
-
-motor_izquierdo.run(500) 
-print("El código sigue funcionando perfectamente.")
+

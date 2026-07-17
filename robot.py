@@ -18,12 +18,11 @@ class Robot:
         # Motores de mecanismos
         self.motor_garra_trasera = Motor(port_garra_trasera, Direction.COUNTERCLOCKWISE)
         self.motor_garra_delantera = Motor(port_garra_delantera) 
-        try:
+        if getattr(config, "USAR_MOTOR_SIMULADO", False):
+            self.motor_pinza = MotorSimulado(port_pinza)
+            print("MOTOR SIMULADO (CONFIG)")
+        else:
             self.motor_pinza = Motor(port_pinza)
-        except OSError:
-            # Si falla, usamos el simulado para no trabar el programa
-            self.motor_pinza = MotorSimulado(port_pinza)    
-            print("MOTOR SIMULADO")               
         
         # 2. Configuración de DriveBase
         self.drive_base = DriveBase(self.motor_izquierda, self.motor_derecha, config.DIAMETRO_RUEDA, config.SEPARACION_RUEDAS)
