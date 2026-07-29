@@ -103,7 +103,7 @@ class Misiones:
         # max_speed=800, min_speed=120 para mucha fuerza, kd=26.0 para frenar en seco y kp=3.0 para evitar correcciones nerviosas.
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=800, min_speed=120, kp=3.0, kd=26.0)
         
-        self.__recoger_bloques(11, wait_ms=250)
+        self.__recoger_bloques(13, wait_ms=300)
     
     def dejar_bloques_verdes(self):
         self.robot.garra_trasera.soltar()
@@ -155,7 +155,7 @@ class Misiones:
         # max_speed 800, min_speed 120 para encuadre violento, con kd de 26.0 para frenado en seco.
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=800, min_speed=120, kp=3.0, kd=26.0) 
         
-        self.__recoger_bloques(30, 200)
+        self.__recoger_bloques(18, 150)
 
     def dejar_bloques_amarillos(self):
         # FLUIDEZ: Encadenamos el giro inicial para entrar con aceleración a la recta
@@ -164,7 +164,7 @@ class Misiones:
         # SPRINT ENCADENADO: El robot corre los 77cm a máxima velocidad.
         # CLAVE: Al poner margen_cm=5, EVITAMOS la frenada a cero y usamos el impulso 
         # sobrante para alimentar el giro del motor izquierdo que te molestaba.
-        self.robot.chasis.avanzar_recto(83, 1000, margen_cm=5, encadenado=True)
+        self.robot.chasis.avanzar_recto(85, 1000, margen_cm=5, encadenado=True)
         
         # SOLUCIÓN: Giro monomotor ultra veloz. 
         # Subimos max_speed a 1000 y min_speed a 400 para eliminar cualquier retraso.
@@ -175,7 +175,7 @@ class Misiones:
             max_speed=1000, 
             min_speed=400, 
             kp=2.5, 
-            kd=15.0, 
+            kd=12.0, 
             encadenado=True
         )
         
@@ -186,7 +186,7 @@ class Misiones:
             self.sensor,
             velocidad_max=100, 
             cruces_objetivo=1, 
-            distancia_extra_cm=15, 
+            distancia_extra_cm=16, 
             distancia_inicial_cm=20,
             lado="izquierda", 
             tiempo_acomodo_ms=0,
@@ -213,51 +213,63 @@ class Misiones:
         self.robot.garra_delantera.establecer_cero_pinza(velocidad=1000, limite_potencia=30)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(70, wait_after=False)
         self.robot.garra_delantera.ir_a_porcentaje(80, velocidad=1000)
-        self.robot.chasis.avanzar_recto(12, velocidad=50, margen_cm=2, encadenado=True)
+        self.robot.chasis.avanzar_recto(14, velocidad=50, margen_cm=2, encadenado=True)
         
         # AGARRAR CEMENTO
         self.robot.garra_delantera.cerrar_al_tope(velocidad=1000, limite_potencia=100)
-        self.robot.garra_delantera.ir_a_porcentaje(30, velocidad=200, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje(60, velocidad=200, wait_after=False)
 
         # DEJAR LLANA
         self.robot.navegacion.giro_absoluto_pd(160, max_speed=800, min_speed=600, kp=2.0, kd=35.0, encadenado=False)
         self.robot.garra_trasera.ir_a_porcentaje(96, velocidad=1000, wait_after=False)
         self.robot.chasis.avanzar_recto(-50, velocidad=1000, margen_cm=7)
         self.robot.garra_trasera.ir_a_porcentaje(0, velocidad=1000, wait_after=False)
+        self.robot.chasis.avanzar_recto(5, velocidad=600, margen_cm=3, encadenado=True)
 
         # AGARRAR PALA
-        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor, 1, Color.BLACK, velocidad_escaneo=300)
+        self.robot.navegacion.giro_absoluto_pd(155, max_speed=800, min_speed=600, kp=2.0, kd=35.0, encadenado=False)
         self.robot.navegacion.avanzar_tiempo_luego_color(
             self.sensor, 
-            tiempo_ciego_s=0.3, 
+            tiempo_ciego_s=0.8,
             color_objetivo=Color.BLACK, 
             distancia_extra_cm=0, 
             velocidad_alta=1000, 
-            velocidad_escaneo=200, 
+            velocidad_escaneo=400, 
             encadenado=True
         )
-        
- 
-        self.robot.chasis.avanzar_y_accionar_en_recorrido(
-            20, 
-            15,  
-            lambda: self.robot.garra_trasera.subir(185, velocidad=1000, wait_after=False),
-            encadenado=True)
+        self.robot.navegacion.seguidor_linea_cruces_y_distancia(
+            sensor_color = self.sensor,
+            velocidad_max=100,
+            cruces_objetivo=1,
+            distancia_inicial_cm=10,
+            distancia_extra_cm=17,
+            tiempo_acomodo_ms=300,
+            margen_cm=3,
+            encadenado=True
+        )
 
+        self.robot.chasis.giro_preciso(-70, encadenado=True)
+
+        self.robot.chasis.avanzar_recto(-12, wait_after=False, margen_cm=5, encadenado=False)
+        wait(800)
+        self.robot.garra_delantera.ir_a_porcentaje(90, wait_after=False)
+        self.robot.garra_trasera.ir_a_porcentaje(90)
+
+        # DEJAR PALA Y CEMENTO
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(20, velocidad=1000, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje(0, velocidad=1000, wait_after=False)
+        wait(200)
+        self.robot.chasis.avanzar_y_accionar_en_recorrido(
+            distancia_total_cm=25,
+            distancia_accion_cm=10,
+            accion_callback= lambda: self.robot.garra_trasera.subir(50, velocidad=1000),
+            margen_cm=2
+        )
+        self.robot.navegacion.giro_absoluto_pd(356, max_speed=800, min_speed=120, kp=3.0, kd=26.0) 
+        self.robot.chasis.avanzar_recto(-10, velocidad=200, wait_after=True, encadenado=True)
+        
     def agarrar_bloques_azules(self):
-        # SPRINT INICIAL: Subimos de 400 a 1000. 
-        # Al estar encadenado, pivota rapidísimo y fluye hacia la línea sin frenar.
-        self.robot.chasis.mover_motor_izquierdo(630, velocidad=1000, encadenado=True)
-        
-        # ACELERADO: Eliminamos el tiempo_acomodo_ms (a 0) porque el chasis ya viene con impulso.
-        # Entra directo a tracción 100.
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 10, lado="izquierda", tiempo_acomodo_ms=0, encadenado=True)
-        
-        # AJUSTE PD EXTREMO: Giro agresivo para cuadrarse perfecto antes de la recolección.
-        # max_speed=800 y min_speed=150 para que no dude, con un kd=26.0 para frenarlo en 0°.
-        self.robot.navegacion.giro_absoluto_pd(0, max_speed=800, min_speed=150, kp=3.0, kd=26.0, encadenado=True)
-        
-        self.__recoger_bloques(27, 100, bajar=185)
+        self.__recoger_bloques(35, 300)
 
     def dejar_bloques_azules_y_pala(self):
         self.robot.navegacion.curva_coordenada_local(40, -15)
