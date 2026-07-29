@@ -308,3 +308,25 @@ class Chasis:
             self._terminar_movimiento_encadenado()
         else:
             Utils.emitir_sonido_confirmacion(self.hub)
+    
+    def avanzar_indefinido(self, velocidad=None):
+        """
+        Inicia un avance recto indefinido y no bloqueante.
+        No usa 'encadenado' al final ni sonido porque la acción queda en segundo plano.
+        """
+        if velocidad is None:
+            velocidad = self.velocidad_base
+            
+        velocidad = max(min(velocidad, 976), -976)
+        self.drive_base.drive(velocidad, 0)
+
+    def detener(self, encadenado=False):
+        """
+        Detiene cualquier movimiento en progreso (como avanzar_indefinido).
+        Si encadenado=True, usa tu micro-freno pasivo en lugar de un freno en seco.
+        """
+        if encadenado:
+            self._terminar_movimiento_encadenado()
+        else:
+            self.drive_base.stop()
+            Utils.emitir_sonido_confirmacion(self.hub)
