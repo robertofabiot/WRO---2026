@@ -6,8 +6,4 @@ from pybricks.tools import wait, StopWatch
 
 hub = PrimeHub()
 
-
-while True:
-    bateria = hub.battery.voltage()
-    print(bateria)
-    wait(1000)
+hub.system.shutdown()

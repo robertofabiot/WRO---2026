@@ -1,10 +1,10 @@
 from pybricks.parameters import Stop
 from pybricks.tools import wait
 from pybricks.pupdevices import Motor
+import config # Movido arriba para eliminar lag de I/O en ejecución
 
 class MecanismoBase:
     """Clase base para reutilizar lógica de movimiento de motores."""
-    # Anotación de tipo: le decimos que "motor" es de la clase Motor de Pybricks
     def __init__(self, motor: Motor):
         self.motor = motor
 
@@ -19,23 +19,36 @@ class MecanismoBase:
         else:
             self.motor.run_angle(velocidad, grados, then=frenado, wait=wait_after)
 
-    def llevar_al_tope(self, direccion: str, velocidad=1000, limite_potencia=10):
+    def llevar_al_tope(self, direccion: str, velocidad=1000, limite_potencia=10, wait_after=True):
+        """
+        Lleva el motor al tope físico. 
+        Soporta modo síncrono (preciso) y asíncrono (hack de voltaje).
+        """
         if direccion in ["positivo", 1]:
             vel_real = abs(velocidad)
+            pot_real = abs(limite_potencia)
         elif direccion in ["negativo", -1]:
             vel_real = -abs(velocidad)
+            pot_real = -abs(limite_potencia)
         else:
             print("Error: La dirección debe ser 'positivo' o 'negativo'.")
             return None
         
-        angulo_tope = self.motor.run_until_stalled(vel_real, then=Stop.HOLD, duty_limit=limite_potencia)
-        return angulo_tope
+        # --- LÓGICA DE BIFURCACIÓN ASÍNCRONA ---
+        if wait_after:
+            # Opción 1 (Predeterminada): El código se congela hasta que la garra muerde el objetivo.
+            return self.motor.run_until_stalled(vel_real, then=Stop.HOLD, duty_limit=limite_potencia)
+        else:
+            # Opción 2 (Modo Asíncrono): Engañamos al firmware inyectando voltaje puro continuo.
+            # El motor empuja con el límite de potencia indicado mientras el código avanza instantáneamente.
+            self.motor.dc(pot_real)
+            return None
 
 class GarraDelantera(MecanismoBase):
     
     # --- AQUÍ ESTÁ LA MAGIA ---
     def __init__(self, motor: Motor):
-        # 1. Llamamos a la clase padre para que guarde el motor (self.motor = motor)
+        # 1. Llamamos a la clase padre para que guarde el motor
         super().__init__(motor)
         
         # 2. Le inyectamos los límites destrabados ÚNICAMENTE a esta garra
@@ -48,11 +61,12 @@ class GarraDelantera(MecanismoBase):
     def cerrar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         self.mover_angulo(abs(grados), velocidad, wait_after, frenado, margen_grados)
 
-    def abrir_al_tope(self, velocidad=800, limite_potencia=50):
-        self.motor.run_until_stalled(-abs(velocidad), then=Stop.HOLD, duty_limit=limite_potencia)
+    # REFACTORIZACIÓN DRY: Ahora las garras reciclan la función llevar_al_tope de la base
+    def abrir_al_tope(self, velocidad=800, limite_potencia=50, wait_after=True):
+        self.llevar_al_tope("negativo", velocidad, limite_potencia, wait_after)
 
-    def cerrar_al_tope(self, velocidad=800, limite_potencia=50):
-        self.motor.run_until_stalled(abs(velocidad), then=Stop.HOLD, duty_limit=limite_potencia)
+    def cerrar_al_tope(self, velocidad=800, limite_potencia=50, wait_after=True):
+        self.llevar_al_tope("positivo", velocidad, limite_potencia, wait_after)
 
 class ElevadorDelantero(MecanismoBase):
     def mover(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
@@ -67,19 +81,17 @@ class GarraTrasera(MecanismoBase):
         Hace un ÚNICO recorrido de 'distancia_total_cm'.
         En el milímetro exacto de 'distancia_trigger_cm', dispara la garra sin detener el chasis.
         """
-        from pybricks.parameters import Stop
-        from pybricks.tools import wait
-        import config
-
+        # (Los imports fueron movidos a la línea 1 para evitar lag en el procesador)
+        
         # 1. Matemáticas de precisión
         distancia_total_mm = distancia_total_cm * 10
         trigger_mm = abs(distancia_trigger_cm * 10)
         
-        # Blindaje Anti-Errores: Si el trigger es más largo que el recorrido, lo ajustamos al máximo
+        # Blindaje Anti-Errores
         if trigger_mm > abs(distancia_total_mm):
             trigger_mm = abs(distancia_total_mm)
             
-        # 2. Configuración de hardware segura (Topado a 930 para que no llore Pybricks)
+        # 2. Configuración de hardware segura
         vel_segura = min(abs(vel_chasis), 930)
         _, accel_lin, vel_giro, accel_giro = chasis.drive_base.settings()
         chasis.drive_base.settings(vel_segura, accel_lin, vel_giro, accel_giro)
@@ -87,17 +99,14 @@ class GarraTrasera(MecanismoBase):
         dist_inicial = chasis.drive_base.distance()
         
         # 3. EL ÚNICO RECORRIDO (Modo asíncrono)
-        # Aquí le decimos: "Maje, andate 42cm (o -42cm) de un solo y no me bloquées el código"
         chasis.drive_base.straight(distancia_total_mm, then=Stop.HOLD, wait=False)
 
         garra_disparada = False
 
         # 4. EL FRANCOTIRADOR (El vigía)
         while not chasis.drive_base.done():
-            # Medimos cuánto ha avanzado de su recorrido total (ej. va por 10cm... 12cm... 14cm...)
             recorrido_actual = abs(chasis.drive_base.distance() - dist_inicial)
 
-            # ¡ZAS! Llegó a los 15cm (trigger_mm). Disparamos la garra.
             if recorrido_actual >= trigger_mm and not garra_disparada:
                 self.mover(
                     grados_garra, 
@@ -107,14 +116,15 @@ class GarraTrasera(MecanismoBase):
                 )
                 garra_disparada = True
 
-            wait(1) # Respiro de 1ms para la placa
+            wait(1)
 
-        # 5. Seguro de vida: Si el recorrido terminó y no se disparó, lo detonamos al final
+        # 5. Seguro de vida
         if not garra_disparada:
             self.mover(grados_garra, velocidad=vel_garra, wait_after=False, frenado=Stop.HOLD)
 
         # 6. Restauramos la velocidad del chasis a su normalidad
         chasis.drive_base.settings(config.STRAIGHT_SPEED, accel_lin, vel_giro, accel_giro)
+
 class Mecanismos:
     def __init__(self, motor_garra_delantera: Motor, motor_elevador_del: Motor, motor_garra_trasera: Motor):
         self.garra_delantera = GarraDelantera(motor_garra_delantera)
