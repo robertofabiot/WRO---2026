@@ -20,7 +20,7 @@ sensor = ColorSensor(config.PORT_SENSOR_FRENTE)
 
 # 2. Controladores de alto nivel
 misiones = Misiones(mi_robot, sensor)
-armador = ArmadorMosaicos(mi_robot, sensor)
+armador = ArmadorMosaicos(mi_robot, sensor, prueba=True)
 revisador_bateria = RevisadorBateria(mi_robot)
 
 # 3. Flujo Principal
@@ -29,27 +29,26 @@ if __name__ == "__main__":
         print("Ejecución cancelada.")
     else:
         # --- ZONA DE PRUEBAS: Descomenta la misión que quieras ejecutar ---
-        mi_robot.garra_trasera.establecer_cero()
-        misiones.agarrar_bloques_blancos()
+        # mi_robot.garra_trasera.establecer_cero()
+        # misiones.agarrar_bloques_blancos()
 
-        numero_mosaico = misiones.detectar_mosaico()
+        # numero_mosaico = misiones.detectar_mosaico()
 
-        misiones.dejar_bloques_blancos()
-        misiones.agarrar_bloques_verdes()
+        # misiones.dejar_bloques_blancos()
+        # misiones.agarrar_bloques_verdes()
 
-        misiones.dejar_bloques_verdes()
-        misiones.agarrar_bloques_amarillos()
+        # misiones.dejar_bloques_verdes()
+        # misiones.agarrar_bloques_amarillos()
         
-        misiones.dejar_bloques_amarillos()
+        # misiones.dejar_bloques_amarillos()
 
-        misiones.cemento_y_llana()
-        misiones.agarrar_bloques_azules()
+        # misiones.cemento_y_llana()
+        # misiones.agarrar_bloques_azules()
         
-        misiones.dejar_bloques_azules_y_pala()
+        # misiones.dejar_bloques_azules_y_pala()
     
         """
         Para pruebas completas: quita el '= 1' y usa la variable 'numero_mosaico' 
         devuelta por la función detectar_mosaico()
         """
-        #armador.armar(numero_mosaico = 1)
-        Utils.Utils.sonido_de_la_victoria(mi_robot.hub)
+        armador.armar(numero_mosaico = 3)
