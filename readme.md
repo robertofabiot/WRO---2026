@@ -3,7 +3,7 @@
 # WRO 2026 - Pybricks Robot Codebase
 *Navegación Absoluta y Movimiento Fluido (Encadenamiento)*
 
-![Status: Experimental](https://img.shields.io/badge/status-Experimental-yellow)
+![Status: En Testeo](https://img.shields.io/badge/status-En%20Testeo-blue)
 ![FrameWork: Pybricks](https://img.shields.io/badge/framework-Pybricks-ED1C24)
 
 </div>
@@ -28,28 +28,40 @@ Esta rama integra dos arquitecturas de software críticas para la velocidad y pr
 
 ---
 
-## Estado Actual y Ejecución
+## Estado Actual
 
-La arquitectura de las misiones (`app.py` y `Misiones.py`) ha sido completamente refactorizada para explotar las transiciones fluidas. Tras las pruebas del 10/6/26, se registran 16 intentos totales con 16 fallas y 0 completaciones.
+### Misiones (Recorrido completo)
 
-**Progreso de las Misiones:**
-* 🟢 **Bloques Blancos:** Estable. 0 fallos al agarrar y dejar los bloques.
-* 🟢 **Bloques Verdes:** Estable. 0 fallos al agarrar y dejar los bloques.
-* 🟡 **Bloques Amarillos:** Inestable. 3 fallos registrados al intentar agarrarlos y 5 fallos al intentar dejarlos.
-* 🔴 **Cemento y Llana:** Crítico. 4 fallos totales acumulados en la manipulación y navegación de esta misión.
-* 🔴 **Detectar Mosaico:** Inestable. 3 fallos totales registrados.
-* 🔴 **Bloques Azules:** En desarrollo. 1 fallo registrado al intentar agarrarlos y 0 al dejarlos.
+Todas las misiones han sido programadas y funcionan de principio a fin. La fase actual es de **testeo exhaustivo** para afinar valores, detectar casos borde y garantizar la consistencia en competencia.
 
-**Errores Frecuentes y Reporte de Fallos:**
-* **Falsos positivos en el seguidor de línea:** El robot detectó un cruce de más en el seguidor y paró antes durante las misiones de dejar bloques amarillos y en cemento y llana. La hipótesis es que avanza de más, y en el tiempo que dilata en acomodarse, el sensor detecta un cruce fantasma.
-* **Desalineación en transiciones:** El chasis no se acomodó bien en el inicio (seguidor y giro) al ir a agarrar bloques amarillos. La causa identificada es que, al realizar el giro de la misión anterior (dejar bloques verdes), el robot queda posicionado al otro lado de la línea del seguidor.
-* **Problemas con el giro inercial (Cemento y Llana):** El robot no pudo agarrar la pala en múltiples ocasiones. En uno de los intentos, agarró la pala pero giró hacia el otro lado. La hipótesis sugiere que el robot quedó muy pegado a la pared, afectando severamente el giro posterior del seguidor.
-* **Desviación de trayectoria:** Durante la misión de agarrar bloques azules, el robot quedó muy a la izquierda de la línea y no agarró el seguidor. Asimismo, en la detección del mosaico, se falló en múltiples intentos porque el chasis directamente no llegó al seguidor.
+| Misión | Estado | Notas |
+|---|---|---|
+| 🟢 Bloques Blancos (agarrar) | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 🟢 Detectar Mosaico | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 🟢 Bloques Blancos (dejar) | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 🟢 Bloques Verdes (agarrar) | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 🟢 Bloques Verdes (dejar) | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 🟢 Bloques Amarillos (agarrar) | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 🟢 Bloques Amarillos (dejar) | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 🟢 Cemento y Llana | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 🟢 Bloques Azules (agarrar) | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 🟢 Bloques Azules (dejar) | Completada | Estable. Pendiente de testeo exhaustivo. |
 
-**Problemas Conocidos:**
-* **Método `latigazo` (en `Chasis.py`):** Actualmente no funcional debido a un error `ValueError: Invalid argument` al intentar configurar los límites del control de giro. Se está investigando la compatibilidad con el firmware actual de Pybricks.
+### Matrices de Mosaicos (`ArmadorMosaicos.py`)
 
-**Para ejecutar las pruebas:**
+| # | Mosaico | Estado | Detalle |
+|---|---|---|---|
+| 1 | Verde-Verde | 🔴 No iniciada | Pendiente hasta completar la azul. |
+| 2 | Verde-Amarillo | 🔴 No funcional | Código escrito pero no funciona correctamente. |
+| 3 | Azul | 🟡 En desarrollo (~50%) | Primera mitad lista (recoger/dejar piezas). Falta la segunda mitad: posicionar y dejar las piezas finales en la matriz. |
+| 4 | Amarillo | 🔴 No iniciada | Pendiente hasta completar la azul. |
+| 5 | Blanco | 🔴 No iniciada | Pendiente hasta completar la azul. |
+
+**Prioridad actual:** Completar la matriz azul → corregir verde-amarillo → desarrollar las restantes.
+
+---
+
+## Para ejecutar las pruebas
 1. Conecta el PrimeHub vía Bluetooth.
 2. Abre el proyecto en VS Code con la extensión `pybricksdev`.
 3. Ejecuta la tarea (F5) apuntando al archivo `app.py`.
