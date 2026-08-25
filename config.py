@@ -35,3 +35,17 @@ MOSAICOS = {
 USAR_MOTOR_SIMULADO = False
 SONIDO_ACTIVO = False
 BATERIA_MINIMA = 8150
+
+# --- SEGURIDAD DE LOS LAZOS DE CONTROL ---
+# Piso de velocidad de giro en grados/s. Por debajo de esto el motor no vence
+# la friccion estatica y el lazo PD se queda pataleando sin avanzar.
+PISO_VELOCIDAD_GIRO = 30
+
+# Giros mas chicos que esto se saltan: caen dentro del ruido del IMU.
+BANDA_MUERTA_GIRO = 1.5
+
+# Cortes de emergencia. Sin esto, un color que nunca aparece cuelga el robot
+# para siempre y se pierde la corrida completa.
+TIMEOUT_GIRO_MS = 3000
+TIMEOUT_LAZO_MS = 12000
+TIMEOUT_MOVIMIENTO_MS = 8000
