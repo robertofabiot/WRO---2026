@@ -33,7 +33,7 @@ class Misiones:
     def agarrar_bloques_blancos(self):
         self.robot.garra_trasera.ir_a_porcentaje(90, velocidad=1000)
         self.robot.chasis.cuadrar_contra_pared(tiempo_ms=300, potencia=80, angulo_referencia=90)
-        self.robot.navegacion.giro_absoluto_motor_izquierdo(180, max_speed=1000, min_speed=800, kp=2.5, kd=28, encadenado=True)
+        self.robot.navegacion.giro_absoluto_motor_izquierdo(180, max_speed=1000, min_speed=800, kp=2.5, kd=28, encadenado=True, desaceleracion=500)
 
         self.robot.garra_trasera.subir(185, velocidad=1000, wait_after=False)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 157, tiempo_acomodo_ms=0, encadenado=True, margen_cm=7)

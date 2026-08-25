@@ -92,20 +92,47 @@ class Chasis:
         wait(50)
         Utils.emitir_sonido_confirmacion(self.hub)
 
-    def cuadrar_contra_pared(self, tiempo_ms=1000, potencia=30, angulo_referencia=0, reversa=True):
+    def cuadrar_contra_pared(self, tiempo_ms=1000, potencia=30, angulo_referencia=0, reversa=True,
+                             umbral_velocidad=40, arranque_ms=50, asentamiento_ms=50):
+        """
+        Empuja contra la pared hasta quedar plano y reinicia el rumbo.
+
+        tiempo_ms es el TOPE, no una espera fija. El metodo sale en cuanto
+        las dos ruedas se frenan contra la pared, que es la senal de que el
+        robot quedo a escuadra. Antes se esperaba el tiempo completo: si era
+        de mas se regalaba tiempo, y si era de menos se reiniciaba el rumbo
+        con el robot todavia torcido, que es peor.
+
+        arranque_ms: los motores parten de velocidad cero, asi que hay que
+        darles un momento antes de empezar a mirar si estan frenados.
+        asentamiento_ms: se sigue empujando un instante despues de detectar
+        el tope, para que el robot termine de alinearse antes de fijar el cero.
+        """
         self.drive_base.stop()
         potencia_aplicada = -potencia if reversa else potencia
-        
+
         self.motor_izquierda.dc(potencia_aplicada)
         self.motor_derecha.dc(potencia_aplicada)
-        wait(tiempo_ms) 
-        
+
+        margen = arranque_ms + asentamiento_ms
+        if tiempo_ms <= margen:
+            # Muy corto para detectar nada: se respeta la espera fija.
+            wait(tiempo_ms)
+        else:
+            wait(arranque_ms)
+            reloj_seg = StopWatch()
+            while reloj_seg.time() < (tiempo_ms - margen):
+                if (abs(self.motor_izquierda.speed()) < umbral_velocidad and
+                        abs(self.motor_derecha.speed()) < umbral_velocidad):
+                    break
+                wait(5)
+            wait(asentamiento_ms)
+
         self.motor_izquierda.brake()
         self.motor_derecha.brake()
-        self.hub.imu.reset_heading(angulo_referencia) 
-        
+        self.hub.imu.reset_heading(angulo_referencia)
+
         Utils.emitir_sonido_confirmacion(self.hub)
-    
     def chocar_inteligente(self, distancia_acercamiento_cm, velocidad_acercamiento=800, potencia_choque=35, timeout_choque_ms=1500):
         es_reversa = distancia_acercamiento_cm < 0
         potencia_real = -abs(potencia_choque) if es_reversa else abs(potencia_choque)
