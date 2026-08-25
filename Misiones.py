@@ -34,6 +34,7 @@ class Misiones:
         self.robot.garra_trasera.ir_a_porcentaje(90, velocidad=1000)
         self.robot.chasis.cuadrar_contra_pared(tiempo_ms=300, potencia=80, angulo_referencia=90)
         self.robot.navegacion.giro_absoluto_motor_izquierdo(180, max_speed=1000, min_speed=800, kp=2.5, kd=28, encadenado=True)
+
         self.robot.garra_trasera.subir(185, velocidad=1000, wait_after=False)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 157, tiempo_acomodo_ms=0, encadenado=True, margen_cm=7)
         self.robot.chasis.mover_motor_izquierdo(300, velocidad=1000, margen_grados=50, encadenado=True)
@@ -46,7 +47,18 @@ class Misiones:
         
         self.robot.navegacion.giro_absoluto_motor_izquierdo(55, max_speed=600, min_speed=500, kp=7, kd=24)
         
-        self.robot.chasis.avanzar_recto(55, velocidad=1000, margen_cm=7, encadenado=True)        
+        # Termina sobre la linea negra, no sobre una distancia integrada. Los 52 cm
+        # ciegos pasan de largo las lineas intermedias sin siquiera mirar el sensor;
+        # la ventana de busqueda es de 5 cm para que no agarre la linea equivocada.
+        self.robot.navegacion.avanzar_distancia_luego_color(
+            self.sensor,
+            distancia_ciega_cm=52,
+            color_objetivo=Color.BLACK,
+            distancia_maxima_cm=57,
+            velocidad_escaneo=250,
+            encadenado=True
+        )
+
         self.robot.chasis.mover_motor_derecho(370, velocidad=1000, encadenado=True)
         
         self.robot.navegacion.seguidor_linea_color(
@@ -131,14 +143,15 @@ class Misiones:
         self.robot.chasis.girar_sobre_eje(-60, encadenado=True)
         
         self.robot.chasis.avanzar_recto(85, 1000, margen_cm=5, encadenado=True)
-        
+
         self.robot.navegacion.giro_absoluto_motor_izquierdo(
             0, 
             max_speed=1000, 
             min_speed=400, 
             kp=2.5, 
             kd=12.0, 
-            encadenado=True
+            encadenado=True,
+            desaceleracion=500
         )
         
         self.robot.navegacion.seguidor_linea_cruces_y_distancia(
@@ -169,7 +182,7 @@ class Misiones:
         self.robot.garra_delantera.establecer_cero(velocidad=1000, limite_potencia=30)
         self.robot.garra_delantera.establecer_cero_pinza(velocidad=1000, limite_potencia=30)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(70, wait_after=False)
-        self.robot.garra_delantera.ir_a_porcentaje(80, velocidad=1000)
+        self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000)
         self.robot.chasis.avanzar_recto(14, velocidad=50, margen_cm=2, encadenado=True)
         
         # AGARRAR CEMENTO
