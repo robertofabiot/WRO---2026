@@ -58,6 +58,12 @@ class Chasis:
         if wait_after and margen_cm > 0:
             distancia_inicial = self.drive_base.distance()
             margen_mm = abs(margen_cm * 10)
+            # Si el margen se come toda la distancia, la condicion del while es
+            # falsa en la primera vuelta y el movimiento se cancela a los pocos
+            # milisegundos sin que nadie se entere.
+            if margen_mm >= abs(distancia_mm):
+                print("AVISO avanzar_recto: margen_cm=%d >= distancia=%d cm, el movimiento no espera nada"
+                      % (margen_cm, abs(distancia_cm)))
             self.drive_base.straight(distancia_mm, then=frenado, wait=False)
             
             reloj_seg = StopWatch()

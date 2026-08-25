@@ -43,18 +43,20 @@ class Misiones:
         self.__recoger_bloques(25, 100, bajar=160)
 
     def detectar_mosaico(self):
-        self.robot.chasis.avanzar_recto(7, velocidad=1000, margen_cm=7, encadenado=True)
+        self.robot.chasis.avanzar_recto(7, velocidad=1000, margen_cm=2, encadenado=True)
         
         self.robot.navegacion.giro_absoluto_motor_izquierdo(55, max_speed=600, min_speed=500, kp=7, kd=24)
         
-        # Termina sobre la linea negra, no sobre una distancia integrada. Los 52 cm
-        # ciegos pasan de largo las lineas intermedias sin siquiera mirar el sensor;
-        # la ventana de busqueda es de 5 cm para que no agarre la linea equivocada.
+        # Termina sobre la linea negra y no sobre una distancia integrada. La
+        # fase ciega pasa de largo las lineas intermedias sin mirar el sensor.
+        # OJO: la ventana bajo de 52-57 a 45-50 porque el avanzar_recto(7) de
+        # arriba ahora si recorre sus 7 cm. Si en pista no encuentra la linea,
+        # la consola imprime a que distancia aparecio: corregi con ese numero.
         self.robot.navegacion.avanzar_distancia_luego_color(
             self.sensor,
-            distancia_ciega_cm=52,
+            distancia_ciega_cm=45,
             color_objetivo=Color.BLACK,
-            distancia_maxima_cm=57,
+            distancia_maxima_cm=52,
             velocidad_escaneo=250,
             encadenado=True
         )

@@ -526,6 +526,9 @@ class Navegacion:
                 contador_color += 1
                 if contador_color >= lecturas_confirmacion:
                     encontrado = True
+                    recorrido_cm = abs(self.chasis.drive_base.distance() - inicio) / 10.0
+                    print("%s encontrado a %.1f cm (ventana %d-%d)"
+                          % (color_objetivo, recorrido_cm, distancia_ciega_cm, distancia_maxima_cm))
                     break
             else:
                 contador_color = 0
@@ -540,7 +543,8 @@ class Navegacion:
             wait(10)
 
         if not encontrado:
-            print("AVISO: %s no aparecio antes de %d cm" % (color_objetivo, distancia_maxima_cm))
+            print("AVISO: %s no aparecio entre %d y %d cm. Corregi la ventana."
+                  % (color_objetivo, distancia_ciega_cm, distancia_maxima_cm))
 
         # Fase 3: distancia extra, medida desde donde aparecio el color.
         if extra_mm > 0:
