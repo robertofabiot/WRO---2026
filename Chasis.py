@@ -1,5 +1,5 @@
 from pybricks.parameters import Stop
-from pybricks.tools import wait
+from pybricks.tools import StopWatch, wait
 import config
 from Utils import Utils
 
@@ -10,6 +10,34 @@ class Chasis:
         self.motor_derecha = motor_der
         self.hub = hub
         self.velocidad_base = velocidad_base
+        # Ultimo (velocidad, aceleracion) aplicado al drive_base. Sirve para no
+        # llamar a settings() en cada movimiento: solo cuando el valor cambia.
+        self._ajustes_aplicados = None
+
+    def _aplicar_velocidad(self, velocidad, aceleracion=None):
+        """
+        Traduce un pedido de velocidad a settings() del drive_base.
+
+        straight() y arc() no aceptan velocidad: la toman de settings(). Sin
+        esto el parametro 'velocidad' se calculaba y se tiraba a la basura, y
+        los movimientos lentos de aproximacion corrian a STRAIGHT_SPEED.
+
+        El tope es config.STRAIGHT_SPEED, que es un valor que el drive_base ya
+        acepta hoy. Asi los movimientos rapidos quedan exactamente igual que
+        antes y solo cambian los que pedian ir mas lento.
+        """
+        if velocidad is None:
+            velocidad = self.velocidad_base
+        if aceleracion is None:
+            aceleracion = config.STRAIGHT_ACCEL
+
+        velocidad = max(1, min(abs(velocidad), config.STRAIGHT_SPEED))
+        ajustes = (velocidad, aceleracion)
+
+        if ajustes != self._ajustes_aplicados:
+            self.drive_base.settings(straight_speed=velocidad,
+                                     straight_acceleration=aceleracion)
+            self._ajustes_aplicados = ajustes
 
     def _terminar_movimiento_encadenado(self):
         """Micro-freno pasivo que libera tensión electromagnética para enlazar rápido."""
@@ -20,10 +48,8 @@ class Chasis:
         self.motor_derecha.stop()
         wait(2)
 
-    def avanzar_recto(self, distancia_cm, velocidad=None, frenado=Stop.BRAKE, wait_after=True, margen_cm=0, encadenado=False):
-        if velocidad is None:
-            velocidad = self.velocidad_base
-        velocidad = max(min(velocidad, 976), -976)
+    def avanzar_recto(self, distancia_cm, velocidad=None, aceleracion=None, frenado=Stop.BRAKE, wait_after=True, margen_cm=0, encadenado=False):
+        self._aplicar_velocidad(velocidad, aceleracion)
         distancia_mm = distancia_cm * 10
         
         if encadenado:
@@ -34,7 +60,11 @@ class Chasis:
             margen_mm = abs(margen_cm * 10)
             self.drive_base.straight(distancia_mm, then=frenado, wait=False)
             
+            reloj_seg = StopWatch()
             while abs(self.drive_base.distance() - distancia_inicial) < (abs(distancia_mm) - margen_mm):
+                if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
+                    print("TIMEOUT avanzar_recto")
+                    break
                 if self.drive_base.stalled():
                     break
                 wait(2)
@@ -84,7 +114,8 @@ class Chasis:
         self.avanzar_hasta_choque(potencia=potencia_real, umbral_velocidad=20, tiempo_arranque_ms=150, timeout_ms=timeout_choque_ms)
         Utils.emitir_sonido_confirmacion(self.hub) 
             
-    def mover_en_arco(self, radio_cm, angulo=None, distancia_cm=None, stop=Stop.HOLD, wait_after=True, margen_grados=0, margen_cm=0, encadenado=False):
+    def mover_en_arco(self, radio_cm, angulo=None, velocidad=None, aceleracion=None, distancia_cm=None, stop=Stop.HOLD, wait_after=True, margen_grados=0, margen_cm=0, encadenado=False):
+        self._aplicar_velocidad(velocidad, aceleracion)
         radio_mm = radio_cm * 10
         distancia_mm = distancia_cm * 10 if distancia_cm is not None else None
         if encadenado: stop = Stop.NONE
@@ -96,14 +127,22 @@ class Chasis:
                 dist_inicial = self.drive_base.distance()
                 margen_mm_real = abs(margen_cm * 10)
                 meta_mm = abs(distancia_mm)
+                reloj_seg = StopWatch()
                 while abs(self.drive_base.distance() - dist_inicial) < (meta_mm - margen_mm_real):
+                    if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
+                        print("TIMEOUT mover_en_arco (distancia)")
+                        break
                     if self.drive_base.stalled(): break
                     wait(2)
                 if encadenado: self._terminar_movimiento_encadenado()
             elif angulo is not None and margen_grados > 0:
                 ang_inicial = self.drive_base.angle()
                 meta_ang = abs(angulo)
+                reloj_seg = StopWatch()
                 while abs(self.drive_base.angle() - ang_inicial) < (meta_ang - margen_grados):
+                    if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
+                        print("TIMEOUT mover_en_arco (angulo)")
+                        break
                     if self.drive_base.stalled(): break
                     wait(2)
                 if encadenado: self._terminar_movimiento_encadenado()
@@ -117,7 +156,11 @@ class Chasis:
         if wait_after and margen_grados > 0:
             angulo_inicial = self.drive_base.angle()
             self.drive_base.turn(grados, wait=False)
+            reloj_seg = StopWatch()
             while abs(self.drive_base.angle() - angulo_inicial) < (abs(grados) - margen_grados):
+                if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
+                    print("TIMEOUT girar_sobre_eje")
+                    break
                 if self.drive_base.stalled(): break
                 wait(2)
             if encadenado: self._terminar_movimiento_encadenado()
@@ -130,12 +173,18 @@ class Chasis:
     def giro_preciso(self, angulo_objetivo, kp_nuevo=2.5, tolerancia=1, margen_grados=0, encadenado=False):
         angulo_inicial = self.hub.imu.heading()
         angulo_meta = angulo_inicial + angulo_objetivo
+        if abs(angulo_objetivo) < config.BANDA_MUERTA_GIRO:
+            return
         kp = kp_nuevo
         min_speed = 50 
+        reloj_seg = StopWatch()
         while True:
             angulo_actual = self.hub.imu.heading()
             error = angulo_meta - angulo_actual
             if abs(error) <= max(tolerancia, margen_grados):
+                break
+            if reloj_seg.time() > config.TIMEOUT_GIRO_MS:
+                print("TIMEOUT giro_preciso: faltaban %d grados" % error)
                 break
             turn_rate = error * kp
             turn_rate = max(turn_rate, min_speed) if turn_rate > 0 else min(turn_rate, -min_speed)
@@ -153,7 +202,11 @@ class Chasis:
         if wait_after and margen_grados > 0:
             angulo_meta = self.motor_izquierda.angle() + grados
             self.motor_izquierda.run_angle(velocidad, grados, then=frenado, wait=False) 
+            reloj_seg = StopWatch()
             while abs(angulo_meta - self.motor_izquierda.angle()) > margen_grados:
+                if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
+                    print("TIMEOUT mover_motor_izquierdo")
+                    break
                 if self.motor_izquierda.stalled(): break
                 wait(2)
             if encadenado:
@@ -173,7 +226,11 @@ class Chasis:
         if wait_after and margen_grados > 0:
             angulo_meta = self.motor_derecha.angle() + grados
             self.motor_derecha.run_angle(velocidad, grados, then=frenado, wait=False)
+            reloj_seg = StopWatch()
             while abs(angulo_meta - self.motor_derecha.angle()) > margen_grados:
+                if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
+                    print("TIMEOUT mover_motor_derecho")
+                    break
                 if self.motor_derecha.stalled(): break
                 wait(2)
             if encadenado:
@@ -194,7 +251,10 @@ class Chasis:
         self.motor_derecha.dc(potencia)
         wait(tiempo_arranque_ms)
         
-        tiempo_transcurrido = tiempo_arranque_ms
+        # Sin tope, si las ruedas patinan en el aire el bucle no sale nunca.
+        if timeout_ms is None:
+            timeout_ms = config.TIMEOUT_MOVIMIENTO_MS
+        reloj_seg = StopWatch()
         paso_ms = 10 
         
         while True:
@@ -202,10 +262,10 @@ class Chasis:
             vel_der = abs(self.motor_derecha.speed())
             if vel_izq < umbral_velocidad and vel_der < umbral_velocidad:
                 break
-            if timeout_ms is not None and tiempo_transcurrido >= timeout_ms:
+            if reloj_seg.time() >= timeout_ms:
+                print("TIMEOUT avanzar_hasta_choque")
                 break
             wait(paso_ms)
-            tiempo_transcurrido += paso_ms
             
         self.motor_izquierda.hold()
         self.motor_derecha.hold()
@@ -225,7 +285,11 @@ class Chasis:
         self.motor_izquierda.run(velocidad * dir_izq)
         self.motor_derecha.run(velocidad * dir_der)
         
+        reloj_seg = StopWatch()
         while abs(self.motor_izquierda.angle() - pos_izq_inicial) < grados_rueda:
+            if self.motor_izquierda.stalled() or reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
+                print("TIMEOUT latigazo")
+                break
             wait(1)
             
         self.motor_izquierda.run_target(velocidad, pos_izq_inicial, wait=False)
@@ -279,7 +343,11 @@ class Chasis:
 
         self.drive_base.straight(distancia_total_mm, then=frenado, wait=False)
 
+        reloj_seg = StopWatch()
         while True:
+            if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
+                print("TIMEOUT avanzar_y_accionar_en_recorrido")
+                break
             dist_actual = abs(self.drive_base.distance() - dist_inicial)
 
             if not accion_ejecutada and dist_actual >= distancia_accion_mm:
