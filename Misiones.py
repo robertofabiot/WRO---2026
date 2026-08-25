@@ -18,20 +18,16 @@ class Misiones:
         
         # Si la decisión es un diccionario, significa que leyó Verde y necesita desempatar
         if type(decision) is dict:
-            # 1. Avanza para buscar el color secundario
             self.robot.chasis.avanzar_recto(distancia_si_verde)
             wait(50) # Micro-pausa para que el sensor lea sin vibraciones del motor
             color_anterior = sensor.color()
             
-            # 2. Restaura la posición exacta retrocediendo la misma distancia
             self.robot.chasis.avanzar_recto(-distancia_si_verde)
             
-            # 3. Evalúa la lectura secundaria
             if color_anterior not in decision: 
                 return -1
             return decision[color_anterior]
             
-        # Si no era verde, devuelve el color directamente y se queda en su lugar original
         return decision
     
     def agarrar_bloques_blancos(self):
@@ -42,20 +38,17 @@ class Misiones:
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 157, tiempo_acomodo_ms=0, encadenado=True, margen_cm=7)
         self.robot.chasis.mover_motor_izquierdo(300, velocidad=1000, margen_grados=50, encadenado=True)
         self.robot.chasis.avanzar_recto(12, 1000, margen_cm=7, encadenado=True)
-        self.robot.navegacion.giro_absoluto_pd(2, max_speed=200, min_speed=100, kp=3.5, kd=22) # Cierra el combo fluido
+        self.robot.navegacion.giro_absoluto_pd(2, max_speed=200, min_speed=100, kp=3.5, kd=22)
         self.__recoger_bloques(25, 100, bajar=160)
 
     def detectar_mosaico(self):
         self.robot.chasis.avanzar_recto(7, velocidad=1000, margen_cm=7, encadenado=True)
         
-        # ACELERADO: Subimos de 600 a 1000. Al estar encadenado, no hay latigazo mecánico.
         self.robot.navegacion.giro_absoluto_motor_izquierdo(55, max_speed=600, min_speed=500, kp=7, kd=24)
         
         self.robot.chasis.avanzar_recto(55, velocidad=1000, margen_cm=7, encadenado=True)        
         self.robot.chasis.mover_motor_derecho(370, velocidad=1000, encadenado=True)
         
-        # OPTIMIZACIÓN DE TIEMPO: Subimos velocidad a 100 (ya que le pasas distancia_cm=10, no se capea a 70).
-        # CLAVE: tiempo_acomodo_ms=0 para anular la espera de 800ms y salir disparado.
         self.robot.navegacion.seguidor_linea_color(
             self.sensor, 
             velocidad_max=100, 
@@ -68,8 +61,6 @@ class Misiones:
         
         self.robot.chasis.mover_motor_derecho(90, velocidad=1000)
         
-        # AJUSTE PD EXTREMO: Giro rapidísimo. 
-        # min_speed alto (150) amortiguado por un kd muy agresivo (26.0).
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=800, min_speed=150, kp=3.0, kd=26.0)
         
         self.robot.chasis.avanzar_recto(14, 1000)
@@ -85,22 +76,16 @@ class Misiones:
         self.robot.garra_trasera.ir_a_porcentaje(0, velocidad=1000, wait_after=False)
 
     def agarrar_bloques_verdes(self):
-        # OPTIMIZADO: Agregamos encadenado=True y un margen para fusionar la recta con el giro del motor
         self.robot.chasis.avanzar_recto(9, velocidad=300, margen_cm=2, encadenado=True)
         self.robot.chasis.mover_motor_derecho(300, velocidad=300, encadenado=True)
         
-        # ACELERADO: tiempo_acomodo_ms=0 porque el robot ya trae inercia rotacional del movimiento anterior
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 40, tiempo_acomodo_ms=0, encadenado=False, margen_cm=7)
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 40, 20, tiempo_acomodo_ms=0, encadenado=False, margen_cm=7)
         
-        # # ACELERADO: Subimos la velocidad de 600 a 1000. El margen_grados absorbe el latigazo.
         # self.robot.chasis.mover_motor_derecho(110, velocidad=1000, margen_grados=50, encadenado=True)
         
-        # # FLUIDEZ: Cambiamos encadenado=False a True. Este avance de 2cm ahora es una transición rápida, no una pausa.
         # self.robot.chasis.avanzar_recto(2, velocidad=1000, encadenado=True)
         
-        # AJUSTE PD EXTREMO: Giro de cuadratura violento pero estable.
-        # max_speed=800, min_speed=120 para mucha fuerza, kd=26.0 para frenar en seco y kp=3.0 para evitar correcciones nerviosas.
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=800, min_speed=120, kp=3.0, kd=26.0)
         
         self.__recoger_bloques(13, wait_ms=300)
@@ -112,33 +97,22 @@ class Misiones:
         # La garra baja en segundo plano mientras el chasis empieza la secuencia de escape
         self.robot.garra_trasera.ir_a_porcentaje(95, velocidad=1000, wait_after=False)
         
-        # AJUSTE PD EXTREMO 1 (Despegue de pared): 
-        # min_speed alto (150) para salir rápido, kp=3.0 y kd=26.0 para frenar exacto en 0 grados.
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=800, min_speed=150, kp=3.0, kd=26.0, encadenado=True)             
         
-        # ACELERADO: Eliminamos el tiempo_acomodo_ms pasándolo a 0. Entrará a velocidad tope al instante.
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 10, lado="izquierda", tiempo_acomodo_ms=0, encadenado=True)
         
-        # AJUSTE PD EXTREMO 2 (Vuelta en U): 
-        # Mucha energía inercial. Necesitamos un kd súper agresivo (28.0 o 30.0) para frenar esa inercia de 180 grados.
         self.robot.navegacion.giro_absoluto_pd(180, max_speed=800, min_speed=150, kp=3.0, kd=28.0, encadenado=True)             
         
-        # SPRINT: Máxima velocidad en reversa. El margen de 7cm absorberá la transición final.
         self.robot.chasis.avanzar_recto(-52, velocidad=1000, encadenado=True, margen_cm=7)
         
         # Tope final por detección de corriente (asegura que guarda la garra por completo)
         self.robot.garra_trasera.subir_al_tope(1000, limite_potencia=100)
     
     def agarrar_bloques_amarillos(self):
-        # OPTIMIZADO: Velocidad en 100 (límite físico DC). 
-        # Ponemos tiempo_acomodo_ms=150 porque arranca desde cero (misión anterior terminó bloqueante).
         self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 28, tiempo_acomodo_ms=150, encadenado=True)
         
-        # ACELERADO: Subimos a velocidad máxima (1000). El margen absorbe la transición.
         self.robot.chasis.mover_motor_derecho(500, velocidad=600, margen_grados=50, encadenado=True)
         
-        # FLUIDEZ: Se le agrega encadenado=True para eliminar la necesidad de frenar manualmente.
-        # Subimos levemente la velocidad_escaneo a 200 para no perder mucho tiempo buscando la línea negra.
         self.robot.navegacion.avanzar_tiempo_luego_color(
             self.sensor, 
             tiempo_ciego_s=0.3, 
@@ -149,27 +123,15 @@ class Misiones:
             encadenado=True
         )
         
-        # ELIMINADO: self.robot.drive_base.brake() -> Ya no se necesita gracias al encadenamiento.
-        
-        # AJUSTE PD EXTREMO: El cierre del combo asume toda la inercia anterior.
-        # max_speed 800, min_speed 120 para encuadre violento, con kd de 26.0 para frenado en seco.
         self.robot.navegacion.giro_absoluto_pd(0, max_speed=800, min_speed=120, kp=3.0, kd=26.0) 
         
         self.__recoger_bloques(18, 150)
 
     def dejar_bloques_amarillos(self):
-        # FLUIDEZ: Encadenamos el giro inicial para entrar con aceleración a la recta
         self.robot.chasis.girar_sobre_eje(-60, encadenado=True)
         
-        # SPRINT ENCADENADO: El robot corre los 77cm a máxima velocidad.
-        # CLAVE: Al poner margen_cm=5, EVITAMOS la frenada a cero y usamos el impulso 
-        # sobrante para alimentar el giro del motor izquierdo que te molestaba.
         self.robot.chasis.avanzar_recto(85, 1000, margen_cm=5, encadenado=True)
         
-        # SOLUCIÓN: Giro monomotor ultra veloz. 
-        # Subimos max_speed a 1000 y min_speed a 400 para eliminar cualquier retraso.
-        # kp=2.5 y kd=28.0 absorben el impacto para clavar el rumbo exacto en 0°.
-        # Activamos encadenado=True para enlazar directamente con el lazo del seguidor.
         self.robot.navegacion.giro_absoluto_motor_izquierdo(
             0, 
             max_speed=1000, 
@@ -179,9 +141,6 @@ class Misiones:
             encadenado=True
         )
         
-        # OPTIMIZADO: Como el paso anterior ya viene encadenado y con rumbo corregido,
-        # eliminamos la espera pasando tiempo_acomodo_ms a 0. Tracción DC activa al 100% de inmediato.
-        # Lo dejamos en encadenado=True para conectar con el giro final de escape.
         self.robot.navegacion.seguidor_linea_cruces_y_distancia(
             self.sensor,
             velocidad_max=100, 
@@ -193,8 +152,6 @@ class Misiones:
             encadenado=True
         )
         
-        # AJUSTE PD SINGLE-MOTOR 2: Tenías min_speed=1000 (lo que desactivaba el decaimiento de Pybricks de los últimos 8°).
-        # Lo regulamos de forma segura: max_speed=1000, min_speed=500 y un kd de 32.0 para evitar que el chasis chicotee al llegar a 270°.
         self.robot.navegacion.giro_absoluto_motor_izquierdo(
             270, 
             max_speed=1000, 

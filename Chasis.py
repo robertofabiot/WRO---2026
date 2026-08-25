@@ -222,21 +222,17 @@ class Chasis:
         dir_izq = 1 if grados > 0 else -1
         dir_der = -1 if grados > 0 else 1
         
-        # 1. IDA: Se inyecta la máxima velocidad
         self.motor_izquierda.run(velocidad * dir_izq)
         self.motor_derecha.run(velocidad * dir_der)
         
-        # El procesador espera activamente a que se alcance el ángulo de impacto
         while abs(self.motor_izquierda.angle() - pos_izq_inicial) < grados_rueda:
             wait(1)
             
-        # 2. VUELTA: El motor izquierdo siempre recibe el comando en segundo plano
         self.motor_izquierda.run_target(velocidad, pos_izq_inicial, wait=False)
         
         # El motor derecho determina si bloqueamos la ejecución o seguimos adelante
         self.motor_derecha.run_target(velocidad, pos_der_inicial, wait=wait_after)
         
-        # 3. MANEJO DE CIERRE Y ENCADENAMIENTO
         if wait_after:
             if encadenado:
                 self._terminar_movimiento_encadenado()
@@ -281,29 +277,23 @@ class Chasis:
         meta_mm = abs(distancia_total_mm)
         accion_ejecutada = False
 
-        # Iniciar el movimiento del chasis en segundo plano (wait=False)
         self.drive_base.straight(distancia_total_mm, then=frenado, wait=False)
 
         while True:
-            # Monitoreo constante de la distancia recorrida actual
             dist_actual = abs(self.drive_base.distance() - dist_inicial)
 
-            # 1. Condición para accionar la garra (se ejecuta una sola vez)
             if not accion_ejecutada and dist_actual >= distancia_accion_mm:
-                accion_callback() # Ejecutamos la función inyectada
+                accion_callback()
                 accion_ejecutada = True
 
-            # 2. Condición de salida: Se alcanzó la meta total
             if dist_actual >= (meta_mm - margen_mm):
                 break
 
-            # 3. Condición de seguridad por atasco
             if self.drive_base.stalled():
                 break
 
             wait(2) # Micro-pausa para no saturar el procesador del hub
 
-        # Manejo de cierre compatible con tu sistema de encadenamiento
         if encadenado:
             self._terminar_movimiento_encadenado()
         else:

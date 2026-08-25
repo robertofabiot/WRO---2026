@@ -27,7 +27,6 @@ class Garra:
             return None
         return self.motor.run_until_stalled(vel_real, then=frenado, duty_limit=limite_potencia)
 
-    # --- MÉTODOS VERTICALES (Heredables) ---
     def subir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         self.mover(-abs(grados), velocidad, wait_after, frenado, margen_grados)
 
@@ -145,10 +144,8 @@ class GarraTrasera(Garra):
         if self.rango_maximo is None:
             raise ValueError("Debes configurar el rango_maximo_grados al instanciar la garra")
             
-        # Limitamos por seguridad física (nunca pasará de 100 ni bajará de 0)
         porcentaje_seguro = max(0.0, min(100.0, float(porcentaje)))
         
-        # Mapeo lineal
         angulo_objetivo = (porcentaje_seguro / 100.0) * self.rango_maximo
         
         # run_target va al ángulo exacto sin importar la posición actual
@@ -159,7 +156,6 @@ class GarraTrasera(Garra):
             wait=wait_after
         )
 
-    # --- MÉTODOS RELATIVOS (Mantenidos por compatibilidad) ---
     def subir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
         super().bajar(grados, velocidad, wait_after, frenado, margen_grados)
 

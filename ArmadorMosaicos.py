@@ -6,7 +6,6 @@ class ArmadorMosaicos:
         self.robot = robot_instancia
         self.sensor_color = sensor_color
         
-        # --- PATRÓN ESTRATEGIA (Diccionario de Rutinas) ---
         self.rutinas = {
             1: self._armar_verde_verde,
             2: self._armar_verde_amarillo,
@@ -26,7 +25,6 @@ class ArmadorMosaicos:
         print(f"Ejecutando rutina de armado para mosaico: {numero_mosaico}")
         rutina_a_ejecutar()
     
-    # --- RUTINAS PRIVADAS ---
     def _armar_verde_verde(self):
         pass   
 

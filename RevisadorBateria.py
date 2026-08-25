@@ -1,4 +1,4 @@
-from robot import Robot # Importamos la clase para que el editor sepa qué es
+from robot import Robot
 import config
 
 class RevisadorBateria:
@@ -14,10 +14,10 @@ class RevisadorBateria:
             print(f"Batería menor a {bateria_minima}")
             
             # Sonido "Gamer" de batería baja (versión mucho más grave)
-            self.robot.hub.speaker.beep(350, 150) # Tono medio-bajo
-            self.robot.hub.speaker.beep(250, 150) # Tono bajo
-            self.robot.hub.speaker.beep(150, 150) # Tono más bajo
-            self.robot.hub.speaker.beep(80, 600)  # Tono final muy grave (casi un zumbido)
+            self.robot.hub.speaker.beep(350, 150)
+            self.robot.hub.speaker.beep(250, 150)
+            self.robot.hub.speaker.beep(150, 150)
+            self.robot.hub.speaker.beep(80, 600)
             
             continuar = input("¿Desea continuar? (y/n): ")
 

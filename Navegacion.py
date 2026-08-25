@@ -88,14 +88,12 @@ class Navegacion:
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
             
-            # ROMPIMIENTO SEGURO: Salir si entra al margen o si el error cambia de signo (cruzó la meta)
             if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
                 break
             
             derivada = error - error_previo
             turn_rate = (error * kp) + (derivada * kd)
             
-            # DECAIMIENTO A CERO: Apagar la velocidad mínima forzada si está muy cerca
             if abs(error) < 5:
                 min_speed_actual = 0
             else:
@@ -209,14 +207,12 @@ class Navegacion:
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
             
-            # CRUCE DE META Y MARGEN: Detención inmediata si cambia el signo del error o entra en tolerancia
             if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
                 break
             
             derivada = error - error_previo
             turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
             
-            # DECAIMIENTO DINÁMICO: Suprime la velocidad mínima en los últimos 8 grados para absorber la inercia
             min_speed_actual = min_speed if abs(error) > 8 else 0
             
             velocidad_aplicar = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
@@ -281,13 +277,11 @@ class Navegacion:
         Si se le pasa un 'angulo_objetivo', corregirá su trayectoria hacia ese ángulo absoluto del mapa mientras avanza.
         Si no se le pasa, mantendrá exactamente el rumbo actual.
         """
-        # 1. Determinamos el ángulo al que queremos aferrarnos
         if angulo_objetivo is None:
             angulo_meta = self.chasis.hub.imu.heading()
         else:
             angulo_meta = angulo_objetivo
 
-        # 2. Preparamos las distancias (en milímetros para la precisión del drive_base)
         dist_inicial = self.chasis.drive_base.distance()
         distancia_mm_objetivo = abs(distancia_cm * 10)
         margen_mm = abs(margen_cm * 10)
@@ -298,7 +292,6 @@ class Navegacion:
         error_previo = 0
         
         while True:
-            # Condición de salida por distancia recorrida
             distancia_actual = abs(self.chasis.drive_base.distance() - dist_inicial)
             if distancia_actual >= max(1, distancia_mm_objetivo - margen_mm):
                 break
@@ -307,7 +300,6 @@ class Navegacion:
             error_bruto = angulo_meta - self.chasis.hub.imu.heading()
             error = (error_bruto + 180) % 360 - 180
             
-            # Controlador PD para la rotación mientras se avanza
             derivada = error - error_previo
             turn_rate = (error * kp) + (derivada * kd)
             
@@ -315,13 +307,11 @@ class Navegacion:
             # sacrifique demasiado el avance lineal intentando girar de golpe
             turn_rate = min(max(turn_rate, -200), 200) 
             
-            # Aplicamos la velocidad constante y la corrección de rotación al mismo tiempo
             self.chasis.drive_base.drive(velocidad_real, turn_rate)
             
             error_previo = error
             wait(10)
             
-        # Cierre del movimiento soportando tu sistema fluido
         if encadenado:
             self.chasis._terminar_movimiento_encadenado()
         else:
@@ -340,22 +330,18 @@ class Navegacion:
         cronometro = StopWatch()
         contador_color = 0
         
-        # 1. ETAPA DE AVANCE CIEGO
         cronometro.reset()
         cronometro.resume()
         
         # Al tener use_gyro(True) en el drive_base, Pybricks corregirá automáticamente cualquier giro no deseado.
         self.chasis.drive_base.drive(velocidad_alta, 0)
         
-        # Esperamos bloqueando el código hasta que pasen los segundos solicitados
         while cronometro.time() < (tiempo_ciego_s * 1000):
             wait(10)
             
-        # 2. ETAPA DE ESCANEO LENTO
         self.chasis.drive_base.drive(velocidad_escaneo, 0)
         
         while True:
-            # Lógica de detección precisa y confiable
             if self.detectar_color_preciso(sensor_color) == color_objetivo:
                 contador_color += 1
                 # Pedimos confirmaciones consecutivas para evitar falsos positivos
@@ -366,7 +352,6 @@ class Navegacion:
                 
             wait(5) # Frecuencia de escaneo
             
-        # 3. ETAPA DE DISTANCIA EXTRA (Opcional)
         if distancia_extra_cm > 0:
             distancia_inicial = self.chasis.drive_base.distance()
             distancia_mm_objetivo = distancia_extra_cm * 10
@@ -377,7 +362,6 @@ class Navegacion:
                     break
                 wait(5)
             
-        # 4. TERMINACIÓN
         if encadenado:
             self.chasis._terminar_movimiento_encadenado()
         else:
@@ -408,21 +392,16 @@ class Navegacion:
             t = cronometro.time()
             velocidad_actual = 25 if t < tiempo_acomodo_ms else velocidad_max
 
-            # 1. Leer sensor
             reflexion_actual = sensor_color.reflection()
             error = reflexion_actual - 35
             
-            # 2. Lógica de detección de cruces
             if reflexion_actual <= umbral_negro and not en_cruce:
-                # Acabamos de entrar a una intersección negra
                 cruces_detectados += 1
                 en_cruce = True
                 print(f"Cruce {cruces_detectados}/{cruces_objetivo} detectado")
             elif reflexion_actual >= umbral_salida and en_cruce:
-                # Ya salimos de la intersección y volvimos al borde
                 en_cruce = False
 
-            # 3. Lógica PD (Control de tracción)
             correction = ((error * kp) + ((error - last_error) * kd)) * multiplicador_lado
             velocidad_base = max(25, velocidad_actual - (abs(error) * k_freno))
             
@@ -431,7 +410,6 @@ class Navegacion:
             last_error = error
             wait(1)
             
-        # 4. Terminación fluida o total
         if encadenado:
             self.chasis._terminar_movimiento_encadenado()
         else:
@@ -445,7 +423,7 @@ class Navegacion:
         Combina un avance inicial ciego a cruces, la detección de cruces y un avance extra por distancia 
         en un solo movimiento fluido. Mantiene el mismo lazo PID para evitar derrapes.
         """
-        from pybricks.tools import StopWatch, wait # (Asegúrate de que existan)
+        from pybricks.tools import StopWatch, wait
         from Utils import Utils
         
         cronometro = StopWatch()
@@ -457,7 +435,6 @@ class Navegacion:
         umbral_negro = 15 
         umbral_salida = 25 
         
-        # --- Variables de fases ---
         en_distancia_inicial = distancia_inicial_cm > 0
         grados_objetivo_inicial = max(0, (distancia_inicial_cm / (3.1416 * 5.6)) * 360)
         
@@ -475,13 +452,10 @@ class Navegacion:
             # Medida global de grados para las distancias (inicial y extra)
             grados_recorridos_totales = (abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2
 
-            # --- EVALUACIÓN DE SALIDA Y FASES ---
             if en_distancia_inicial:
-                # 1. Fase: Avance inicial ignorando cruces
                 if grados_recorridos_totales >= grados_objetivo_inicial:
                     en_distancia_inicial = False # Termina avance inicial, empieza a buscar cruces
             elif not buscando_cruces:
-                # 3. Fase: Avance extra después de haber encontrado los cruces
                 grados_recorridos_extra = grados_recorridos_totales - grados_inicio_extra
                 if grados_recorridos_extra >= grados_objetivo_extra:
                     break
@@ -489,11 +463,9 @@ class Navegacion:
             t = cronometro.time()
             velocidad_actual = 25 if t < tiempo_acomodo_ms else velocidad_max
 
-            # 1. Leer sensor
             reflexion_actual = sensor_color.reflection()
             error = reflexion_actual - 35
             
-            # 2. Lógica de cruces (Solo se activa si ya pasamos la distancia inicial)
             if not en_distancia_inicial and buscando_cruces:
                 if reflexion_actual <= umbral_negro and not en_cruce:
                     cruces_detectados += 1
@@ -508,7 +480,6 @@ class Navegacion:
                 elif reflexion_actual >= umbral_salida and en_cruce:
                     en_cruce = False
 
-            # 3. Lógica PD ininterrumpida
             correction = ((error * kp) + ((error - last_error) * kd)) * multiplicador_lado
             velocidad_base = max(25, velocidad_actual - (abs(error) * k_freno))
             
@@ -517,7 +488,6 @@ class Navegacion:
             last_error = error
             wait(1)
             
-        # 4. Terminación fluida o total
         if encadenado:
             self.chasis._terminar_movimiento_encadenado()
         else:
@@ -533,12 +503,10 @@ class Navegacion:
         x_cm: Distancia hacia adelante (positivo) o atrás (negativo).
         y_cm: Desplazamiento lateral (positivo izquierda, negativo derecha).
         """
-        # 1. Constantes matemáticas locales
         PI = 3.14159265
         HALF_PI = 1.57079632
         TWO_PI = 6.28318530
 
-        # 2. Mini-motor trigonométrico interno (Aproximaciones eficientes)
         def seno(a):
             # Normaliza el ángulo entre -PI y PI
             a = (a + PI) % TWO_PI - PI
@@ -632,7 +600,6 @@ class Navegacion:
             self.chasis.drive_base.drive(velocidad_lineal, turn_rate)
             wait(10)
             
-        # Gestión del cierre (encadenamiento)
         if encadenado:
             self.chasis._terminar_movimiento_encadenado()
         else:
@@ -650,13 +617,11 @@ class Navegacion:
         from pybricks.tools import StopWatch, wait
         from Utils import Utils
         
-        # 1. INICIO DE MOVIMIENTO GENERAL
         # Si el objetivo es solo 1 línea, aplicamos la velocidad lenta desde el inicio 
         # para garantizar precisión, de lo contrario arrancamos a máxima velocidad.
         velocidad_actual = velocidad_lenta if lineas_objetivo == 1 else velocidad
         self.chasis.drive_base.drive(velocidad_actual, 0)
         
-        # 2. ETAPA DE AVANCE CIEGO (Ignora lecturas iniciales/derrapes)
         if tiempo_ciego_s > 0:
             if debug:
                 print(f"--- ETAPA 1: Avance ciego por {tiempo_ciego_s}s a {velocidad_actual} mm/s ---")
@@ -669,7 +634,6 @@ class Navegacion:
                     break
                 wait(10)
 
-        # 3. ETAPA DE ESCANEO Y CONTEO DE LÍNEAS
         contador_lineas = 0
         en_linea = False
         
@@ -708,7 +672,6 @@ class Navegacion:
         if debug:
             print(f"--- Conteo finalizado: {contador_lineas} líneas detectadas ---")
             
-        # 4. ETAPA DE DISTANCIA EXTRA (Ajuste de posición final)
         if distancia_extra_cm > 0:
             if debug:
                 print(f"--- ETAPA 3: Avanzando distancia extra de {distancia_extra_cm} cm ---")
@@ -723,7 +686,6 @@ class Navegacion:
                     break
                 wait(5)
                 
-        # 5. TERMINACIÓN
         if encadenado:
             self.chasis._terminar_movimiento_encadenado()
         else:
