@@ -1,6 +1,7 @@
 from pybricks.tools import StopWatch, wait
 from pybricks.parameters import Color
 from Utils import Utils
+import config
 
 class Navegacion:
     def __init__(self, chasis):
@@ -25,11 +26,17 @@ class Navegacion:
             else: return Color.BLUE
 
     def giro_preciso_pd(self, angulo_relativo, max_speed=800, min_speed=40, kp=4.0, kd=18.0, margen_grados=0, encadenado=False):
+        if abs(angulo_relativo) < config.BANDA_MUERTA_GIRO:
+            return
         angulo_meta = self.chasis.hub.imu.heading() + angulo_relativo
         error_previo = 0
+        reloj = StopWatch()
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
             if abs(error) <= max(1, margen_grados): break
+            if reloj.time() > config.TIMEOUT_GIRO_MS:
+                print("TIMEOUT giro_preciso_pd (error %d grados)" % error)
+                break
             turn_rate = (error * kp) + ((error - error_previo) * kd)
             turn_rate = min(max(turn_rate, min_speed), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed), -max_speed)
             self.chasis.drive_base.drive(0, turn_rate)
@@ -44,11 +51,17 @@ class Navegacion:
 
     def giro_eje_puro(self, angulo_relativo, kp=3.5, kd=15.0, max_speed=600, min_speed=30, margen_grados=0, encadenado=False):
         self.chasis.drive_base.stop()
+        if abs(angulo_relativo) < config.BANDA_MUERTA_GIRO:
+            return
         angulo_meta = self.chasis.hub.imu.heading() + angulo_relativo
         error_previo = 0
+        reloj = StopWatch()
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
             if abs(error) <= max(1, margen_grados): break
+            if reloj.time() > config.TIMEOUT_GIRO_MS:
+                print("TIMEOUT giro_eje_puro (error %d grados)" % error)
+                break
             derivada = error - error_previo
             magnitud = abs((error * kp) + (derivada * kd))
             velocidad_giro = max(min_speed, min(magnitud, max_speed))
@@ -81,23 +94,37 @@ class Navegacion:
             giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else error_corto_inicial + 360 if error_corto_inicial < 0 else 0
                 
         angulo_meta = angulo_actual_inicial + giro_requerido
+        # Por debajo del ruido del IMU no vale la pena moverse: el PD se queda
+        # pataleando con un turn_rate que no alcanza a vencer la friccion estatica.
+        if abs(giro_requerido) < config.BANDA_MUERTA_GIRO:
+            return
         
         # Guardamos la dirección inicial para detectar si la inercia nos hace cruzar la meta
         error_inicial_signo = 1 if giro_requerido > 0 else -1
         
+        reloj = StopWatch()
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
             
             if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
                 break
+            if reloj.time() > config.TIMEOUT_GIRO_MS:
+                print("TIMEOUT giro_absoluto_pd: faltaban %d grados" % error)
+                break
             
             derivada = error - error_previo
             turn_rate = (error * kp) + (derivada * kd)
             
-            if abs(error) < 5:
-                min_speed_actual = 0
+            # Piso efectivo de velocidad. Antes esto era 0 por debajo de 5 grados: con un
+            # error de 2 grados el turn_rate quedaba en ~6 grados/s, que no mueve el robot,
+            # la derivada se iba a 0 y el lazo se quedaba trabado hasta que el ruido del
+            # IMU lo sacaba de casualidad.
+            if abs(error) > 15:
+                min_speed_actual = min_speed
+            elif abs(error) > 5:
+                min_speed_actual = 40
             else:
-                min_speed_actual = min_speed if abs(error) > 15 else 40 
+                min_speed_actual = config.PISO_VELOCIDAD_GIRO
             
             turn_rate = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
             
@@ -124,6 +151,9 @@ class Navegacion:
         cronometro.resume()
         
         while True:
+            if cronometro.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT seguidor_linea_distancia")
+                break
             if (abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2 >= grados_objetivo_real: break
             t = cronometro.time()
             velocidad_actual = 25 if t < tiempo_acomodo_ms else velocidad_max
@@ -145,14 +175,28 @@ class Navegacion:
             cronometro.pause()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
 
-    def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo, lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None, lecturas_confirmacion=3, encadenado=False):
+    def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo, lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None, lecturas_confirmacion=3, distancia_maxima_cm=None, encadenado=False):
+        """
+        Sigue la linea hasta ver un color.
+
+        distancia_cm es la distancia ESPERADA hasta el color: el seguidor va
+        frenando a medida que se acerca a ese punto, para llegar despacio y
+        leer el color con precision. No corta el recorrido.
+
+        distancia_maxima_cm si corta: es el tope duro de seguridad. Si el color
+        no aparece antes, el metodo se detiene igual y avisa por consola.
+        """
         cronometro = StopWatch()
         velocidad_max = min(velocidad_max, 70) if distancia_cm is None else velocidad_max
         last_error, contador_color = 0, 0
         multiplicador_lado = 1 if lado == "derecha" else -1
         
+        grados_maximos = ((distancia_maxima_cm / (3.1416 * 5.6)) * 360
+                          if distancia_maxima_cm is not None else None)
+        grados_objetivo = None
         if distancia_cm is not None:
             grados_objetivo = (distancia_cm / (3.1416 * 5.6)) * 360
+            velocidad_enfoque = min(50, velocidad_max)
             self.chasis.motor_izquierda.reset_angle(0)
             self.chasis.motor_derecha.reset_angle(0)
             
@@ -160,6 +204,9 @@ class Navegacion:
         cronometro.resume()
         
         while True:
+            if cronometro.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT seguidor_linea_color")
+                break
             if self.detectar_color_preciso(sensor_color) == color_objetivo:
                 contador_color += 1
                 if contador_color >= lecturas_confirmacion: break 
@@ -167,6 +214,21 @@ class Navegacion:
                 contador_color = 0 
                 
             velocidad_actual = 25 if cronometro.time() < tiempo_acomodo_ms else velocidad_max
+
+            if grados_objetivo is not None:
+                recorrido = (abs(self.chasis.motor_izquierda.angle())
+                             + abs(self.chasis.motor_derecha.angle())) / 2
+
+                # Tope duro: el color no aparecio donde tenia que aparecer.
+                if grados_maximos is not None and recorrido >= grados_maximos:
+                    print("AVISO seguidor_linea_color: no aparecio el color en %d cm" % distancia_maxima_cm)
+                    break
+
+                # Rampa: llegar despacio al punto esperado mejora la lectura del color.
+                progreso = min(1.0, recorrido / grados_objetivo)
+                velocidad_actual = min(velocidad_actual,
+                                       max(velocidad_enfoque,
+                                           velocidad_max - (velocidad_max - velocidad_enfoque) * progreso))
                 
             error = sensor_color.reflection() - 35
             correction = ((error * 0.85) + ((error - last_error) * 2.5)) * multiplicador_lado
@@ -185,7 +247,7 @@ class Navegacion:
             cronometro.pause()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
     
-    def giro_absoluto_motor_izquierdo(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False):
+    def giro_absoluto_motor_izquierdo(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False, desaceleracion=None):
         self.chasis.drive_base.stop()
         self.chasis.motor_derecha.hold() 
         
@@ -202,20 +264,39 @@ class Navegacion:
             giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else (error_corto_inicial + 360 if error_corto_inicial < 0 else 0)
                 
         angulo_meta = angulo_actual_inicial + giro_requerido
+        # Por debajo del ruido del IMU no vale la pena moverse: el PD se queda
+        # pataleando con un turn_rate que no alcanza a vencer la friccion estatica.
+        if abs(giro_requerido) < config.BANDA_MUERTA_GIRO:
+            return
         error_inicial_signo = 1 if giro_requerido > 0 else -1
         
+        reloj = StopWatch()
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
             
             if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
                 break
+            if reloj.time() > config.TIMEOUT_GIRO_MS:
+                print("TIMEOUT giro_absoluto_motor_izquierdo: faltaban %d grados" % error)
+                break
             
-            derivada = error - error_previo
-            turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
-            
-            min_speed_actual = min_speed if abs(error) > 8 else 0
-            
-            velocidad_aplicar = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
+            if desaceleracion is None:
+                # Control P clasico. Ojo: entre ~31 y ~8 grados de error el termino P
+                # vale menos que min_speed, asi que el piso pasa a ser la velocidad real
+                # y el giro se aplana. Por eso existe la rama de abajo.
+                derivada = error - error_previo
+                turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
+                min_speed_actual = min_speed if abs(error) > 8 else (config.PISO_VELOCIDAD_GIRO * factor_conversion)
+                velocidad_aplicar = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
+            else:
+                # Perfil de desaceleracion constante: omega = raiz(2 * alfa * error).
+                # Corre a fondo hasta el ultimo momento y baja en rampa lineal hasta
+                # clavar la meta, en vez de la cola exponencial que deja un control P.
+                omega = (2.0 * desaceleracion * abs(error)) ** 0.5
+                omega = max(omega, config.PISO_VELOCIDAD_GIRO)
+                velocidad_aplicar = min(omega * factor_conversion, max_speed)
+                if error < 0:
+                    velocidad_aplicar = -velocidad_aplicar
                 
             self.chasis.motor_izquierda.run(velocidad_aplicar)
             error_previo = error
@@ -227,7 +308,7 @@ class Navegacion:
             self.chasis.motor_izquierda.hold()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
 
-    def giro_absoluto_motor_derecho(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False):
+    def giro_absoluto_motor_derecho(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False, desaceleracion=None):
         self.chasis.drive_base.stop()
         self.chasis.motor_izquierda.hold() 
         
@@ -244,22 +325,40 @@ class Navegacion:
             giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else (error_corto_inicial + 360 if error_corto_inicial < 0 else 0)
                 
         angulo_meta = angulo_actual_inicial + giro_requerido
+        # Por debajo del ruido del IMU no vale la pena moverse: el PD se queda
+        # pataleando con un turn_rate que no alcanza a vencer la friccion estatica.
+        if abs(giro_requerido) < config.BANDA_MUERTA_GIRO:
+            return
         error_inicial_signo = 1 if giro_requerido > 0 else -1
         
+        reloj = StopWatch()
         while True:
             error = angulo_meta - self.chasis.hub.imu.heading()
             
             # Protección contra sobreimpulso
             if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
                 break
+            if reloj.time() > config.TIMEOUT_GIRO_MS:
+                print("TIMEOUT giro_absoluto_motor_derecho: faltaban %d grados" % error)
+                break
             
-            derivada = error - error_previo
-            turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
-            
-            # Decaimiento dinámico para amortiguar el freno del motor
-            min_speed_actual = min_speed if abs(error) > 8 else 0
-            
-            velocidad_aplicar = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
+            if desaceleracion is None:
+                # Control P clasico. Ojo: entre ~31 y ~8 grados de error el termino P
+                # vale menos que min_speed, asi que el piso pasa a ser la velocidad real
+                # y el giro se aplana. Por eso existe la rama de abajo.
+                derivada = error - error_previo
+                turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
+                min_speed_actual = min_speed if abs(error) > 8 else (config.PISO_VELOCIDAD_GIRO * factor_conversion)
+                velocidad_aplicar = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
+            else:
+                # Perfil de desaceleracion constante: omega = raiz(2 * alfa * error).
+                # Corre a fondo hasta el ultimo momento y baja en rampa lineal hasta
+                # clavar la meta, en vez de la cola exponencial que deja un control P.
+                omega = (2.0 * desaceleracion * abs(error)) ** 0.5
+                omega = max(omega, config.PISO_VELOCIDAD_GIRO)
+                velocidad_aplicar = min(omega * factor_conversion, max_speed)
+                if error < 0:
+                    velocidad_aplicar = -velocidad_aplicar
                 
             self.chasis.motor_derecha.run(-velocidad_aplicar)
             error_previo = error
@@ -291,7 +390,11 @@ class Navegacion:
         
         error_previo = 0
         
+        reloj_seg = StopWatch()
         while True:
+            if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT avanzar_manteniendo_rumbo")
+                break
             distancia_actual = abs(self.chasis.drive_base.distance() - dist_inicial)
             if distancia_actual >= max(1, distancia_mm_objetivo - margen_mm):
                 break
@@ -341,7 +444,11 @@ class Navegacion:
             
         self.chasis.drive_base.drive(velocidad_escaneo, 0)
         
+        reloj_seg = StopWatch()
         while True:
+            if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT avanzar_tiempo_luego_color")
+                break
             if self.detectar_color_preciso(sensor_color) == color_objetivo:
                 contador_color += 1
                 # Pedimos confirmaciones consecutivas para evitar falsos positivos
@@ -358,6 +465,9 @@ class Navegacion:
             
             # Mantiene el bucle de tracción activo para conservar la corrección del giroscopio
             while abs(self.chasis.drive_base.distance() - distancia_inicial) < distancia_mm_objetivo:
+                if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                    print("TIMEOUT avanzar_tiempo_luego_color (distancia extra)")
+                    break
                 if self.chasis.drive_base.stalled():
                     break
                 wait(5)
@@ -367,6 +477,91 @@ class Navegacion:
         else:
             self.chasis.drive_base.stop()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)  
+
+    def avanzar_distancia_luego_color(self, sensor_color, distancia_ciega_cm, color_objetivo,
+                                      distancia_maxima_cm, velocidad_alta=950, velocidad_escaneo=200,
+                                      distancia_extra_cm=0, lecturas_confirmacion=2, encadenado=False):
+        """
+        Avanza a ciegas una distancia y recien despues empieza a buscar un color.
+
+        Diferencia con avanzar_tiempo_luego_color: la fase ciega se mide por
+        distancia recorrida, no por tiempo. El tiempo se corre con la bateria;
+        la odometria no. Eso permite pasar de largo lineas intermedias sin
+        riesgo de falso positivo, y terminar el movimiento sobre una marca
+        fisica real en vez de sobre una distancia integrada mas deslizamiento.
+
+        distancia_maxima_cm es el tope de seguridad medido desde el arranque:
+        si el color no aparece antes, corta igual y devuelve False.
+
+        Devuelve True si encontro el color, False si corto por tope o timeout.
+        """
+        if abs(distancia_maxima_cm) <= abs(distancia_ciega_cm):
+            raise ValueError("distancia_maxima_cm tiene que ser mayor que distancia_ciega_cm")
+
+        signo = 1 if distancia_ciega_cm >= 0 else -1
+        ciega_mm = abs(distancia_ciega_cm) * 10
+        maxima_mm = abs(distancia_maxima_cm) * 10
+        extra_mm = abs(distancia_extra_cm) * 10
+
+        inicio = self.chasis.drive_base.distance()
+        reloj_seg = StopWatch()
+        contador_color = 0
+        encontrado = False
+
+        # Fase 1: a fondo y sin mirar el sensor. Ninguna linea intermedia puede
+        # confundir al robot porque directamente no se esta leyendo el color.
+        self.chasis.drive_base.drive(signo * abs(velocidad_alta), 0)
+        while abs(self.chasis.drive_base.distance() - inicio) < ciega_mm:
+            if self.chasis.drive_base.stalled():
+                break
+            if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT avanzar_distancia_luego_color (fase ciega)")
+                break
+            wait(5)
+
+        # Fase 2: busqueda del color, mas lento y con tope de seguridad.
+        self.chasis.drive_base.drive(signo * abs(velocidad_escaneo), 0)
+        while abs(self.chasis.drive_base.distance() - inicio) < maxima_mm:
+            if self.detectar_color_preciso(sensor_color) == color_objetivo:
+                contador_color += 1
+                if contador_color >= lecturas_confirmacion:
+                    encontrado = True
+                    break
+            else:
+                contador_color = 0
+
+            if self.chasis.drive_base.stalled():
+                break
+            if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT avanzar_distancia_luego_color (busqueda)")
+                break
+            # 10 ms y no 5: leer mas rapido que el refresco del sensor devuelve
+            # la misma muestra dos veces y las confirmaciones dejan de filtrar.
+            wait(10)
+
+        if not encontrado:
+            print("AVISO: %s no aparecio antes de %d cm" % (color_objetivo, distancia_maxima_cm))
+
+        # Fase 3: distancia extra, medida desde donde aparecio el color.
+        if extra_mm > 0:
+            marca = self.chasis.drive_base.distance()
+            while abs(self.chasis.drive_base.distance() - marca) < extra_mm:
+                if self.chasis.drive_base.stalled():
+                    break
+                if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                    break
+                wait(5)
+
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            # brake() y no stop(): este metodo existe para posicionar con
+            # precision, y coastear desde la velocidad de escaneo agrega
+            # un centimetro de deriva que no hace falta regalar.
+            self.chasis.drive_base.brake()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
+
+        return encontrado
 
     def seguidor_linea_cruces(self, sensor_color, velocidad_max, cruces_objetivo, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, encadenado=False):
         """
@@ -389,6 +584,9 @@ class Navegacion:
         cronometro.resume()
         
         while cruces_detectados < cruces_objetivo:
+            if cronometro.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT seguidor_linea_cruces")
+                break
             t = cronometro.time()
             velocidad_actual = 25 if t < tiempo_acomodo_ms else velocidad_max
 
@@ -449,6 +647,9 @@ class Navegacion:
         cronometro.resume()
         
         while True:
+            if cronometro.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT seguidor_linea_cruces_y_distancia")
+                break
             # Medida global de grados para las distancias (inicial y extra)
             grados_recorridos_totales = (abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2
 
@@ -553,7 +754,11 @@ class Navegacion:
         x_act, y_act = 0.0, 0.0
         dist_previa = 0.0
         
+        reloj_seg = StopWatch()
         while True:
+            if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT curva_coordenada_local")
+                break
             # Integración de odometría diferencial
             dist_actual = self.chasis.drive_base.distance() - dist_inicial
             delta_dist = dist_actual - dist_previa
@@ -640,7 +845,11 @@ class Navegacion:
         if debug:
             print(f"--- ETAPA 2: Iniciando escaneo (Objetivo: {lineas_objetivo} líneas) ---")
         
+        reloj_seg = StopWatch()
         while contador_lineas < lineas_objetivo:
+            if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT avanzar_contando_lineas")
+                break
             color_actual = self.detectar_color_preciso(sensor_color)
             
             if color_actual == color_linea:
@@ -680,6 +889,9 @@ class Navegacion:
             distancia_mm_objetivo = distancia_extra_cm * 10.0
             
             while abs(self.chasis.drive_base.distance() - distancia_inicial) < distancia_mm_objetivo:
+                if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                    print("TIMEOUT avanzar_contando_lineas (distancia extra)")
+                    break
                 if self.chasis.drive_base.stalled():
                     if debug:
                         print("ALERTA: Robot atascado en distancia extra.")
