@@ -25,7 +25,7 @@ class ArmadorMosaicos:
         rutina_a_ejecutar = self.rutinas.get(numero_mosaico, self._armar_verde_verde)
         print(f"Ejecutando rutina de armado para mosaico: {numero_mosaico}")
         rutina_a_ejecutar()
-
+    
     # --- RUTINAS PRIVADAS ---
     def _armar_verde_verde(self):
         pass   
@@ -74,7 +74,7 @@ class ArmadorMosaicos:
 
         # Recoger dos bloques azules y dos amarillos
         self.robot.chasis.avanzar_recto(2, velocidad=1000, encadenado=True)
-        self.robot.navegacion.avanzar_contando_lineas(self.sensor_color, 1, Color.BLACK, distancia_extra_cm=14, encadenado=True, debug=False)
+        self.robot.navegacion.avanzar_contando_lineas(self.sensor_color, 1, Color.BLACK, distancia_extra_cm=13.8, encadenado=True, debug=False)
         self.robot.navegacion.giro_absoluto_pd(0)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(67, velocidad=1000)
         self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000)
@@ -92,47 +92,73 @@ class ArmadorMosaicos:
 
         # Agarrar dos bloques azules
         self.robot.garra_delantera.ir_a_porcentaje(0)
-        self.robot.chasis.avanzar_recto(-3)
+        self.robot.chasis.avanzar_recto(-2)
         self.robot.navegacion.giro_absoluto_pd(0)
         self.robot.chasis.avanzar_recto(35)
         self.robot.garra_delantera.ir_a_porcentaje(90)
         
         # Dejar dos bloques azules
         self.robot.navegacion.giro_absoluto_motor_derecho(90)
-        self.robot.chasis.avanzar_recto(19)
-        self.robot.navegacion.giro_absoluto_motor_izquierdo(185)
-        self.robot.navegacion.giro_absoluto_motor_derecho(180)
+        self.robot.chasis.avanzar_recto(17)
+        self.robot.navegacion.giro_absoluto_motor_izquierdo(180)
 
         # Juntar
         self.robot.garra_delantera.ir_a_porcentaje(50)
-        self.robot.chasis.avanzar_recto(-15)
+        self.robot.chasis.avanzar_recto(-25)
         self.robot.garra_delantera.ir_a_porcentaje(90)
-        self.robot.chasis.avanzar_recto(25)
-        self.robot.chasis.avanzar_recto(-2)
+        self.robot.chasis.avanzar_recto(35)
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
 
         # Dejar en matriz
         self.robot.garra_delantera.ir_a_porcentaje(0)
         self.robot.chasis.mover_motor_izquierdo(300)
-        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 0.2, Color.BLACK)
-        self.robot.chasis.mover_motor_derecho(300)
-        self.robot.navegacion.seguidor_linea_color(self.sensor_color, 60, Color.BLUE, lado="izquierda", tiempo_acomodo_ms=800, distancia_cm=3)
-        self.robot.navegacion.avanzar_manteniendo_rumbo(15, velocidad=300, angulo_objetivo=180)
-        self.robot.chasis.mover_motor_derecho(80)
-        self.robot.garra_delantera.bajar_al_tope(limite_potencia=30)
-        self.robot.garra_delantera.ir_a_porcentaje_pinza(75)
+        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 0.2, Color.BLACK, distancia_extra_cm=6)
+        self.robot.navegacion.giro_absoluto_pd(180)
+        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, tiempo_ciego_s=0, color_objetivo=Color.BLUE)
+        self.robot.navegacion.giro_absoluto_pd(180)
+        self.robot.chasis.avanzar_recto(20)
+        self.robot.garra_delantera.ir_a_porcentaje(70)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(70)
         
         # Sacudir uwu
-        self.__sacudir()
+        #self.__sacudir()
 
-        # Recoger dos amarillos en medio
+        # Acomodarse para amarillos
         self.robot.garra_delantera.ir_a_porcentaje(0)
-        self.robot.chasis.avanzar_recto(-20)
-        self.robot.navegacion.giro_absoluto_pd(277)
-        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 1, Color.BLACK, distancia_extra_cm=3)
-        self.robot.navegacion.giro_absoluto_pd(270)
-        self.robot.garra_delantera.ir_a_porcentaje(80)
+        self.robot.chasis.avanzar_recto(-30)
+        self.robot.navegacion.giro_absoluto_pd(320)
+        self.robot.chasis.avanzar_recto(38)
+        self.robot.navegacion.giro_absoluto_pd(0)
+
+        # Recoger amarillos
+        self.robot.garra_delantera.ir_a_porcentaje(90)
+        self.robot.chasis.avanzar_recto(8)
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
+        self.robot.garra_delantera.ir_a_porcentaje(0)
+        
+        self.robot.chasis.giro_preciso(90)
+        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 0, Color.WHITE, distancia_extra_cm=2)
+        self.robot.navegacion.giro_absoluto_pd(180)
+        self.robot.garra_delantera.ir_a_porcentaje(100)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(67)
+        self.robot.garra_delantera.ir_a_porcentaje(20)
+
+        self.robot.chasis.avanzar_recto(-5)
+        self.robot.navegacion.giro_absoluto_pd(358)
+        self.robot.garra_delantera.ir_a_porcentaje(90)
+        self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
+        self.robot.chasis.avanzar_recto(-10)
+        self.robot.garra_delantera.abrir_al_tope(limite_potencia=100)
+        self.robot.garra_delantera.ir_a_porcentaje(0)
+        self.robot.chasis.avanzar_recto(14, velocidad=1000)
+        
+        self.robot.navegacion.giro_preciso_pd(38)
+        self.robot.chasis.avanzar_recto(9)
+        self.robot.garra_delantera.ir_a_porcentaje(90)
+
+        self.robot.navegacion.giro_absoluto_pd(280)
+        self.robot.garra_delantera.ir_a_porcentaje(0)
+        self.robot.chasis.avanzar_recto(20)
 
     def _armar_amarillo(self):
         pass
@@ -141,9 +167,9 @@ class ArmadorMosaicos:
         pass
     
     def __sacudir(self):
-        self.robot.garra_delantera.bajar_al_tope(limite_potencia=10, frenado=Stop.COAST)
-        self.robot.chasis.sacudir(iteraciones=6, potencia=100, tiempo_ms=80)
-        self.robot.garra_delantera.ir_a_porcentaje(70)
-        self.robot.garra_delantera.ir_a_porcentaje_pinza(90)
-        self.robot.garra_delantera.bajar_al_tope(limite_potencia=30, frenado=Stop.COAST)
-        self.robot.chasis.sacudir(iteraciones=8, potencia=80, tiempo_ms=50)
+        self.robot.garra_delantera.ir_a_porcentaje(85)
+        self.robot.chasis.sacudir(iteraciones=6, potencia=60, tiempo_ms=100)
+        # self.robot.garra_delantera.ir_a_porcentaje(70)
+        # self.robot.garra_delantera.ir_a_porcentaje_pinza(90)
+        # self.robot.garra_delantera.bajar_al_tope(limite_potencia=30, frenado=Stop.COAST)
+        # self.robot.chasis.sacudir(iteraciones=8, potencia=80, tiempo_ms=50)
