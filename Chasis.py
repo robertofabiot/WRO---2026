@@ -330,13 +330,15 @@ class Chasis:
         if voltaje_actual == 0: return potencia_deseada
         return max(-100, min(100, potencia_deseada * (8000 / voltaje_actual)))
 
-    def avanzar_y_accionar_en_recorrido(self, distancia_total_cm, distancia_accion_cm, accion_callback, frenado=Stop.BRAKE, margen_cm=0, encadenado=False):
+    def avanzar_y_accionar_en_recorrido(self, distancia_total_cm, distancia_accion_cm, accion_callback, 
+                                        frenado=Stop.BRAKE, margen_cm=0, encadenado=False,
+                                        accion_sec_callback=None, delay_sec_ms=0):
         """
-        Avanza (o retrocede) una distancia total y ejecuta una función (callback) 
-        al alcanzar un centímetro específico sin detener el movimiento del chasis.
+        Avanza (o retrocede) una distancia total y ejecuta una función (callback).
+        Opcionalmente ejecuta una segunda función después de un delay en milisegundos, 
+        sin detener la lectura de los sensores.
         """
         distancia_total_mm = distancia_total_cm * 10
-        # Usamos valor absoluto para soportar recorridos en reversa (distancia_total_cm negativo)
         distancia_accion_mm = abs(distancia_accion_cm * 10) 
         margen_mm = abs(margen_cm * 10)
 
@@ -345,7 +347,12 @@ class Chasis:
 
         dist_inicial = self.drive_base.distance()
         meta_mm = abs(distancia_total_mm)
+        
+        # Variables de control de estado
         accion_ejecutada = False
+        # Si no hay accion secundaria, la marcamos como ejecutada desde el inicio
+        accion_secundaria_ejecutada = False if accion_sec_callback else True
+        tiempo_accion_1 = 0
 
         self.drive_base.straight(distancia_total_mm, then=frenado, wait=False)
 
@@ -354,24 +361,42 @@ class Chasis:
             if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
                 print("TIMEOUT avanzar_y_accionar_en_recorrido")
                 break
+                
             dist_actual = abs(self.drive_base.distance() - dist_inicial)
 
+            # 1. Se ejecuta la primera acción al llegar a la distancia
             if not accion_ejecutada and dist_actual >= distancia_accion_mm:
                 accion_callback()
                 accion_ejecutada = True
+                tiempo_accion_1 = reloj_seg.time() # Guardamos en qué momento exacto se ejecutó
 
+            # 2. Se evalúa si ya pasó el tiempo para la segunda acción
+            if accion_ejecutada and not accion_secundaria_ejecutada:
+                if (reloj_seg.time() - tiempo_accion_1) >= delay_sec_ms:
+                    accion_sec_callback()
+                    accion_secundaria_ejecutada = True
+
+            # 3. Condiciones de salida del bucle
             if dist_actual >= (meta_mm - margen_mm):
                 break
 
             if self.drive_base.stalled():
                 break
 
-            wait(2) # Micro-pausa para no saturar el procesador del hub
+            wait(2) # Micro-pausa
 
         if encadenado:
             self._terminar_movimiento_encadenado()
         else:
             Utils.emitir_sonido_confirmacion(self.hub)
+            
+        # CASO EXTREMO: Si el robot terminó su recorrido ANTES de que el contador del delay
+        # llegara a su fin, esperamos lo que falta y ejecutamos la acción secundaria.
+        if accion_ejecutada and not accion_secundaria_ejecutada:
+            tiempo_faltante = delay_sec_ms - (reloj_seg.time() - tiempo_accion_1)
+            if tiempo_faltante > 0:
+                wait(tiempo_faltante) # Aquí sí es seguro usar wait porque el chasis ya se detuvo
+            accion_sec_callback()
     
     def avanzar_indefinido(self, velocidad=None):
         """
