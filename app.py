@@ -1,11 +1,9 @@
 from pybricks.pupdevices import ColorSensor
-from pybricks.tools import wait
 import config
 from robot import Robot
 from ArmadorMosaicos import ArmadorMosaicos
 from RevisadorBateria import RevisadorBateria
 from Misiones import Misiones
-import Utils
 
 mi_robot = Robot(
     port_izq=config.PORT_MOTOR_IZQ, 
@@ -27,22 +25,19 @@ if __name__ == "__main__":
     else:
         # --- ZONA DE PRUEBAS: Descomenta la misión que quieras ejecutar ---
         # mi_robot.garra_trasera.establecer_cero()
-        # misiones.agarrar_bloques_blancos()
+
+        # misiones.cemento_y_llana()
+        # misiones.recoger_pala()
+        # misiones.dejar_cemento()
+        # misiones.recoger_verdes()
 
         # numero_mosaico = misiones.detectar_mosaico()
 
-        # misiones.dejar_bloques_blancos()
-        # misiones.agarrar_bloques_verdes()
+        # misiones.dejar_verdes()
+        # misiones.agarrar_amarillos()
+        # misiones.agarrar_azules()
+        # misiones.dejar_amarillos()
+        # misiones.dejar_pala()
 
-        # misiones.dejar_bloques_verdes()
-        # misiones.agarrar_bloques_amarillos()
-        
-        # misiones.dejar_bloques_amarillos()
-
-        # misiones.cemento_y_llana()
-        # misiones.agarrar_bloques_azules()
-        
-        # misiones.dejar_bloques_azules_y_pala()
-    
         # Para la corrida completa: usa la variable devuelta por detectar_mosaico()
         armador.armar(numero_mosaico = 3)
