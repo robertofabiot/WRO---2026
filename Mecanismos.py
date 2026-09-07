@@ -56,19 +56,53 @@ class Garra:
         return self.motor.run_until_stalled(vel_real, then=frenado, duty_limit=limite_potencia)
 
     def subir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        """Sube esa cantidad de grados. Ver mover()."""
+        """Sube esa cantidad de grados.
+
+        Argumentos:
+            grados: angulo a subir en grados (positivo).
+            velocidad: grados/s.
+            wait_after: True bloquea hasta terminar el movimiento.
+            frenado: modo de frenado de Pybricks al llegar.
+            margen_grados: corta la espera esa cantidad de grados antes de la
+                meta. 0 espera el movimiento completo.
+        """
         self.mover(-abs(grados), velocidad, wait_after, frenado, margen_grados)
 
     def bajar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        """Baja esa cantidad de grados. Ver mover()."""
+        """Baja esa cantidad de grados.
+
+        Argumentos:
+            grados: angulo a bajar en grados (positivo).
+            velocidad: grados/s.
+            wait_after: True bloquea hasta terminar el movimiento.
+            frenado: modo de frenado de Pybricks al llegar.
+            margen_grados: corta la espera esa cantidad de grados antes de la
+                meta. 0 espera el movimiento completo.
+        """
         self.mover(abs(grados), velocidad, wait_after, frenado, margen_grados)
 
     def subir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
-        """Sube hasta el tope fisico. Ver llevar_al_tope()."""
+        """Sube hasta el tope fisico.
+
+        Argumentos:
+            velocidad: grados/s.
+            limite_potencia: tope de duty-cycle (0-100).
+            frenado: modo de frenado de Pybricks al trabarse.
+
+        Devuelve el angulo en el que quedo trabado el motor.
+        """
         return self.llevar_al_tope("negativo", velocidad, limite_potencia, frenado)
 
     def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
-        """Baja hasta el tope fisico. Ver llevar_al_tope()."""
+        """Baja hasta el tope fisico.
+
+        Argumentos:
+            velocidad: grados/s.
+            limite_potencia: tope de duty-cycle (0-100).
+            frenado: modo de frenado de Pybricks al trabarse.
+
+        Devuelve el angulo en el que quedo trabado el motor.
+        """
         return self.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
 
 class GarraDelantera(Garra):
@@ -93,26 +127,62 @@ class GarraDelantera(Garra):
         self.pinza.rango_maximo = rango_maximo_pinza
 
     def mover_pinza(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        """Mueve la pinza una cantidad de grados relativa. Ver Garra.mover()."""
+        """Mueve la pinza una cantidad de grados relativa.
+
+        Argumentos:
+            grados: giro del motor de la pinza en grados, con signo.
+            velocidad: grados/s.
+            wait_after: True bloquea hasta terminar el movimiento.
+            frenado: modo de frenado de Pybricks al llegar.
+            margen_grados: corta la espera esa cantidad de grados antes de la meta.
+        """
         self.pinza.mover(grados, velocidad, wait_after, frenado, margen_grados)
 
     def abrir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        """Abre la pinza esa cantidad de grados. Ver Garra.mover()."""
+        """Abre la pinza esa cantidad de grados.
+
+        Argumentos:
+            grados: angulo de apertura en grados (positivo).
+            velocidad: grados/s.
+            wait_after: True bloquea hasta terminar el movimiento.
+            frenado: modo de frenado de Pybricks al llegar.
+            margen_grados: corta la espera esa cantidad de grados antes de la meta.
+        """
         self.mover_pinza(-abs(grados), velocidad, wait_after, frenado, margen_grados)
 
     def cerrar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        """Cierra la pinza esa cantidad de grados. Ver Garra.mover()."""
+        """Cierra la pinza esa cantidad de grados.
+
+        Argumentos:
+            grados: angulo de cierre en grados (positivo).
+            velocidad: grados/s.
+            wait_after: True bloquea hasta terminar el movimiento.
+            frenado: modo de frenado de Pybricks al llegar.
+            margen_grados: corta la espera esa cantidad de grados antes de la meta.
+        """
         self.mover_pinza(abs(grados), velocidad, wait_after, frenado, margen_grados)
 
     def abrir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
-        """Abre la pinza hasta su tope fisico. Ver llevar_al_tope()."""
+        """Abre la pinza hasta su tope fisico.
+
+        Argumentos:
+            velocidad: grados/s.
+            limite_potencia: tope de duty-cycle (0-100).
+            frenado: modo de frenado de Pybricks al trabarse.
+
+        Devuelve el angulo en el que quedo trabado el motor.
+        """
         return self.pinza.llevar_al_tope("negativo", velocidad, limite_potencia, frenado)
 
     def cerrar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
         """Cierra la pinza hasta trabarse, tipicamente contra la pieza.
 
-        Es la forma de agarrar piezas de ancho variable sin calibrar nada.
-        Ver llevar_al_tope() por los argumentos.
+        Argumentos:
+            velocidad: grados/s.
+            limite_potencia: tope de duty-cycle (0-100) para regular el agarre.
+            frenado: modo de frenado de Pybricks al trabarse.
+
+        Devuelve el angulo en el que quedo trabado el motor.
         """
         return self.pinza.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
 
@@ -242,17 +312,49 @@ class GarraTrasera(Garra):
         )
 
     def subir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        """Sube la jaula esa cantidad de grados. Ver Garra.mover()."""
+        """Sube la jaula esa cantidad de grados.
+
+        Argumentos:
+            grados: angulo a subir en grados (positivo).
+            velocidad: grados/s.
+            wait_after: True bloquea hasta terminar el movimiento.
+            frenado: modo de frenado de Pybricks al llegar.
+            margen_grados: corta la espera esa cantidad de grados antes de la meta.
+        """
         super().bajar(grados, velocidad, wait_after, frenado, margen_grados)
 
     def bajar(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        """Baja la jaula esa cantidad de grados. Ver Garra.mover()."""
+        """Baja la jaula esa cantidad de grados.
+
+        Argumentos:
+            grados: angulo a bajar en grados (positivo).
+            velocidad: grados/s.
+            wait_after: True bloquea hasta terminar el movimiento.
+            frenado: modo de frenado de Pybricks al llegar.
+            margen_grados: corta la espera esa cantidad de grados antes de la meta.
+        """
         super().subir(grados, velocidad, wait_after, frenado, margen_grados)
 
     def subir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
-        """Sube la jaula hasta su tope fisico. Ver llevar_al_tope()."""
+        """Sube la jaula hasta su tope fisico.
+
+        Argumentos:
+            velocidad: grados/s.
+            limite_potencia: tope de duty-cycle (0-100).
+            frenado: modo de frenado de Pybricks al trabarse.
+
+        Devuelve el angulo en el que quedo trabado el motor.
+        """
         return super().bajar_al_tope(velocidad, limite_potencia, frenado)
 
     def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
-        """Baja la jaula hasta su tope fisico. Ver llevar_al_tope()."""
+        """Baja la jaula hasta su tope fisico.
+
+        Argumentos:
+            velocidad: grados/s.
+            limite_potencia: tope de duty-cycle (0-100).
+            frenado: modo de frenado de Pybricks al trabarse.
+
+        Devuelve el angulo en el que quedo trabado el motor.
+        """
         return super().subir_al_tope(velocidad, limite_potencia, frenado)
