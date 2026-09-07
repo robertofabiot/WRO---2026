@@ -20,7 +20,7 @@ class Misiones:
         self.robot = robot
         self.sensor = sensor_frente
 
-    def _identificar_combinacion(self, distancia_si_verde):
+    def _identificar_combinacion(self, distancia_verificacion_cm):
         """Lee el mosaico que toca armar y devuelve su numero.
 
         La tabla esta en config.MOSAICOS. El verde aparece en dos mosaicos
@@ -28,7 +28,7 @@ class Misiones:
         de al lado para desempatar, y despues volver.
 
         Argumentos:
-            distancia_si_verde: centimetros a avanzar para leer la segunda
+            distancia_verificacion_cm: centimetros a avanzar para leer la segunda
                 celda cuando la primera sale verde.
 
         Devuelve el numero de mosaico (1 a 5), o -1 si la lectura no cierra.
@@ -40,11 +40,11 @@ class Misiones:
         decision = config.MOSAICOS[color_principal]
         
         if type(decision) is dict:
-            self.robot.chasis.avanzar_recto(distancia_si_verde)
+            self.robot.chasis.avanzar_recto(distancia_verificacion_cm)
             wait(50) # Micro-pausa para que el sensor lea sin vibraciones del motor
             color_anterior = self.sensor.color()
             
-            self.robot.chasis.avanzar_recto(-distancia_si_verde)
+            self.robot.chasis.avanzar_recto(-distancia_verificacion_cm)
             
             if color_anterior not in decision: 
                 return -1
@@ -52,26 +52,26 @@ class Misiones:
             
         return decision
 
-    def _recoger_con_jaula_trasera(self, distancia, wait_ms=200):
+    def _recoger_con_jaula_trasera(self, distancia_cm, tiempo_espera_ms=200):
         """Retrocede sobre las piezas y baja la jaula para encerrarlas.
 
         El chasis no espera terminar el retroceso: la jaula empieza a bajar en
         pleno movimiento.
 
         Argumentos:
-            distancia: centimetros a retroceder sobre las piezas.
-            wait_ms: cuanto esperar antes de bajar la jaula. Regula en que
-                punto del retroceso cae la jaula.
+            distancia_cm: centimetros a retroceder sobre las piezas.
+            tiempo_espera_ms: milisegundos a esperar antes de bajar la jaula.
+                Regula en que punto del retroceso cae la jaula.
         """
-        self.robot.chasis.avanzar_recto(-distancia, 1000, wait_after=False)
-        wait(wait_ms)
+        self.robot.chasis.avanzar_recto(-distancia_cm, 1000, wait_after=False)
+        wait(tiempo_espera_ms)
         self.robot.garra_trasera.ir_a_porcentaje(97, velocidad=600)
 
     def cemento_y_llana(self):
         """Agarra el cemento con la jaula trasera y deja la llana en su zona."""
         # Agarrar cemento
         self.robot.navegacion.giro_relativo(90, rueda_pivote="derecha", max_potencia=100, min_potencia=80, encadenado=True)
-        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 2, 0, distancia_inicial_cm=35, tiempo_acomodo_ms=0, encadenado=True)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 2, distancia_extra_cm=0, distancia_inicial_cm=35, tiempo_acomodo_ms=0, encadenado=True)
         self.robot.navegacion.giro_relativo(-90)
         self.robot.garra_trasera.ir_a_porcentaje(100, wait_after=False)
         self.robot.chasis.avanzar_recto(-10, encadenado=True)
@@ -110,7 +110,7 @@ class Misiones:
         self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, distancia_ciega_cm=0, color_objetivo=Color.WHITE, distancia_maxima_cm=10, velocidad_escaneo=900, encadenado=True)
         self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, distancia_ciega_cm=2, color_objetivo=Color.BLACK, distancia_maxima_cm=10, velocidad_escaneo=150, distancia_extra_cm=9)
         self.robot.navegacion.giro_relativo(-90)
-        self._recoger_con_jaula_trasera(65, wait_ms=800)
+        self._recoger_con_jaula_trasera(distancia_cm=65, tiempo_espera_ms=800)
         self.robot.chasis.cuadrar_contra_pared(tiempo_ms=200, potencia=100)
 
     def detectar_mosaico(self):
@@ -122,7 +122,7 @@ class Misiones:
         self.robot.navegacion.desplazar_lateral(-2.5, encadenado=True)
         self.robot.navegacion.giro_absoluto(0)
         self.robot.chasis.avanzar_recto(10)
-        return self._identificar_combinacion(5)
+        return self._identificar_combinacion(distancia_verificacion_cm=5)
     
     def dejar_verdes(self):
         """Deja los bloques verdes abriendo la jaula trasera en su zona."""
@@ -143,7 +143,7 @@ class Misiones:
         self.robot.navegacion.giro_absoluto(291)
         self.robot.chasis.avanzar_recto(62)
         self.robot.navegacion.giro_absoluto(0)
-        self._recoger_con_jaula_trasera(25, wait_ms=300)
+        self._recoger_con_jaula_trasera(distancia_cm=25, tiempo_espera_ms=300)
 
     def dejar_amarillos(self):
         """Deja los bloques amarillos en su zona siguiendo la linea de la izquierda."""
