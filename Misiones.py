@@ -78,7 +78,7 @@ class Misiones:
 
     def detectar_mosaico(self):
         self.robot.navegacion.seguidor_linea_color(self.sensor, 100, Color.GREEN, lado="derecha", tiempo_acomodo_ms=0, distancia_cm=70)
-        self.robot.navegacion.desplazamiento_lateral_turbo(-2.5, encadenado=True)
+        self.robot.navegacion.desplazar_lateral_turbo(-2.5, encadenado=True)
         self.robot.navegacion.giro_turbo(0)
         self.robot.chasis.avanzar_recto(10)
         return self._identificar_combinacion(self.sensor, 5)

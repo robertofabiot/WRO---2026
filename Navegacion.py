@@ -6,28 +6,7 @@ import config
 try:
     import math
 except ImportError:
-    try:
-        import umath as math
-    except ImportError:
-        math = None
-
-def _acos_safe(x):
-    if math is not None and hasattr(math, 'acos'):
-        return math.acos(x)
-    x = max(-1.0, min(1.0, float(x)))
-    neg = (x < 0)
-    x_abs = -x if neg else x
-    res = (1.0 - x_abs) ** 0.5 * (1.5707288 - 0.2121144 * x_abs + 0.0742610 * x_abs * x_abs - 0.0187293 * x_abs * x_abs * x_abs)
-    return 3.1415926535 - res if neg else res
-
-def _sin_safe(x):
-    if math is not None and hasattr(math, 'sin'):
-        return math.sin(x)
-    PI = 3.1415926535
-    TWO_PI = 6.283185307
-    x = (x + PI) % TWO_PI - PI
-    x2 = x * x
-    return x - (x * x2) / 6.0 + (x2 * x2 * x) / 120.0 - (x2 * x2 * x2 * x) / 5040.0
+    import umath as math
 
 
 class Navegacion:
@@ -74,38 +53,6 @@ class Navegacion:
             self.chasis._terminar_movimiento_encadenado()
         else:
             self.chasis.drive_base.stop()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
-
-    def giro_eje_puro(self, angulo_relativo, kp=3.5, kd=15.0, max_speed=600, min_speed=30, margen_grados=0, encadenado=False):
-        self.chasis.drive_base.stop()
-        if abs(angulo_relativo) < config.BANDA_MUERTA_GIRO:
-            return
-        angulo_meta = self.chasis.hub.imu.heading() + angulo_relativo
-        error_previo = 0
-        reloj = StopWatch()
-        while True:
-            error = angulo_meta - self.chasis.hub.imu.heading()
-            if abs(error) <= max(1, margen_grados): break
-            if reloj.time() > config.TIMEOUT_GIRO_MS:
-                print("TIMEOUT giro_eje_puro (error %d grados)" % error)
-                break
-            derivada = error - error_previo
-            magnitud = abs((error * kp) + (derivada * kd))
-            velocidad_giro = max(min_speed, min(magnitud, max_speed))
-            if error > 0:
-                self.chasis.motor_izquierda.run(velocidad_giro)
-                self.chasis.motor_derecha.run(-velocidad_giro)
-            else:
-                self.chasis.motor_izquierda.run(-velocidad_giro)
-                self.chasis.motor_derecha.run(velocidad_giro)
-            error_previo = error
-            wait(10)
-            
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.motor_izquierda.hold()
-            self.chasis.motor_derecha.hold()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
 
     def giro_absoluto_pd(self, angulo_objetivo, max_speed=800, min_speed=40, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False):
@@ -811,10 +758,6 @@ class Navegacion:
             nombre="giro_absoluto_motor_derecho_turbo"
         )
 
-    # Alias directos para conveniencia de sintaxis
-    giro_motor_izquierdo_turbo = giro_absoluto_motor_izquierdo_turbo
-    giro_motor_derecho_turbo = giro_absoluto_motor_derecho_turbo
-
     def desplazar_lateral_turbo(self, distancia_cm, max_potencia=85, min_potencia=32,
                                 kp=4.0, kd=6.0, tolerancia=1.5,
                                 compensar_avance=False, reversa=False, encadenado=False):
@@ -863,13 +806,13 @@ class Navegacion:
         # Cálculo trigonométrico: cos(alpha) = 1 - d/L
         cos_alpha = 1.0 - (d / ancho_via_cm)
         cos_alpha = max(-1.0, min(1.0, cos_alpha))
-        alpha_rad = _acos_safe(cos_alpha)
-        alpha_deg = alpha_rad * 180.0 / 3.1415926535
+        alpha_rad = math.acos(cos_alpha)
+        alpha_deg = alpha_rad * 180.0 / math.pi
 
         if alpha_deg < config.BANDA_MUERTA_GIRO:
             return 0.0, 0.0
 
-        delta_y_cm = ancho_via_cm * _sin_safe(alpha_rad)
+        delta_y_cm = ancho_via_cm * math.sin(alpha_rad)
         rumbo_inicial = self.chasis.hub.imu.heading()
 
         if distancia_cm < 0:
@@ -967,47 +910,6 @@ class Navegacion:
             self.chasis.avanzar_recto(avance_compensar, encadenado=encadenado)
 
         return alpha_deg, delta_y_cm
-
-    desplazamiento_lateral_turbo = desplazar_lateral_turbo
-
-
-
-    def seguidor_linea_distancia(self, sensor_color, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, margen_cm=0, encadenado=False):
-        grados_objetivo = (distancia_cm / (3.1416 * 5.6)) * 360
-        grados_objetivo_real = max(0, grados_objetivo - ((margen_cm / (3.1416 * 5.6)) * 360 if margen_cm > 0 else 0))
-        
-        self.chasis.motor_izquierda.reset_angle(0)
-        self.chasis.motor_derecha.reset_angle(0)
-        cronometro = StopWatch()
-        last_error = 0
-        multiplicador_lado = 1 if lado == "derecha" else -1
-        cronometro.reset()
-        cronometro.resume()
-        
-        while True:
-            if cronometro.time() > config.TIMEOUT_LAZO_MS:
-                print("TIMEOUT seguidor_linea_distancia")
-                break
-            if (abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2 >= grados_objetivo_real: break
-            t = cronometro.time()
-            velocidad_actual = 25 if t < tiempo_acomodo_ms else velocidad_max
-
-            error = sensor_color.reflection() - 35
-            correction = ((error * kp) + ((error - last_error) * kd)) * multiplicador_lado
-            velocidad_base = max(25, velocidad_actual - (abs(error) * k_freno))
-            
-            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base - correction))))
-            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base + correction))))
-            last_error = error
-            wait(1)
-            
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.motor_izquierda.stop()
-            self.chasis.motor_derecha.stop()
-            cronometro.pause()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
 
     def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo, lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None, lecturas_confirmacion=3, distancia_maxima_cm=None, encadenado=False):
         """
@@ -1533,120 +1435,6 @@ class Navegacion:
             self.chasis.motor_izquierda.stop()
             self.chasis.motor_derecha.stop()
             cronometro.pause()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
-
-    def curva_coordenada_local(self, x_cm, y_cm, velocidad=600, kp_giro=4.5, tolerancia_cm=1.0, encadenado=False):
-        """
-        Hace que el robot dibuje una curva fluida hacia el punto relativo (x_cm, y_cm).
-        Implementación 100% nativa sin depender del módulo 'math'.
-        x_cm: Distancia hacia adelante (positivo) o atrás (negativo).
-        y_cm: Desplazamiento lateral (positivo izquierda, negativo derecha).
-        """
-        PI = 3.14159265
-        HALF_PI = 1.57079632
-        TWO_PI = 6.28318530
-
-        def seno(a):
-            # Normaliza el ángulo entre -PI y PI
-            a = (a + PI) % TWO_PI - PI
-            a2 = a * a
-            # Serie de Taylor (grado 7) para altísima precisión en odometría
-            return a - (a * a2) / 6.0 + (a2 * a2 * a) / 120.0 - (a2 * a2 * a2 * a) / 5040.0
-
-        def coseno(a):
-            return seno(a + HALF_PI)
-
-        def atan2_aprox(y, x):
-            # Manejo de la singularidad x = 0
-            if x == 0:
-                return HALF_PI if y > 0 else (-HALF_PI if y < 0 else 0)
-            
-            z = y / x
-            # Aproximación polinomial racional (muy rápida para procesadores sin FPU fuerte)
-            # Calcula atan(z)
-            abs_z = z if z > 0 else -z
-            if abs_z <= 1:
-                atan = z / (1.0 + 0.28086 * z * z)
-            else:
-                inv_z = 1.0 / z
-                atan = HALF_PI - inv_z / (1.0 + 0.28086 * inv_z * inv_z)
-                if y < 0: 
-                    atan -= PI
-            
-            # Ajuste por cuadrantes
-            if x < 0:
-                if y >= 0:
-                    atan += PI
-                else:
-                    atan -= PI
-            return atan
-
-        # Conversión a milímetros
-        target_x = x_cm * 10.0
-        target_y = y_cm * 10.0
-        
-        # Registrar estado inicial
-        dist_inicial = self.chasis.drive_base.distance()
-        angulo_inicial = self.chasis.hub.imu.heading()
-        
-        x_act, y_act = 0.0, 0.0
-        dist_previa = 0.0
-        
-        reloj_seg = StopWatch()
-        while True:
-            if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
-                print("TIMEOUT curva_coordenada_local")
-                break
-            # Integración de odometría diferencial
-            dist_actual = self.chasis.drive_base.distance() - dist_inicial
-            delta_dist = dist_actual - dist_previa
-            
-            # Ángulo relativo actual (Conversión de grados a radianes manual)
-            angulo_relativo_rad = (self.chasis.hub.imu.heading() - angulo_inicial) * PI / 180.0
-            
-            # Proyección del movimiento
-            x_act += delta_dist * coseno(angulo_relativo_rad)
-            y_act += delta_dist * seno(angulo_relativo_rad)
-            dist_previa = dist_actual
-            
-            # Error hacia la coordenada objetivo
-            error_x = target_x - x_act
-            error_y = target_y - y_act
-            
-            # Pitágoras sin math.sqrt (usando exponente fraccionario)
-            distancia_restante = (error_x**2 + error_y**2) ** 0.5
-            
-            if distancia_restante <= (tolerancia_cm * 10.0):
-                break
-                
-            # Calcular el ángulo del vector objetivo
-            alfa_objetivo_rad = atan2_aprox(error_y, error_x)
-            error_angulo_rad = alfa_objetivo_rad - angulo_relativo_rad
-            
-            # Normalizar el ángulo entre -PI y PI (previene oscilaciones y bucles infinitos)
-            error_angulo_rad = (error_angulo_rad + PI) % TWO_PI - PI
-            
-            # Conversión de radianes a grados manual
-            error_angulo_grados = error_angulo_rad * 180.0 / PI
-            
-            # Control dinámico
-            velocidad_lineal = velocidad * coseno(error_angulo_rad)
-            
-            if x_cm < 0:
-                abs_velocidad = velocidad_lineal if velocidad_lineal > 0 else -velocidad_lineal
-                velocidad_lineal = -abs_velocidad
-            else:
-                velocidad_lineal = 50 if velocidad_lineal < 50 else velocidad_lineal
-                
-            turn_rate = error_angulo_grados * kp_giro
-            
-            self.chasis.drive_base.drive(velocidad_lineal, turn_rate)
-            wait(10)
-            
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.drive_base.stop()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
 
     def avanzar_contando_lineas(self, sensor_color, lineas_objetivo, color_linea, tiempo_ciego_s=0.0, distancia_extra_cm=0.0, velocidad=1000, velocidad_lenta=150, encadenado=False, debug=True):
