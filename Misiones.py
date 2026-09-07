@@ -1,8 +1,7 @@
-from pybricks.parameters import Stop, Color
+from pybricks.parameters import Color
 from pybricks.tools import wait
 import config
 from robot import Robot
-import Utils
 
 class Misiones:
     def __init__(self, robot : Robot, sensor_frente):
@@ -30,14 +29,10 @@ class Misiones:
             
         return decision
 
-    def __recoger_bloques(self, distancia, wait_ms=200, bajar=165):
+    def _recoger_con_jaula_trasera(self, distancia, wait_ms=200):
         self.robot.chasis.avanzar_recto(-distancia, 1000, wait_after=False)
         wait(wait_ms)
         self.robot.garra_trasera.ir_a_porcentaje(97, velocidad=600)
-
-    def _bajar_y_soltar_delantera(self):
-        self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000, wait_after=False)
-        self.robot.garra_delantera.ir_a_porcentaje_pinza(20, velocidad=1000, wait_after=False)
 
     def cemento_y_llana(self):
         # Agarrar cemento
@@ -78,7 +73,7 @@ class Misiones:
         self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, distancia_ciega_cm=0, color_objetivo=Color.WHITE, distancia_maxima_cm=10, velocidad_escaneo=900, encadenado=True)
         self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, distancia_ciega_cm=2, color_objetivo=Color.BLACK, distancia_maxima_cm=10, velocidad_escaneo=150, distancia_extra_cm=9)
         self.robot.navegacion.giro_relativo_turbo(-90)
-        self.__recoger_bloques(65, wait_ms=800)
+        self._recoger_con_jaula_trasera(65, wait_ms=800)
         self.robot.chasis.cuadrar_contra_pared(tiempo_ms=200, potencia=100)
 
     def detectar_mosaico(self):
@@ -104,7 +99,7 @@ class Misiones:
         self.robot.navegacion.giro_turbo(291)
         self.robot.chasis.avanzar_recto(62)
         self.robot.navegacion.giro_turbo(0)
-        self.__recoger_bloques(25, wait_ms=300)
+        self._recoger_con_jaula_trasera(25, wait_ms=300)
 
     def dejar_amarillos(self):
         self.robot.chasis.avanzar_recto(15)

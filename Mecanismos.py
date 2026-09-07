@@ -38,13 +38,6 @@ class Garra:
 
     def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
         return self.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
-    
-    def soltar(self):
-        """
-        Detiene el motor y lo libera (Coast). 
-        El motor dejará de hacer fuerza y se moverá libremente si se le aplica peso o fuerza externa.
-        """
-        self.motor.stop()
 
 class GarraDelantera(Garra):
     """

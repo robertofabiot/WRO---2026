@@ -1,4 +1,4 @@
-from pybricks.parameters import Color, Stop
+from pybricks.parameters import Color
 from robot import Robot
 from pybricks.tools import wait
 
@@ -180,11 +180,3 @@ class ArmadorMosaicos:
 
     def _armar_blanco(self):
         pass
-    
-    def __sacudir(self):
-        self.robot.garra_delantera.ir_a_porcentaje(85)
-        self.robot.chasis.sacudir(iteraciones=6, potencia=60, tiempo_ms=100)
-        # self.robot.garra_delantera.ir_a_porcentaje(70)
-        # self.robot.garra_delantera.ir_a_porcentaje_pinza(90)
-        # self.robot.garra_delantera.bajar_al_tope(limite_potencia=30, frenado=Stop.COAST)
-        # self.robot.chasis.sacudir(iteraciones=8, potencia=80, tiempo_ms=50)
