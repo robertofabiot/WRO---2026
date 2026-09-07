@@ -84,20 +84,6 @@ class Chasis:
         if not encadenado:
             Utils.emitir_sonido_confirmacion(self.hub)
     
-    def avance_milimetrico(self, milimetros, velocidad=400):
-        self.motor_izquierda.stop()
-        self.motor_derecha.stop()
-        wait(100) 
-        
-        circunferencia = config.DIAMETRO_RUEDA * 3.1416
-        grados_a_mover = (milimetros / circunferencia) * 360
-        
-        self.motor_izquierda.run_angle(velocidad, grados_a_mover, then=Stop.HOLD, wait=False)
-        self.motor_derecha.run_angle(velocidad, grados_a_mover, then=Stop.HOLD, wait=True)
-        
-        wait(50)
-        Utils.emitir_sonido_confirmacion(self.hub)
-
     def cuadrar_contra_pared(self, tiempo_ms=1000, potencia=30, angulo_referencia=0, reversa=True):
         self.drive_base.stop()
         potencia_aplicada = -potencia if reversa else potencia
@@ -112,97 +98,6 @@ class Chasis:
         
         Utils.emitir_sonido_confirmacion(self.hub)
     
-    def chocar_inteligente(self, distancia_acercamiento_cm, velocidad_acercamiento=800, potencia_choque=35, timeout_choque_ms=1500):
-        es_reversa = distancia_acercamiento_cm < 0
-        potencia_real = -abs(potencia_choque) if es_reversa else abs(potencia_choque)
-        
-        self.avanzar_recto(distancia_acercamiento_cm, velocidad=velocidad_acercamiento, wait_after=True)
-        self.avanzar_hasta_choque(potencia=potencia_real, umbral_velocidad=20, tiempo_arranque_ms=150, timeout_ms=timeout_choque_ms)
-        Utils.emitir_sonido_confirmacion(self.hub) 
-            
-    def mover_en_arco(self, radio_cm, angulo=None, velocidad=None, aceleracion=None, distancia_cm=None, stop=Stop.HOLD, wait_after=True, margen_grados=0, margen_cm=0, encadenado=False):
-        self._aplicar_velocidad(velocidad, aceleracion)
-        radio_mm = radio_cm * 10
-        distancia_mm = distancia_cm * 10 if distancia_cm is not None else None
-        if encadenado: stop = Stop.NONE
-
-        if wait_after and (margen_grados > 0 or margen_cm > 0):
-            self.drive_base.arc(radio_mm, angle=angulo, distance=distancia_mm, then=stop, wait=False)
-            
-            if distancia_cm is not None and margen_cm > 0:
-                dist_inicial = self.drive_base.distance()
-                margen_mm_real = abs(margen_cm * 10)
-                meta_mm = abs(distancia_mm)
-                reloj_seg = StopWatch()
-                while abs(self.drive_base.distance() - dist_inicial) < (meta_mm - margen_mm_real):
-                    if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
-                        print("TIMEOUT mover_en_arco (distancia)")
-                        break
-                    if self.drive_base.stalled(): break
-                    wait(2)
-                if encadenado: self._terminar_movimiento_encadenado()
-            elif angulo is not None and margen_grados > 0:
-                ang_inicial = self.drive_base.angle()
-                meta_ang = abs(angulo)
-                reloj_seg = StopWatch()
-                while abs(self.drive_base.angle() - ang_inicial) < (meta_ang - margen_grados):
-                    if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
-                        print("TIMEOUT mover_en_arco (angulo)")
-                        break
-                    if self.drive_base.stalled(): break
-                    wait(2)
-                if encadenado: self._terminar_movimiento_encadenado()
-        else:
-            self.drive_base.arc(radio_mm, angle=angulo, distance=distancia_mm, then=stop, wait=wait_after)
-            if wait_after and encadenado: self._terminar_movimiento_encadenado()
-            
-        if not encadenado: Utils.emitir_sonido_confirmacion(self.hub)
-
-    def girar_sobre_eje(self, grados, wait_after=True, margen_grados=0, encadenado=False):
-        if wait_after and margen_grados > 0:
-            angulo_inicial = self.drive_base.angle()
-            self.drive_base.turn(grados, wait=False)
-            reloj_seg = StopWatch()
-            while abs(self.drive_base.angle() - angulo_inicial) < (abs(grados) - margen_grados):
-                if reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
-                    print("TIMEOUT girar_sobre_eje")
-                    break
-                if self.drive_base.stalled(): break
-                wait(2)
-            if encadenado: self._terminar_movimiento_encadenado()
-        else:
-            self.drive_base.turn(grados, wait=wait_after)
-            if wait_after and encadenado: self._terminar_movimiento_encadenado()
-            
-        if not encadenado: Utils.emitir_sonido_confirmacion(self.hub)
-
-    def giro_preciso(self, angulo_objetivo, kp_nuevo=2.5, tolerancia=1, margen_grados=0, encadenado=False):
-        angulo_inicial = self.hub.imu.heading()
-        angulo_meta = angulo_inicial + angulo_objetivo
-        if abs(angulo_objetivo) < config.BANDA_MUERTA_GIRO:
-            return
-        kp = kp_nuevo
-        min_speed = 50 
-        reloj_seg = StopWatch()
-        while True:
-            angulo_actual = self.hub.imu.heading()
-            error = angulo_meta - angulo_actual
-            if abs(error) <= max(tolerancia, margen_grados):
-                break
-            if reloj_seg.time() > config.TIMEOUT_GIRO_MS:
-                print("TIMEOUT giro_preciso: faltaban %d grados" % error)
-                break
-            turn_rate = error * kp
-            turn_rate = max(turn_rate, min_speed) if turn_rate > 0 else min(turn_rate, -min_speed)
-            self.drive_base.drive(0, turn_rate)
-            wait(10)
-            
-        if encadenado:
-            self._terminar_movimiento_encadenado()
-        else:
-            self.drive_base.stop()
-            Utils.emitir_sonido_confirmacion(self.hub)
-
     def mover_motor_izquierdo(self, grados, velocidad=500, wait_after=True, frenado=Stop.HOLD, margen_grados=0, encadenado=False):
         if encadenado: frenado = Stop.NONE
         if wait_after and margen_grados > 0:
@@ -250,66 +145,6 @@ class Chasis:
                 wait(4)
                 self.motor_derecha.stop()
         if not encadenado: Utils.emitir_sonido_confirmacion(self.hub)
-
-    def avanzar_hasta_choque(self, potencia=100, umbral_velocidad=50, tiempo_arranque_ms=300, timeout_ms=None):
-        self.drive_base.stop() 
-        self.motor_izquierda.dc(potencia)
-        self.motor_derecha.dc(potencia)
-        wait(tiempo_arranque_ms)
-        
-        # Sin tope, si las ruedas patinan en el aire el bucle no sale nunca.
-        if timeout_ms is None:
-            timeout_ms = config.TIMEOUT_MOVIMIENTO_MS
-        reloj_seg = StopWatch()
-        paso_ms = 10 
-        
-        while True:
-            vel_izq = abs(self.motor_izquierda.speed())
-            vel_der = abs(self.motor_derecha.speed())
-            if vel_izq < umbral_velocidad and vel_der < umbral_velocidad:
-                break
-            if reloj_seg.time() >= timeout_ms:
-                print("TIMEOUT avanzar_hasta_choque")
-                break
-            wait(paso_ms)
-            
-        self.motor_izquierda.hold()
-        self.motor_derecha.hold()
-        Utils.emitir_sonido_confirmacion(self.hub)
-    
-    def latigazo(self, grados=45, velocidad=1000, wait_after=True, encadenado=False):
-        self.drive_base.stop()
-        
-        pos_izq_inicial = self.motor_izquierda.angle()
-        pos_der_inicial = self.motor_derecha.angle()
-        
-        grados_rueda = abs(grados * 3.0)
-        
-        dir_izq = 1 if grados > 0 else -1
-        dir_der = -1 if grados > 0 else 1
-        
-        self.motor_izquierda.run(velocidad * dir_izq)
-        self.motor_derecha.run(velocidad * dir_der)
-        
-        reloj_seg = StopWatch()
-        while abs(self.motor_izquierda.angle() - pos_izq_inicial) < grados_rueda:
-            if self.motor_izquierda.stalled() or reloj_seg.time() > config.TIMEOUT_MOVIMIENTO_MS:
-                print("TIMEOUT latigazo")
-                break
-            wait(1)
-            
-        self.motor_izquierda.run_target(velocidad, pos_izq_inicial, wait=False)
-        
-        # El motor derecho determina si bloqueamos la ejecución o seguimos adelante
-        self.motor_derecha.run_target(velocidad, pos_der_inicial, wait=wait_after)
-        
-        if wait_after:
-            if encadenado:
-                self._terminar_movimiento_encadenado()
-            else:
-                self.motor_izquierda.hold()
-                self.motor_derecha.hold()
-                Utils.emitir_sonido_confirmacion(self.hub)
 
     def sacudir(self, iteraciones=5, potencia=100, tiempo_ms=60):
         self.drive_base.stop() 
@@ -397,25 +232,3 @@ class Chasis:
             if tiempo_faltante > 0:
                 wait(tiempo_faltante) # Aquí sí es seguro usar wait porque el chasis ya se detuvo
             accion_sec_callback()
-    
-    def avanzar_indefinido(self, velocidad=None):
-        """
-        Inicia un avance recto indefinido y no bloqueante.
-        No usa 'encadenado' al final ni sonido porque la acción queda en segundo plano.
-        """
-        if velocidad is None:
-            velocidad = self.velocidad_base
-            
-        velocidad = max(min(velocidad, 976), -976)
-        self.drive_base.drive(velocidad, 0)
-
-    def detener(self, encadenado=False):
-        """
-        Detiene cualquier movimiento en progreso (como avanzar_indefinido).
-        Si encadenado=True, usa tu micro-freno pasivo en lugar de un freno en seco.
-        """
-        if encadenado:
-            self._terminar_movimiento_encadenado()
-        else:
-            self.drive_base.stop()
-            Utils.emitir_sonido_confirmacion(self.hub)
