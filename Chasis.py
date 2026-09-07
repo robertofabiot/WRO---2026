@@ -9,18 +9,18 @@ class Chasis:
     Los giros no viven aca: son de Navegacion, que trabaja contra el IMU.
     """
 
-    def __init__(self, drive_base, motor_izq, motor_der, hub, velocidad_base):
+    def __init__(self, drive_base, motor_izquierdo, motor_derecho, hub, velocidad_base):
         """
         Argumentos:
             drive_base: DriveBase de Pybricks, ya configurado con el giroscopio.
-            motor_izq, motor_der: motores de traccion.
+            motor_izquierdo, motor_derecho: motores de traccion.
             hub: PrimeHub, de donde salen el IMU, la bateria y el parlante.
             velocidad_base: velocidad en mm/s de los movimientos que no piden
                 una velocidad explicita.
         """
         self.drive_base = drive_base
-        self.motor_izquierda = motor_izq
-        self.motor_derecha = motor_der
+        self.motor_izquierda = motor_izquierdo
+        self.motor_derecha = motor_derecho
         self.hub = hub
         self.velocidad_base = velocidad_base
         # Ultimo (velocidad, aceleracion) aplicado al drive_base. Sirve para no
@@ -184,7 +184,14 @@ class Chasis:
     def mover_motor_izquierdo(self, grados, velocidad=500, wait_after=True, frenado=Stop.HOLD, margen_grados=0, encadenado=False):
         """Mueve solo el motor izquierdo, dejando el derecho libre.
 
-        Los argumentos son los de _mover_motor_traccion().
+        Argumentos:
+            grados: giro del motor en grados, con signo.
+            velocidad: velocidad en grados/s.
+            wait_after: True bloquea hasta terminar el movimiento.
+            frenado: modo de frenado de Pybricks al llegar a la meta.
+            margen_grados: corta la espera esa cantidad de grados antes de la
+                meta. 0 espera el recorrido completo.
+            encadenado: True reemplaza el frenado por micro-freno pasivo.
         """
         self._mover_motor_traccion(self.motor_izquierda, grados, velocidad,
                                    wait_after, frenado, margen_grados,
@@ -193,7 +200,14 @@ class Chasis:
     def mover_motor_derecho(self, grados, velocidad=800, wait_after=True, frenado=Stop.HOLD, margen_grados=0, encadenado=False):
         """Mueve solo el motor derecho, dejando el izquierdo libre.
 
-        Los argumentos son los de _mover_motor_traccion().
+        Argumentos:
+            grados: giro del motor en grados, con signo.
+            velocidad: velocidad en grados/s.
+            wait_after: True bloquea hasta terminar el movimiento.
+            frenado: modo de frenado de Pybricks al llegar a la meta.
+            margen_grados: corta la espera esa cantidad de grados antes de la
+                meta. 0 espera el recorrido completo.
+            encadenado: True reemplaza el frenado por micro-freno pasivo.
         """
         self._mover_motor_traccion(self.motor_derecha, grados, velocidad,
                                    wait_after, frenado, margen_grados,
