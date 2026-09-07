@@ -131,7 +131,7 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(-30) 
         self.robot.navegacion.giro_absoluto(0)
         self.robot.garra_trasera.ir_a_porcentaje(0, wait_after=False)
-        self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor_color, 80, 1, 0, 10, lado="izquierda", tiempo_acomodo_ms=0)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor_color, 80, 1, 0, 10, lado="izquierda", tiempo_acomodo_ms=0)
         self.robot.navegacion.giro_relativo(-90, encadenado=True)
         self.robot.garra_trasera.ir_a_porcentaje(90, wait_after=False)
         self.robot.chasis.avanzar_recto(-32, velocidad=1000)

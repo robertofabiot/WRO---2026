@@ -37,7 +37,7 @@ class Misiones:
     def cemento_y_llana(self):
         # Agarrar cemento
         self.robot.navegacion.giro_relativo(90, rueda_pivote="derecha", max_potencia=100, min_potencia=80, encadenado=True)
-        self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor, 100, 2, 0, distancia_inicial_cm=35, tiempo_acomodo_ms=0, encadenado=True)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 2, 0, distancia_inicial_cm=35, tiempo_acomodo_ms=0, encadenado=True)
         self.robot.navegacion.giro_relativo(-90)
         self.robot.garra_trasera.ir_a_porcentaje(100, wait_after=False)
         self.robot.chasis.avanzar_recto(-10, encadenado=True)
@@ -106,7 +106,7 @@ class Misiones:
         self.robot.garra_delantera.ir_a_porcentaje(90, wait_after=False)
         self.robot.navegacion.desplazar_lateral(-15, encadenado=True)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(60, wait_after=False)
-        self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor, 100, 2, distancia_extra_cm=10, distancia_inicial_cm=10, lado="izquierda", tiempo_acomodo_ms=0)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 2, distancia_extra_cm=10, distancia_inicial_cm=10, lado="izquierda", tiempo_acomodo_ms=0)
         self.robot.garra_delantera.ir_a_porcentaje(0, wait_after=True)
         self.robot.navegacion.giro_absoluto(90)
         self.robot.chasis.avanzar_recto(20)

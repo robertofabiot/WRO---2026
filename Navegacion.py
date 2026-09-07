@@ -28,6 +28,20 @@ class Navegacion:
     TECHO_GIRO_CORTO = 48
     TECHO_GIRO_MEDIO = 68
 
+    # Setpoint de los seguidores de linea. El sensor va sobre el borde entre
+    # la linea negra y el piso claro, donde la reflexion queda a mitad de
+    # camino entre los dos.
+    REFLEXION_BORDE = 35
+
+    # Umbrales de flanco para contar lineas negras cruzadas. La histeresis
+    # entre entrada y salida evita contar dos veces la misma linea.
+    UMBRAL_LINEA_NEGRA = 15
+    UMBRAL_SALIDA_LINEA = 25
+
+    # Piso de duty-cycle de los seguidores. Es tambien la velocidad del
+    # arranque lento con el que se enganchan a la linea.
+    VELOCIDAD_MINIMA_SEGUIDOR = 25
+
     def __init__(self, chasis):
         """
         Argumentos:
@@ -53,6 +67,15 @@ class Navegacion:
             if h < 95 or h > 310: return Color.YELLOW
             elif h < 185: return Color.GREEN
             else: return Color.BLUE
+
+    def _grados_rueda(self, distancia_cm):
+        """Convierte una distancia en centimetros a grados de la rueda.
+
+        Argumentos:
+            distancia_cm: distancia a recorrer, medida sobre el piso.
+        """
+        circunferencia_cm = (config.DIAMETRO_RUEDA / 10.0) * 3.1416
+        return (distancia_cm / circunferencia_cm) * 360
 
     def _preparar_giro(self, rueda_pivote):
         """Deja el chasis quieto y trabado antes de leer el rumbo.
@@ -406,70 +429,41 @@ class Navegacion:
 
         return alpha_deg, delta_y_cm
 
-    def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo, lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None, lecturas_confirmacion=3, distancia_maxima_cm=None, encadenado=False):
+    def _paso_seguidor_linea(self, reflexion, velocidad_actual, error_previo,
+                             multiplicador_lado, kp, kd, k_freno):
+        """Aplica un paso del lazo PD que sigue el borde de la linea.
+
+        Argumentos:
+            reflexion: lectura de reflexion del sensor en este paso.
+            velocidad_actual: duty-cycle de crucero pedido para este paso.
+            error_previo: error del paso anterior, para la derivada.
+            multiplicador_lado: 1 si la linea queda a la derecha del sensor,
+                -1 si queda a la izquierda.
+            kp, kd: ganancias del PD sobre la reflexion.
+            k_freno: cuanto se frena el avance por cada punto de error.
+                Frenar en las curvas evita que el robot se salga de la linea.
+
+        Devuelve el error de este paso, para encadenarlo con el siguiente.
         """
-        Sigue la linea hasta ver un color.
+        error = reflexion - self.REFLEXION_BORDE
+        correccion = ((error * kp) + ((error - error_previo) * kd)) * multiplicador_lado
+        velocidad_base = max(self.VELOCIDAD_MINIMA_SEGUIDOR,
+                             velocidad_actual - (abs(error) * k_freno))
 
-        distancia_cm es la distancia ESPERADA hasta el color: el seguidor va
-        frenando a medida que se acerca a ese punto, para llegar despacio y
-        leer el color con precision. No corta el recorrido.
+        self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(
+            max(-100, min(100, velocidad_base - correccion))))
+        self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(
+            max(-100, min(100, velocidad_base + correccion))))
+        return error
 
-        distancia_maxima_cm si corta: es el tope duro de seguridad. Si el color
-        no aparece antes, el metodo se detiene igual y avisa por consola.
+    def _terminar_seguidor(self, encadenado, cronometro):
+        """Cierra un seguidor de linea.
+
+        Argumentos:
+            encadenado: True usa el micro-freno pasivo para enlazar el
+                movimiento siguiente; False suelta los motores y confirma.
+            cronometro: StopWatch del lazo, se pausa al terminar.
         """
-        cronometro = StopWatch()
-        velocidad_max = min(velocidad_max, 70) if distancia_cm is None else velocidad_max
-        last_error, contador_color = 0, 0
-        multiplicador_lado = 1 if lado == "derecha" else -1
-        
-        grados_maximos = ((distancia_maxima_cm / (3.1416 * 5.6)) * 360
-                          if distancia_maxima_cm is not None else None)
-        grados_objetivo = None
-        if distancia_cm is not None:
-            grados_objetivo = (distancia_cm / (3.1416 * 5.6)) * 360
-            velocidad_enfoque = min(50, velocidad_max)
-            self.chasis.motor_izquierda.reset_angle(0)
-            self.chasis.motor_derecha.reset_angle(0)
-            
-        cronometro.reset()
-        cronometro.resume()
-        
-        while True:
-            if cronometro.time() > config.TIMEOUT_LAZO_MS:
-                print("TIMEOUT seguidor_linea_color")
-                break
-            if self.detectar_color_preciso(sensor_color) == color_objetivo:
-                contador_color += 1
-                if contador_color >= lecturas_confirmacion: break 
-            else:
-                contador_color = 0 
-                
-            velocidad_actual = 25 if cronometro.time() < tiempo_acomodo_ms else velocidad_max
-
-            if grados_objetivo is not None:
-                recorrido = (abs(self.chasis.motor_izquierda.angle())
-                             + abs(self.chasis.motor_derecha.angle())) / 2
-
-                # Tope duro: el color no aparecio donde tenia que aparecer.
-                if grados_maximos is not None and recorrido >= grados_maximos:
-                    print("AVISO seguidor_linea_color: no aparecio el color en %d cm" % distancia_maxima_cm)
-                    break
-
-                # Rampa: llegar despacio al punto esperado mejora la lectura del color.
-                progreso = min(1.0, recorrido / grados_objetivo)
-                velocidad_actual = min(velocidad_actual,
-                                       max(velocidad_enfoque,
-                                           velocidad_max - (velocidad_max - velocidad_enfoque) * progreso))
-                
-            error = sensor_color.reflection() - 35
-            correction = ((error * 0.85) + ((error - last_error) * 2.5)) * multiplicador_lado
-            velocidad_base = max(25, velocidad_actual - (abs(error) * 0.6)) 
-            
-            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base - correction))))
-            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base + correction))))
-            last_error = error
-            wait(1)
-            
         if encadenado:
             self.chasis._terminar_movimiento_encadenado()
         else:
@@ -477,7 +471,97 @@ class Navegacion:
             self.chasis.motor_derecha.stop()
             cronometro.pause()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
-    
+
+    def _grados_recorridos(self):
+        """Grados promedio que llevan girados los dos motores de traccion.
+
+        Se mide contra el ultimo reset_angle(0), no contra el arranque del
+        programa.
+        """
+        return (abs(self.chasis.motor_izquierda.angle())
+                + abs(self.chasis.motor_derecha.angle())) / 2
+
+    def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo,
+                             lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None,
+                             lecturas_confirmacion=3, distancia_maxima_cm=None,
+                             kp=0.85, kd=2.5, k_freno=0.6, encadenado=False):
+        """Sigue el borde de la linea hasta que el sensor vea un color.
+
+        Argumentos:
+            sensor_color: sensor que sigue el borde y busca el color.
+            velocidad_max: duty-cycle de crucero, 0-100. Sin distancia_cm se
+                acota a 70: sin rampa de frenado no hay margen para leer bien
+                el color a mas velocidad.
+            color_objetivo: color de Pybricks que corta el recorrido.
+            lado: "derecha" o "izquierda", de que lado del sensor va la linea.
+            tiempo_acomodo_ms: arranque lento para que el robot se enganche a
+                la linea antes de acelerar.
+            distancia_cm: distancia ESPERADA hasta el color. No corta nada: es
+                el punto al que el seguidor llega ya frenado, para leer el
+                color con precision.
+            lecturas_confirmacion: lecturas seguidas del color que se exigen
+                antes de dar el corte por bueno.
+            distancia_maxima_cm: tope duro de seguridad. Si el color no
+                aparecio antes, corta igual y avisa por consola.
+            kp, kd: ganancias del PD sobre la reflexion.
+            k_freno: cuanto se frena el avance por cada punto de error.
+            encadenado: True frena con el micro-freno pasivo.
+        """
+        velocidad_max = min(velocidad_max, 70) if distancia_cm is None else velocidad_max
+        multiplicador_lado = 1 if lado == "derecha" else -1
+        error_previo, contador_color = 0, 0
+
+        grados_objetivo = self._grados_rueda(distancia_cm) if distancia_cm is not None else None
+        grados_maximos = self._grados_rueda(distancia_maxima_cm) if distancia_maxima_cm is not None else None
+        velocidad_enfoque = min(50, velocidad_max)
+
+        if grados_objetivo is not None or grados_maximos is not None:
+            self.chasis.motor_izquierda.reset_angle(0)
+            self.chasis.motor_derecha.reset_angle(0)
+
+        cronometro = StopWatch()
+        cronometro.reset()
+        cronometro.resume()
+
+        while True:
+            if cronometro.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT seguidor_linea_color")
+                break
+
+            if self.detectar_color_preciso(sensor_color) == color_objetivo:
+                contador_color += 1
+                if contador_color >= lecturas_confirmacion:
+                    break
+            else:
+                contador_color = 0
+
+            velocidad_actual = (self.VELOCIDAD_MINIMA_SEGUIDOR
+                                if cronometro.time() < tiempo_acomodo_ms
+                                else velocidad_max)
+
+            if grados_objetivo is not None or grados_maximos is not None:
+                recorrido = self._grados_recorridos()
+
+                if grados_maximos is not None and recorrido >= grados_maximos:
+                    print("AVISO seguidor_linea_color: no aparecio el color en %d cm"
+                          % distancia_maxima_cm)
+                    break
+
+                # Rampa de frenado: llegar despacio al punto esperado es lo
+                # que permite leer el color sin pasarse.
+                if grados_objetivo is not None:
+                    progreso = min(1.0, recorrido / grados_objetivo)
+                    velocidad_actual = min(velocidad_actual,
+                                           max(velocidad_enfoque,
+                                               velocidad_max - (velocidad_max - velocidad_enfoque) * progreso))
+
+            error_previo = self._paso_seguidor_linea(sensor_color.reflection(),
+                                                     velocidad_actual, error_previo,
+                                                     multiplicador_lado, kp, kd, k_freno)
+            wait(1)
+
+        self._terminar_seguidor(encadenado, cronometro)
+
     def avanzar_manteniendo_rumbo(self, distancia_cm, velocidad=800, angulo_objetivo=None, kp=2.5, kd=10.0, margen_cm=0, encadenado=False):
         """
         Avanza una distancia manteniendo un rumbo fijo usando un Controlador PD.
@@ -535,9 +619,6 @@ class Navegacion:
         luego reduce la velocidad abruptamente, avanza hasta detectar un color específico
         y opcionalmente continúa una distancia extra en centímetros antes de finalizar.
         """
-        from pybricks.tools import StopWatch, wait
-        from Utils import Utils
-        
         cronometro = StopWatch()
         contador_color = 0
         
@@ -675,139 +756,91 @@ class Navegacion:
 
         return encontrado
 
-    def seguidor_linea_cruces(self, sensor_color, velocidad_max, cruces_objetivo, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, encadenado=False):
+    def seguidor_linea_cruces(self, sensor_color, velocidad_max, cruces_objetivo,
+                              distancia_extra_cm=0, distancia_inicial_cm=0,
+                              lado="derecha", tiempo_acomodo_ms=800, kp=0.85,
+                              kd=2.5, k_freno=0.6, margen_cm=0, encadenado=False):
+        """Sigue el borde de la linea contando las lineas negras que cruza.
+
+        Las tres etapas (avance inicial a ciegas, conteo de cruces y avance
+        extra) corren dentro del mismo lazo PD, sin frenar entre una y otra.
+
+        Argumentos:
+            sensor_color: sensor que sigue el borde y detecta los cruces.
+            velocidad_max: duty-cycle de crucero, 0-100.
+            cruces_objetivo: cuantas lineas perpendiculares hay que cruzar. 0
+                saltea el conteo y deja solo las distancias.
+            distancia_extra_cm: cuanto avanzar despues del ultimo cruce.
+            distancia_inicial_cm: cuanto avanzar antes de empezar a contar.
+                Sirve para despegarse de la linea sobre la que el robot ya
+                esta parado, que si no cuenta como la primera.
+            lado: "derecha" o "izquierda", de que lado del sensor va la linea.
+            tiempo_acomodo_ms: arranque lento para que el robot se enganche a
+                la linea antes de acelerar.
+            kp, kd: ganancias del PD sobre la reflexion.
+            k_freno: cuanto se frena el avance por cada punto de error.
+            margen_cm: recorta la distancia extra para arrancar el movimiento
+                siguiente sin esperar la cola del frenado.
+            encadenado: True frena con el micro-freno pasivo.
         """
-        Sigue la línea y cuenta las intersecciones perpendiculares negras.
-        Se detiene al alcanzar el número de cruces objetivo.
-        """
-        cronometro = StopWatch()
-        last_error = 0
         multiplicador_lado = 1 if lado == "derecha" else -1
-        
+        error_previo = 0
+
         cruces_detectados = 0
-        en_cruce = False # Bandera para no contar el mismo cruce varias veces
-        umbral_negro = 15 # Valor de reflexión para negro puro (ajústalo según tu calibración)
-        umbral_salida = 25 # Valor para considerar que ya volvimos al borde
-        
+        sobre_cruce = False
+
+        en_distancia_inicial = distancia_inicial_cm > 0
+        grados_distancia_inicial = max(0, self._grados_rueda(distancia_inicial_cm))
+
+        buscando_cruces = cruces_objetivo > 0
+        grados_distancia_extra = max(0, self._grados_rueda(distancia_extra_cm - margen_cm))
+        grados_inicio_extra = 0
+
         self.chasis.motor_izquierda.reset_angle(0)
         self.chasis.motor_derecha.reset_angle(0)
-        
+
+        cronometro = StopWatch()
         cronometro.reset()
         cronometro.resume()
-        
-        while cruces_detectados < cruces_objetivo:
+
+        while True:
             if cronometro.time() > config.TIMEOUT_LAZO_MS:
                 print("TIMEOUT seguidor_linea_cruces")
                 break
-            t = cronometro.time()
-            velocidad_actual = 25 if t < tiempo_acomodo_ms else velocidad_max
 
-            reflexion_actual = sensor_color.reflection()
-            error = reflexion_actual - 35
-            
-            if reflexion_actual <= umbral_negro and not en_cruce:
-                cruces_detectados += 1
-                en_cruce = True
-                print(f"Cruce {cruces_detectados}/{cruces_objetivo} detectado")
-            elif reflexion_actual >= umbral_salida and en_cruce:
-                en_cruce = False
-
-            correction = ((error * kp) + ((error - last_error) * kd)) * multiplicador_lado
-            velocidad_base = max(25, velocidad_actual - (abs(error) * k_freno))
-            
-            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base - correction))))
-            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base + correction))))
-            last_error = error
-            wait(1)
-            
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.motor_izquierda.stop()
-            self.chasis.motor_derecha.stop()
-            cronometro.pause()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
-
-    def seguidor_linea_cruces_y_distancia(self, sensor_color, velocidad_max, cruces_objetivo, distancia_extra_cm, distancia_inicial_cm=0, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, margen_cm=0, encadenado=False):
-        """
-        Combina un avance inicial ciego a cruces, la detección de cruces y un avance extra por distancia 
-        en un solo movimiento fluido. Mantiene el mismo lazo PID para evitar derrapes.
-        """
-        from pybricks.tools import StopWatch, wait
-        from Utils import Utils
-        
-        cronometro = StopWatch()
-        last_error = 0
-        multiplicador_lado = 1 if lado == "derecha" else -1
-        
-        cruces_detectados = 0
-        en_cruce = False
-        umbral_negro = 15 
-        umbral_salida = 25 
-        
-        en_distancia_inicial = distancia_inicial_cm > 0
-        grados_objetivo_inicial = max(0, (distancia_inicial_cm / (3.1416 * 5.6)) * 360)
-        
-        buscando_cruces = cruces_objetivo > 0
-        grados_objetivo_extra = max(0, ((distancia_extra_cm - margen_cm) / (3.1416 * 5.6)) * 360)
-        grados_inicio_extra = 0
-        
-        self.chasis.motor_izquierda.reset_angle(0)
-        self.chasis.motor_derecha.reset_angle(0)
-        
-        cronometro.reset()
-        cronometro.resume()
-        
-        while True:
-            if cronometro.time() > config.TIMEOUT_LAZO_MS:
-                print("TIMEOUT seguidor_linea_cruces_y_distancia")
-                break
-            # Medida global de grados para las distancias (inicial y extra)
-            grados_recorridos_totales = (abs(self.chasis.motor_izquierda.angle()) + abs(self.chasis.motor_derecha.angle())) / 2
+            grados_recorridos = self._grados_recorridos()
 
             if en_distancia_inicial:
-                if grados_recorridos_totales >= grados_objetivo_inicial:
-                    en_distancia_inicial = False # Termina avance inicial, empieza a buscar cruces
+                if grados_recorridos >= grados_distancia_inicial:
+                    en_distancia_inicial = False
             elif not buscando_cruces:
-                grados_recorridos_extra = grados_recorridos_totales - grados_inicio_extra
-                if grados_recorridos_extra >= grados_objetivo_extra:
+                if (grados_recorridos - grados_inicio_extra) >= grados_distancia_extra:
                     break
-                    
-            t = cronometro.time()
-            velocidad_actual = 25 if t < tiempo_acomodo_ms else velocidad_max
 
-            reflexion_actual = sensor_color.reflection()
-            error = reflexion_actual - 35
-            
+            velocidad_actual = (self.VELOCIDAD_MINIMA_SEGUIDOR
+                                if cronometro.time() < tiempo_acomodo_ms
+                                else velocidad_max)
+
+            reflexion = sensor_color.reflection()
+
             if not en_distancia_inicial and buscando_cruces:
-                if reflexion_actual <= umbral_negro and not en_cruce:
+                if reflexion <= self.UMBRAL_LINEA_NEGRA and not sobre_cruce:
                     cruces_detectados += 1
-                    en_cruce = True
-                    print(f"Cruce {cruces_detectados}/{cruces_objetivo} detectado")
-                    
+                    sobre_cruce = True
+                    print("Cruce %d/%d detectado" % (cruces_detectados, cruces_objetivo))
+
                     if cruces_detectados >= cruces_objetivo:
                         buscando_cruces = False
-                        # Guardamos el odómetro actual para empezar a medir la distancia extra desde este punto exacto
-                        grados_inicio_extra = grados_recorridos_totales
-                
-                elif reflexion_actual >= umbral_salida and en_cruce:
-                    en_cruce = False
+                        grados_inicio_extra = grados_recorridos
+                elif reflexion >= self.UMBRAL_SALIDA_LINEA and sobre_cruce:
+                    sobre_cruce = False
 
-            correction = ((error * kp) + ((error - last_error) * kd)) * multiplicador_lado
-            velocidad_base = max(25, velocidad_actual - (abs(error) * k_freno))
-            
-            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base - correction))))
-            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(max(-100, min(100, velocidad_base + correction))))
-            last_error = error
+            error_previo = self._paso_seguidor_linea(reflexion, velocidad_actual,
+                                                     error_previo, multiplicador_lado,
+                                                     kp, kd, k_freno)
             wait(1)
-            
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.motor_izquierda.stop()
-            self.chasis.motor_derecha.stop()
-            cronometro.pause()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
+
+        self._terminar_seguidor(encadenado, cronometro)
 
     def avanzar_contando_lineas(self, sensor_color, lineas_objetivo, color_linea, tiempo_ciego_s=0.0, distancia_extra_cm=0.0, velocidad=1000, velocidad_lenta=150, encadenado=False, debug=True):
         """
@@ -817,9 +850,6 @@ class Navegacion:
         
         debug: True para imprimir logs en consola, False para silenciarlos.
         """
-        from pybricks.tools import StopWatch, wait
-        from Utils import Utils
-        
         # Si el objetivo es solo 1 línea, aplicamos la velocidad lenta desde el inicio 
         # para garantizar precisión, de lo contrario arrancamos a máxima velocidad.
         velocidad_actual = velocidad_lenta if lineas_objetivo == 1 else velocidad
