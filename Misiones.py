@@ -60,8 +60,8 @@ class Misiones:
             distancia_total_cm=-30,
             distancia_accion_cm=0,
             accion_callback=lambda: self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000, wait_after=False),
-            accion_sec_callback=lambda: self.robot.garra_delantera.ir_a_porcentaje_pinza(20, velocidad=1000, wait_after=False),
-            delay_sec_ms=600,  
+            accion_secundaria_callback=lambda: self.robot.garra_delantera.ir_a_porcentaje_pinza(20, velocidad=1000, wait_after=False),
+            retraso_secundaria_ms=600,  
             margen_cm=2
         )
         self.robot.garra_delantera.ir_a_porcentaje(0, velocidad=1200)
