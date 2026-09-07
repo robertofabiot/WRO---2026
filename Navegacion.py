@@ -51,6 +51,17 @@ class Navegacion:
         self.chasis = chasis
         
     def detectar_color_preciso(self, sensor):
+        """Clasifica la lectura del sensor en uno de los colores de la pista.
+
+        El color() de Pybricks confunde los tonos de la pista bajo la luz de
+        competencia, asi que se clasifica a mano sobre HSV: primero se separan
+        los acromaticos por saturacion y despues los cromaticos por tono.
+
+        Argumentos:
+            sensor: ColorSensor a leer.
+
+        Devuelve un Color de Pybricks: WHITE, GRAY, BLACK, YELLOW, GREEN o BLUE.
+        """
         color_hsv = sensor.hsv()
         h, s, v = color_hsv.h, color_hsv.s, color_hsv.v
         
@@ -562,24 +573,32 @@ class Navegacion:
 
         self._terminar_seguidor(encadenado, cronometro)
 
-    def avanzar_manteniendo_rumbo(self, distancia_cm, velocidad=800, angulo_objetivo=None, kp=2.5, kd=10.0, margen_cm=0, encadenado=False):
+    def avanzar_manteniendo_rumbo(self, distancia_cm, velocidad=800, rumbo_objetivo=None, kp=2.5, kd=10.0, margen_cm=0, encadenado=False):
+        """Avanza una distancia corrigiendo el rumbo con un lazo PD propio.
+
+        Es la alternativa a Chasis.avanzar_recto() cuando hace falta enderezar
+        el robot mientras avanza, en vez de solo mantener el rumbo con el que
+        arranco.
+
+        Argumentos:
+            distancia_cm: distancia a recorrer. Negativa para ir en reversa.
+            velocidad: mm/s; el signo lo pone distancia_cm.
+            rumbo_objetivo: rumbo absoluto del mapa al que corregir mientras
+                avanza. None mantiene el rumbo actual.
+            kp, kd: ganancias del PD sobre el error de rumbo.
+            margen_cm: corta la espera esa cantidad de centimetros antes de la
+                meta, para encadenar el movimiento siguiente.
+            encadenado: True frena con el micro-freno pasivo.
         """
-        Avanza una distancia manteniendo un rumbo fijo usando un Controlador PD.
-        Si se le pasa un 'angulo_objetivo', corregirá su trayectoria hacia ese ángulo absoluto del mapa mientras avanza.
-        Si no se le pasa, mantendrá exactamente el rumbo actual.
-        """
-        if angulo_objetivo is None:
+        if rumbo_objetivo is None:
             angulo_meta = self.chasis.hub.imu.heading()
         else:
-            angulo_meta = angulo_objetivo
+            angulo_meta = rumbo_objetivo
 
         dist_inicial = self.chasis.drive_base.distance()
         distancia_mm_objetivo = abs(distancia_cm * 10)
         margen_mm = abs(margen_cm * 10)
-        
-        # Ajustamos el signo de la velocidad (soporta ir en reversa si distancia_cm es negativo)
         velocidad_real = abs(velocidad) if distancia_cm > 0 else -abs(velocidad)
-        
         error_previo = 0
         
         reloj_seg = StopWatch()
@@ -591,15 +610,14 @@ class Navegacion:
             if distancia_actual >= max(1, distancia_mm_objetivo - margen_mm):
                 break
                 
-            # Calculamos el error continuo (soporta cruces de 360 grados a negativos)
+            # Error normalizado a ±180 para que el cruce por 360 no lo dispare
             error_bruto = angulo_meta - self.chasis.hub.imu.heading()
             error = (error_bruto + 180) % 360 - 180
             
             derivada = error - error_previo
             turn_rate = (error * kp) + (derivada * kd)
             
-            # Tope de seguridad: limitamos el giro máximo para evitar que el robot 
-            # sacrifique demasiado el avance lineal intentando girar de golpe
+            # Sin tope, el robot sacrifica todo el avance lineal por corregir
             turn_rate = min(max(turn_rate, -200), 200) 
             
             self.chasis.drive_base.drive(velocidad_real, turn_rate)
@@ -614,10 +632,22 @@ class Navegacion:
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
     
     def avanzar_tiempo_luego_color(self, sensor_color, tiempo_ciego_s, color_objetivo, distancia_extra_cm=0, velocidad_alta=950, velocidad_escaneo=150, lecturas_confirmacion=2, encadenado=False):
-        """
-        Avanza a máxima velocidad durante un tiempo ciego (ignorando derrapes), 
-        luego reduce la velocidad abruptamente, avanza hasta detectar un color específico
-        y opcionalmente continúa una distancia extra en centímetros antes de finalizar.
+        """Corre a fondo un tiempo ciego y despues busca un color, mas lento.
+
+        La fase ciega se mide por tiempo, que se corre con la carga de la
+        bateria. Cuando la marca esta a una distancia conocida conviene
+        avanzar_distancia_luego_color(), que mide por odometria.
+
+        Argumentos:
+            sensor_color: sensor que busca el color.
+            tiempo_ciego_s: segundos a fondo sin mirar el sensor.
+            color_objetivo: color de Pybricks que corta el recorrido.
+            distancia_extra_cm: cuanto avanzar despues de ver el color.
+            velocidad_alta: mm/s de la fase ciega.
+            velocidad_escaneo: mm/s de la busqueda del color.
+            lecturas_confirmacion: lecturas seguidas del color que se exigen
+                antes de dar el corte por bueno.
+            encadenado: True frena con el micro-freno pasivo.
         """
         cronometro = StopWatch()
         contador_color = 0
@@ -625,7 +655,7 @@ class Navegacion:
         cronometro.reset()
         cronometro.resume()
         
-        # Al tener use_gyro(True) en el drive_base, Pybricks corregirá automáticamente cualquier giro no deseado.
+        # El drive_base tiene use_gyro(True): el rumbo se corrige solo
         self.chasis.drive_base.drive(velocidad_alta, 0)
         
         while cronometro.time() < (tiempo_ciego_s * 1000):
@@ -640,19 +670,17 @@ class Navegacion:
                 break
             if self.detectar_color_preciso(sensor_color) == color_objetivo:
                 contador_color += 1
-                # Pedimos confirmaciones consecutivas para evitar falsos positivos
                 if contador_color >= lecturas_confirmacion: 
                     break
             else:
                 contador_color = 0 
                 
-            wait(5) # Frecuencia de escaneo
+            wait(5)
             
         if distancia_extra_cm > 0:
             distancia_inicial = self.chasis.drive_base.distance()
             distancia_mm_objetivo = distancia_extra_cm * 10
             
-            # Mantiene el bucle de tracción activo para conservar la corrección del giroscopio
             while abs(self.chasis.drive_base.distance() - distancia_inicial) < distancia_mm_objetivo:
                 if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
                     print("TIMEOUT avanzar_tiempo_luego_color (distancia extra)")
@@ -670,17 +698,26 @@ class Navegacion:
     def avanzar_distancia_luego_color(self, sensor_color, distancia_ciega_cm, color_objetivo,
                                       distancia_maxima_cm, velocidad_alta=950, velocidad_escaneo=200,
                                       distancia_extra_cm=0, lecturas_confirmacion=2, encadenado=False):
-        """
-        Avanza a ciegas una distancia y recien despues empieza a buscar un color.
+        """Avanza a ciegas una distancia y recien despues busca un color.
 
-        Diferencia con avanzar_tiempo_luego_color: la fase ciega se mide por
-        distancia recorrida, no por tiempo. El tiempo se corre con la bateria;
-        la odometria no. Eso permite pasar de largo lineas intermedias sin
-        riesgo de falso positivo, y terminar el movimiento sobre una marca
-        fisica real en vez de sobre una distancia integrada mas deslizamiento.
+        La fase ciega se mide por odometria y no por tiempo, asi que la ventana
+        de busqueda no se corre con la carga de la bateria: se pasa de largo
+        cualquier linea intermedia sin riesgo de falso positivo y el movimiento
+        termina sobre una marca fisica real.
 
-        distancia_maxima_cm es el tope de seguridad medido desde el arranque:
-        si el color no aparece antes, corta igual y devuelve False.
+        Argumentos:
+            sensor_color: sensor que busca el color.
+            distancia_ciega_cm: distancia a recorrer sin mirar el sensor. El
+                signo decide el sentido de todo el movimiento.
+            color_objetivo: color de Pybricks que corta el recorrido.
+            distancia_maxima_cm: tope de seguridad medido desde el arranque.
+                Tiene que ser mayor que distancia_ciega_cm.
+            velocidad_alta: mm/s de la fase ciega.
+            velocidad_escaneo: mm/s de la busqueda del color.
+            distancia_extra_cm: cuanto avanzar desde donde aparecio el color.
+            lecturas_confirmacion: lecturas seguidas del color que se exigen
+                antes de dar el corte por bueno.
+            encadenado: True frena con el micro-freno pasivo.
 
         Devuelve True si encontro el color, False si corto por tope o timeout.
         """
@@ -843,15 +880,26 @@ class Navegacion:
         self._terminar_seguidor(encadenado, cronometro)
 
     def avanzar_contando_lineas(self, sensor_color, lineas_objetivo, color_linea, tiempo_ciego_s=0.0, distancia_extra_cm=0.0, velocidad=1000, velocidad_lenta=150, encadenado=False, debug=True):
+        """Avanza recto contando las lineas de un color que va cruzando.
+
+        No sigue la linea: va derecho con la correccion del giroscopio y solo
+        cuenta flancos. Al cruzar la penultima linea baja a velocidad_lenta,
+        para llegar a la ultima con precision.
+
+        Argumentos:
+            sensor_color: sensor que cuenta las lineas.
+            lineas_objetivo: cuantas lineas hay que cruzar antes de parar.
+            color_linea: color de Pybricks de las lineas a contar.
+            tiempo_ciego_s: segundos iniciales en los que no se cuenta nada.
+                Sirve para despegarse de la linea sobre la que ya esta parado
+                el robot.
+            distancia_extra_cm: cuanto avanzar despues de la ultima linea.
+            velocidad: mm/s de crucero. El signo decide el sentido.
+            velocidad_lenta: mm/s del tramo final, desde la penultima linea.
+                Con lineas_objetivo=1 se usa desde el arranque.
+            encadenado: True frena con el micro-freno pasivo.
+            debug: True imprime el avance del conteo por consola.
         """
-        Avanza recto ignorando líneas por un tiempo ciego inicial, luego cuenta cuántas 
-        veces cruza una línea del color especificado. Al tocar la penúltima línea, 
-        desacelera para mayor precisión. Finaliza avanzando una distancia extra opcional.
-        
-        debug: True para imprimir logs en consola, False para silenciarlos.
-        """
-        # Si el objetivo es solo 1 línea, aplicamos la velocidad lenta desde el inicio 
-        # para garantizar precisión, de lo contrario arrancamos a máxima velocidad.
         velocidad_actual = velocidad_lenta if lineas_objetivo == 1 else velocidad
         self.chasis.drive_base.drive(velocidad_actual, 0)
         
@@ -882,21 +930,18 @@ class Navegacion:
             
             if color_actual == color_linea:
                 if not en_linea:
-                    # Se detecta el flanco de entrada a la línea
                     en_linea = True
                     contador_lineas += 1
                     if debug:
                         distancia_actual = self.chasis.drive_base.distance()
                         print(f"Línea #{contador_lineas} detectada a los {distancia_actual} mm.")
                     
-                    # Verificamos si acabamos de cruzar la penúltima línea
                     if contador_lineas == (lineas_objetivo - 1) and lineas_objetivo > 1:
                         self.chasis.drive_base.drive(velocidad_lenta, 0)
                         if debug:
                             print(f"--- Penúltima línea alcanzada. Reduciendo velocidad a {velocidad_lenta} mm/s ---")
             else:
                 if en_linea:
-                    # Se detecta el flanco de salida de la línea
                     en_linea = False
                     
             if self.chasis.drive_base.stalled():
@@ -904,7 +949,7 @@ class Navegacion:
                     print("ALERTA: Robot atascado durante el conteo.")
                 break
                 
-            wait(5) # Frecuencia de escaneo para alta velocidad
+            wait(5)
             
         if debug:
             print(f"--- Conteo finalizado: {contador_lineas} líneas detectadas ---")
