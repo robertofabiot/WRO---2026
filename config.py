@@ -18,10 +18,12 @@ DIAMETRO_RUEDA = 56
 SEPARACION_RUEDAS = 160
 
 # --- NAVEGACIÓN CONFIG (Velocidades) ---
+# VELOCIDAD_RECTA es el techo real: cualquier pedido de velocidad se acota a
+# ese valor antes de llegar al drive_base.
 VELOCIDAD_BASE = 950
-STRAIGHT_SPEED = 700
-STRAIGHT_ACCEL = 700
-TURN_RATE = 500
+VELOCIDAD_RECTA = 700
+ACELERACION_RECTA = 700
+TASA_GIRO = 500
 
 # --- REGLAS DEL JUEGO ---
 MOSAICOS = {
@@ -32,7 +34,6 @@ MOSAICOS = {
 }
 
 # --- OPCIONES DE SISTEMA ---
-USAR_MOTOR_SIMULADO = False
 SONIDO_ACTIVO = False
 BATERIA_MINIMA = 8150
 

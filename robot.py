@@ -21,9 +21,9 @@ class Robot:
         self.drive_base = DriveBase(self.motor_izquierda, self.motor_derecha, config.DIAMETRO_RUEDA, config.SEPARACION_RUEDAS)
         self.drive_base.use_gyro(True)
         self.drive_base.settings(
-            straight_speed=config.STRAIGHT_SPEED, 
-            straight_acceleration=config.STRAIGHT_ACCEL, 
-            turn_rate=config.TURN_RATE
+            straight_speed=config.VELOCIDAD_RECTA, 
+            straight_acceleration=config.ACELERACION_RECTA, 
+            turn_rate=config.TASA_GIRO
         )
         
         self.chasis = Chasis(self.drive_base, self.motor_izquierda, self.motor_derecha, self.hub, config.VELOCIDAD_BASE)

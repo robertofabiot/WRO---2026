@@ -40,8 +40,8 @@ def main():
 
     speed = 0
     turn_rate = 0
-    max_speed = config.STRAIGHT_SPEED
-    max_turn = config.TURN_RATE
+    max_speed = config.VELOCIDAD_RECTA
+    max_turn = config.TASA_GIRO
     step_speed = 100
     step_turn = 100
     grados_mecanismo = 45 # Cuantos grados se mueve el mecanismo por pulsación

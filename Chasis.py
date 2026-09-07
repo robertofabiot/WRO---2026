@@ -22,16 +22,16 @@ class Chasis:
         esto el parametro 'velocidad' se calculaba y se tiraba a la basura, y
         los movimientos lentos de aproximacion corrian a STRAIGHT_SPEED.
 
-        El tope es config.STRAIGHT_SPEED, que es un valor que el drive_base ya
+        El tope es config.VELOCIDAD_RECTA, que es un valor que el drive_base ya
         acepta hoy. Asi los movimientos rapidos quedan exactamente igual que
         antes y solo cambian los que pedian ir mas lento.
         """
         if velocidad is None:
             velocidad = self.velocidad_base
         if aceleracion is None:
-            aceleracion = config.STRAIGHT_ACCEL
+            aceleracion = config.ACELERACION_RECTA
 
-        velocidad = max(1, min(abs(velocidad), config.STRAIGHT_SPEED))
+        velocidad = max(1, min(abs(velocidad), config.VELOCIDAD_RECTA))
         ajustes = (velocidad, aceleracion)
 
         if ajustes != self._ajustes_aplicados:
