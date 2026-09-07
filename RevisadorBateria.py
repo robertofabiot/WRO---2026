@@ -2,10 +2,26 @@ from robot import Robot
 import config
 
 class RevisadorBateria:
+    """Chequeo de bateria previo a cada corrida.
+
+    Los lazos DC del proyecto compensan el voltaje, pero por debajo de cierto
+    nivel la bateria ya no da la potencia que piden los giros y la corrida
+    sale distinta a lo calibrado.
+    """
+
     def __init__(self, robot_instancia: Robot):
+        """
+        Argumentos:
+            robot_instancia: instancia de Robot, de donde sale el hub.
+        """
         self.robot = robot_instancia
 
     def revisar_bateria(self):
+        """Avisa si la bateria esta por debajo de config.BATERIA_MINIMA.
+
+        Devuelve True si se puede correr: o la bateria alcanza, o el usuario
+        eligio seguir igual.
+        """
         bateria = self._obtener_bateria()
         bateria_minima = config.BATERIA_MINIMA
         print(f"Bateria actual = {bateria}")
@@ -26,4 +42,5 @@ class RevisadorBateria:
         return True
     
     def _obtener_bateria(self):
+        """Voltaje actual del hub, en milivoltios."""
         return self.robot.hub.battery.voltage()

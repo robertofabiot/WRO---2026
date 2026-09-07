@@ -3,7 +3,21 @@ from robot import Robot
 from pybricks.tools import wait
 
 class ArmadorMosaicos:
+    """Rutinas de armado de la matriz, una por cada mosaico posible.
+
+    El numero de mosaico sale de Misiones.detectar_mosaico() y elige que
+    rutina correr. Cada rutina supone que el robot arranca cuadrado en la
+    esquina de la matriz.
+    """
+
     def __init__(self, robot_instancia: Robot, sensor_color, prueba):
+        """
+        Argumentos:
+            robot_instancia: instancia de Robot con el chasis y los mecanismos.
+            sensor_color: ColorSensor delantero.
+            prueba: True calibra los ceros de las garras y deja la jaula abajo
+                antes de empezar. En la corrida real ya vienen calibradas.
+        """
         self.robot = robot_instancia
         self.sensor_color = sensor_color
         
@@ -22,15 +36,22 @@ class ArmadorMosaicos:
             self.robot.garra_trasera.ir_a_porcentaje(100)
 
     def armar(self, numero_mosaico: int):
+        """Corre la rutina de armado del mosaico pedido.
+
+        Argumentos:
+            numero_mosaico: numero devuelto por Misiones.detectar_mosaico().
+                Si no esta en la tabla, cae en la rutina verde-verde.
+        """
         rutina_a_ejecutar = self.rutinas.get(numero_mosaico, self._armar_verde_verde)
         print(f"Ejecutando rutina de armado para mosaico: {numero_mosaico}")
         rutina_a_ejecutar()
     
     def _armar_verde_verde(self):
-        pass   
+        """Mosaico 1: verde-verde. Sin empezar."""
+        pass
 
     def _armar_verde_amarillo(self):
-
+        """Mosaico 2: verde-amarillo. Escrito pero todavia no funciona."""
         # Acomodo
         self.robot.chasis.mover_motor_derecho(-600, encadenado=True)
         self.robot.chasis.avanzar_recto(-2, velocidad=1000, encadenado=True)
@@ -66,6 +87,7 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(12, velocidad=100)
 
     def _armar_azul(self):
+        """Mosaico 3: azul. La primera mitad anda; falta dejar las ultimas piezas."""
         # Acomodo
         self.robot.chasis.mover_motor_derecho(-600, encadenado=True)
         self.robot.chasis.avanzar_recto(-2, velocidad=1000, encadenado=True)
@@ -176,7 +198,9 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(20)
 
     def _armar_amarillo(self):
+        """Mosaico 4: amarillo. Sin empezar."""
         pass
 
     def _armar_blanco(self):
+        """Mosaico 5: blanco. Sin empezar."""
         pass

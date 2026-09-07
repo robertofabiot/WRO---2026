@@ -8,7 +8,20 @@ from Navegacion import Navegacion
 from Mecanismos import GarraDelantera, GarraTrasera
 
 class Robot:
+    """Arma el hardware y lo cablea con Chasis, Navegacion y los mecanismos.
+
+    Es el unico lugar donde se instancian motores: todo lo demas trabaja
+    contra los objetos que quedan colgados de esta clase.
+    """
+
     def __init__(self, port_izq, port_der, port_garra_trasera, port_garra_delantera, port_pinza): 
+        """
+        Argumentos:
+            port_izq, port_der: puertos de los motores de traccion.
+            port_garra_trasera: puerto del motor de la jaula trasera.
+            port_garra_delantera: puerto del motor del elevador delantero.
+            port_pinza: puerto del motor de la pinza.
+        """
         self.hub = PrimeHub(top_side=Axis.Z, front_side=Axis.X)
         self.motor_izquierda = Motor(port_izq, Direction.COUNTERCLOCKWISE)
         self.motor_derecha = Motor(port_der, Direction.CLOCKWISE)
