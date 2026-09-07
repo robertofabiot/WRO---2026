@@ -39,7 +39,7 @@ class ArmadorMosaicos:
         # Recoger dos bloques azules
         self.robot.chasis.avanzar_recto(2, velocidad=1000, encadenado=True)
         self.robot.navegacion.avanzar_contando_lineas(self.sensor_color, 2, Color.BLACK, distancia_extra_cm=6, encadenado=True, debug=False)
-        self.robot.navegacion.giro_absoluto_pd(0)
+        self.robot.navegacion.giro_absoluto(0)
         self.robot.chasis.avanzar_recto(12, velocidad=200)
         self.robot.garra_delantera.ir_a_porcentaje(90)
 
@@ -47,12 +47,12 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(-25)
         self.robot.garra_delantera.ir_a_porcentaje(0)
         self.robot.chasis.avanzar_recto(5)
-        self.robot.navegacion.giro_absoluto_motor_derecho(270)
+        self.robot.navegacion.giro_absoluto(270, rueda_pivote="izquierda")
 
         # Recoger bloque verde
         self.robot.garra_delantera.ir_a_porcentaje_pinza(70, wait_after=False)
         self.robot.navegacion.avanzar_contando_lineas(self.sensor_color, 2, Color.BLACK, tiempo_ciego_s=0.3, velocidad=-1000, velocidad_lenta=-150)
-        self.robot.navegacion.giro_absoluto_pd(0)
+        self.robot.navegacion.giro_absoluto(0)
         self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000)
         self.robot.chasis.avanzar_recto(2, velocidad=100)
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=80)
@@ -60,7 +60,7 @@ class ArmadorMosaicos:
         # Dejar bloque verde
         self.robot.chasis.avanzar_recto(-4)
         self.robot.garra_delantera.ir_a_porcentaje(0)
-        self.robot.navegacion.giro_absoluto_pd(270)
+        self.robot.navegacion.giro_absoluto(270)
         self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(0)
         self.robot.chasis.avanzar_recto(12, velocidad=100)
@@ -75,7 +75,7 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(2, velocidad=1000, encadenado=True)
         self.robot.navegacion.avanzar_contando_lineas(self.sensor_color, 1, Color.BLACK, distancia_extra_cm=13.8, encadenado=False, debug=False)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(67, velocidad=1000, wait_after=False)
-        self.robot.navegacion.giro_absoluto_pd(0)
+        self.robot.navegacion.giro_absoluto(0)
         self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000, wait_after=False)
         self.robot.chasis.avanzar_recto(10, velocidad=80)
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
@@ -84,7 +84,7 @@ class ArmadorMosaicos:
 
         # Dejar dos bloques azules y dos amarillos
         self.robot.chasis.avanzar_recto(-27, velocidad=600, encadenado=False)
-        self.robot.navegacion.giro_absoluto_pd(90, encadenado=False)
+        self.robot.navegacion.giro_absoluto(90, encadenado=False)
         self.robot.chasis.avanzar_recto(10, velocidad=200, encadenado=False)
         self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(0, velocidad=1000)
@@ -95,15 +95,15 @@ class ArmadorMosaicos:
         # Agarrar dos bloques azules
         self.robot.garra_delantera.ir_a_porcentaje(0, wait_after=False)
         self.robot.chasis.avanzar_recto(-2)
-        self.robot.navegacion.giro_absoluto_pd(0, encadenado=False)
+        self.robot.navegacion.giro_absoluto(0, encadenado=False)
         self.robot.chasis.avanzar_recto(36, encadenado=False)
         self.robot.garra_delantera.ir_a_porcentaje(90, wait_after=True)
         
         # Dejar dos bloques azules
-        self.robot.navegacion.giro_absoluto_motor_derecho(90)
+        self.robot.navegacion.giro_absoluto(90, rueda_pivote="izquierda")
         self.robot.chasis.avanzar_recto(20, encadenado=False)
-        self.robot.navegacion.giro_absoluto_motor_izquierdo(182)
-        self.robot.navegacion.giro_absoluto_motor_izquierdo(180)
+        self.robot.navegacion.giro_absoluto(182, rueda_pivote="derecha")
+        self.robot.navegacion.giro_absoluto(180, rueda_pivote="derecha")
 
         # Juntar
         self.robot.garra_delantera.ir_a_porcentaje(50, wait_after=False)
@@ -118,9 +118,9 @@ class ArmadorMosaicos:
         self.robot.garra_delantera.ir_a_porcentaje(0)
         self.robot.chasis.mover_motor_izquierdo(300, encadenado=True)
         self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 0.2, Color.BLACK, distancia_extra_cm=7)
-        self.robot.navegacion.giro_absoluto_pd(180)
+        self.robot.navegacion.giro_absoluto(180)
         self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, tiempo_ciego_s=0, color_objetivo=Color.BLUE, encadenado=True)
-        self.robot.navegacion.giro_absoluto_pd(180, encadenado=False)
+        self.robot.navegacion.giro_absoluto(180, encadenado=False)
         self.robot.chasis.avanzar_recto(15, encadenado=True)
 
         self.robot.garra_delantera.ir_a_porcentaje(85)
@@ -129,15 +129,15 @@ class ArmadorMosaicos:
         self.robot.chasis.sacudir(iteraciones=4, potencia=60, tiempo_ms=100)
         self.robot.garra_delantera.abrir_al_tope(velocidad=1200, limite_potencia=100) 
         self.robot.chasis.avanzar_recto(-30) 
-        self.robot.navegacion.giro_absoluto_pd(0)
+        self.robot.navegacion.giro_absoluto(0)
         self.robot.garra_trasera.ir_a_porcentaje(0, wait_after=False)
         self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor_color, 80, 1, 0, 10, lado="izquierda", tiempo_acomodo_ms=0)
-        self.robot.navegacion.giro_preciso_pd(-90, encadenado=True)
+        self.robot.navegacion.giro_relativo(-90, encadenado=True)
         self.robot.garra_trasera.ir_a_porcentaje(90, wait_after=False)
         self.robot.chasis.avanzar_recto(-32, velocidad=1000)
         self.robot.chasis.cuadrar_contra_pared(tiempo_ms=300, potencia=80, angulo_referencia=270)
         self.robot.chasis.avanzar_recto(53)
-        self.robot.navegacion.giro_absoluto_pd(0)
+        self.robot.navegacion.giro_absoluto(0)
 
         # Recoger amarillos
         self.robot.garra_delantera.ir_a_porcentaje(90)
@@ -145,16 +145,16 @@ class ArmadorMosaicos:
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
         self.robot.garra_delantera.ir_a_porcentaje(0)
         
-        self.robot.navegacion.giro_absoluto_pd(90)
+        self.robot.navegacion.giro_absoluto(90)
         self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 0.3, Color.WHITE, distancia_extra_cm=2, velocidad_alta=150)
-        self.robot.navegacion.giro_absoluto_pd(180)
+        self.robot.navegacion.giro_absoluto(180)
         self.robot.garra_delantera.ir_a_porcentaje(85)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(67)
         self.robot.garra_delantera.ir_a_porcentaje(0)
 
         self.robot.garra_trasera.ir_a_porcentaje(0, wait_after=False)
         self.robot.chasis.avanzar_recto(-5)
-        self.robot.navegacion.giro_absoluto_pd(0, kp=3, kd=20)
+        self.robot.navegacion.giro_absoluto(0)
         self.robot.garra_delantera.ir_a_porcentaje(90)
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
         self.robot.chasis.avanzar_recto(-20)
@@ -162,16 +162,16 @@ class ArmadorMosaicos:
         self.robot.garra_delantera.ir_a_porcentaje(0)
         self.robot.chasis.avanzar_recto(13, velocidad=1000)
         
-        self.robot.navegacion.giro_absoluto_motor_izquierdo(90)
+        self.robot.navegacion.giro_absoluto(90, rueda_pivote="derecha")
         self.robot.chasis.avanzar_recto(12)
         self.robot.garra_delantera.ir_a_porcentaje(90)
 
-        self.robot.navegacion.giro_absoluto_pd(320)
+        self.robot.navegacion.giro_absoluto(320)
         self.robot.garra_delantera.ir_a_porcentaje(60)
         self.robot.chasis.avanzar_recto(12)
 
         self.robot.garra_delantera.ir_a_porcentaje(90)
-        self.robot.navegacion.giro_absoluto_motor_derecho(280)
+        self.robot.navegacion.giro_absoluto(280, rueda_pivote="izquierda")
         self.robot.garra_delantera.ir_a_porcentaje(0)
         self.robot.chasis.avanzar_recto(20)
 

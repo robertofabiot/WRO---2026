@@ -38,10 +38,6 @@ SONIDO_ACTIVO = False
 BATERIA_MINIMA = 8150
 
 # --- SEGURIDAD DE LOS LAZOS DE CONTROL ---
-# Piso de velocidad de giro en grados/s. Por debajo de esto el motor no vence
-# la friccion estatica y el lazo PD se queda pataleando sin avanzar.
-PISO_VELOCIDAD_GIRO = 30
-
 # Giros mas chicos que esto se saltan: caen dentro del ruido del IMU.
 BANDA_MUERTA_GIRO = 1.5
 

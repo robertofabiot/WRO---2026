@@ -10,7 +10,30 @@ except ImportError:
 
 
 class Navegacion:
+    """Giros, seguidores de linea y avances guiados por sensor.
+
+    Todo lo que necesita el IMU o el sensor de color para cerrar un lazo de
+    control vive aca; los movimientos a ciegas son de Chasis.
+    """
+
+    # Ganancias del lazo PD de giro. Un giro pivote arrastra la rueda que se
+    # queda quieta, asi que necesita mas empuje que un giro sobre el eje.
+    PERFILES_GIRO = {
+        "eje": {"kp": 3.5, "kd": 5.0, "min_potencia": 30},
+        "pivote": {"kp": 4.0, "kd": 6.0, "min_potencia": 32},
+    }
+
+    # Techos de potencia para giros de poco angulo: con el techo alto el PD no
+    # tiene espacio angular para frenar y el robot se pasa de largo.
+    TECHO_GIRO_CORTO = 48
+    TECHO_GIRO_MEDIO = 68
+
     def __init__(self, chasis):
+        """
+        Argumentos:
+            chasis: instancia de Chasis, de donde salen el drive_base, los
+                motores de traccion y el hub.
+        """
         self.chasis = chasis
         
     def detectar_color_preciso(self, sensor):
@@ -31,764 +54,310 @@ class Navegacion:
             elif h < 185: return Color.GREEN
             else: return Color.BLUE
 
-    def giro_preciso_pd(self, angulo_relativo, max_speed=800, min_speed=40, kp=4.0, kd=18.0, margen_grados=0, encadenado=False):
-        if abs(angulo_relativo) < config.BANDA_MUERTA_GIRO:
-            return
-        angulo_meta = self.chasis.hub.imu.heading() + angulo_relativo
-        error_previo = 0
+    def _preparar_giro(self, rueda_pivote):
+        """Deja el chasis quieto y trabado antes de leer el rumbo.
+
+        hold() bloquea los motores activamente, a diferencia de stop() que los
+        deja rodar por inercia. Los 25 ms alcanzan para que el tren de
+        engranajes se asiente y el IMU se lea con el robot realmente quieto.
+
+        Argumentos:
+            rueda_pivote: se acepta por simetria con el resto de los giros;
+                las dos ruedas se traban igual antes de arrancar.
+        """
+        self.chasis.drive_base.stop()
+        self.chasis.motor_izquierda.hold()
+        self.chasis.motor_derecha.hold()
+        wait(25)
+
+    def _perfil_giro(self, rueda_pivote, kp, kd, min_potencia):
+        """Completa con el perfil las ganancias que el llamador dejo en None.
+
+        Argumentos:
+            rueda_pivote: None para el perfil de giro sobre el eje, cualquier
+                rueda para el de giro pivote.
+            kp, kd, min_potencia: valores pedidos por el llamador; los que
+                vengan en None se toman del perfil.
+
+        Devuelve la terna (kp, kd, min_potencia) ya resuelta.
+        """
+        perfil = self.PERFILES_GIRO["eje" if rueda_pivote is None else "pivote"]
+        return (perfil["kp"] if kp is None else kp,
+                perfil["kd"] if kd is None else kd,
+                perfil["min_potencia"] if min_potencia is None else min_potencia)
+
+    def _rumbo_a_giro(self, rumbo_objetivo, ruta_corta):
+        """Traduce un rumbo absoluto del mapa a los grados que hay que girar.
+
+        Argumentos:
+            rumbo_objetivo: rumbo absoluto del mapa, en grados del IMU.
+            ruta_corta: True toma el camino mas corto (180° como maximo),
+                False fuerza la vuelta larga por el otro lado.
+
+        Devuelve la tupla (rumbo_actual, giro_requerido) en grados.
+        """
+        rumbo_actual = self.chasis.hub.imu.heading()
+        giro_corto = (rumbo_objetivo - rumbo_actual + 180) % 360 - 180
+        if ruta_corta or giro_corto == 0:
+            return rumbo_actual, giro_corto
+        return rumbo_actual, (giro_corto - 360 if giro_corto > 0 else giro_corto + 360)
+
+    def _motores_del_giro(self, rueda_pivote):
+        """Reparte los motores entre los que empujan el giro y el que se traba.
+
+        El sentido de cada motor es fijo: el izquierdo suma y el derecho resta,
+        asi un angulo positivo siempre gira en sentido horario. Un giro pivote
+        es el mismo giro con uno de los dos motores apagado.
+
+        Argumentos:
+            rueda_pivote: None gira sobre el eje con las dos ruedas;
+                "izquierda" o "derecha" nombra la rueda que se queda quieta.
+
+        Devuelve la tupla (activos, rueda_fija), donde activos es una lista de
+        pares (motor, sentido) y rueda_fija es el motor a trabar o None.
+        """
+        if rueda_pivote is None:
+            return [(self.chasis.motor_izquierda, 1),
+                    (self.chasis.motor_derecha, -1)], None
+        if rueda_pivote == "izquierda":
+            return [(self.chasis.motor_derecha, -1)], self.chasis.motor_izquierda
+        if rueda_pivote == "derecha":
+            return [(self.chasis.motor_izquierda, 1)], self.chasis.motor_derecha
+        raise ValueError("rueda_pivote tiene que ser None, 'izquierda' o 'derecha'")
+
+    def _lazo_giro_pd(self, meta, giro_requerido, rueda_pivote, max_potencia,
+                      min_potencia, kp, kd, tolerancia, encadenado, nombre):
+        """Lleva el rumbo del IMU hasta 'meta' con un lazo PD sobre dc() directo.
+
+        Es el nucleo de giro_absoluto() y giro_relativo(); las misiones no lo
+        llaman nunca en forma directa. Usa dc() en vez de drive_base.drive()
+        para saltear el PID interno de Pybricks y correr a 500 Hz, con
+        ganancias que se reescalan segun lo que falte y un filtro EMA en la
+        derivada para no amplificar el ruido del IMU.
+
+        Argumentos:
+            meta: rumbo absoluto del IMU al que hay que llegar, en grados.
+            giro_requerido: grados que faltan al entrar al lazo. Fijan el
+                sentido de giro y el techo de potencia.
+            rueda_pivote: ver _motores_del_giro().
+            max_potencia: techo de duty-cycle, 0-100.
+            min_potencia: piso de duty-cycle que vence la friccion estatica.
+            kp, kd: ganancias base del PD.
+            tolerancia: error en grados que ya se considera llegada.
+            encadenado: True frena con el micro-freno pasivo para enlazar el
+                movimiento siguiente; False sostiene la posicion con hold().
+            nombre: identificador para el mensaje de timeout.
+        """
+        activos, rueda_fija = self._motores_del_giro(rueda_pivote)
+
+        magnitud = abs(giro_requerido)
+        if magnitud < 10:
+            techo = min(max_potencia, self.TECHO_GIRO_CORTO)
+        elif magnitud < 25:
+            techo = min(max_potencia, self.TECHO_GIRO_MEDIO)
+        else:
+            techo = max_potencia
+
+        sentido = 1 if giro_requerido > 0 else -1
+        error_previo = giro_requerido
+        derivada_filtrada = 0.0
+        lecturas_en_tolerancia = 0
+
+        rumbo_anterior = self.chasis.hub.imu.heading()
+        odometria_anterior = self._odometria_giro(activos)
+        ciclos_bloqueado = 0
+        ciclos = 0
+
         reloj = StopWatch()
         while True:
-            error = angulo_meta - self.chasis.hub.imu.heading()
-            if abs(error) <= max(1, margen_grados): break
-            if reloj.time() > config.TIMEOUT_GIRO_MS:
-                print("TIMEOUT giro_preciso_pd (error %d grados)" % error)
+            rumbo = self.chasis.hub.imu.heading()
+            error = meta - rumbo
+            error_abs = abs(error)
+
+            # Se exigen dos lecturas seguidas dentro de la tolerancia: con una
+            # sola, un pico de ruido del IMU corta el giro antes de llegar.
+            if error_abs <= tolerancia:
+                lecturas_en_tolerancia += 1
+                if lecturas_en_tolerancia >= 2:
+                    break
+            else:
+                lecturas_en_tolerancia = 0
+
+            # El error cambio de signo: la inercia nos paso de la meta y
+            # volver cuesta mas de lo que corrige. El hold() final aguanta.
+            if error * sentido < 0:
                 break
-            turn_rate = (error * kp) + ((error - error_previo) * kd)
-            turn_rate = min(max(turn_rate, min_speed), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed), -max_speed)
-            self.chasis.drive_base.drive(0, turn_rate)
+
+            if reloj.time() > config.TIMEOUT_GIRO_MS:
+                print("TIMEOUT %s: faltaban %d grados" % (nombre, error))
+                break
+
+            # Lejos manda el amortiguamiento, cerca manda la precision.
+            if error_abs > 30:
+                kp_efectivo, kd_efectivo = kp * 1.1, kd * 1.1
+            elif error_abs > 10:
+                kp_efectivo, kd_efectivo = kp * 1.3, kd * 0.6
+            else:
+                kp_efectivo, kd_efectivo = kp * 1.6, kd * 0.25
+
+            derivada_filtrada = (error - error_previo) * 0.7 + derivada_filtrada * 0.3
+            correccion = error * kp_efectivo + derivada_filtrada * kd_efectivo
+
+            # Rampa de arranque de 80 ms contra el golpe mecanico del primer
+            # instante.
+            transcurrido = reloj.time()
+            if transcurrido < 80:
+                techo_efectivo = min_potencia + (techo - min_potencia) * transcurrido / 80.0
+            else:
+                techo_efectivo = techo
+
+            potencia = max(-techo_efectivo, min(correccion, techo_efectivo))
+            if abs(potencia) < min_potencia and error_abs > tolerancia:
+                potencia = min_potencia if error > 0 else -min_potencia
+
+            for motor, sentido_motor in activos:
+                motor.dc(self.chasis.compensar_voltaje(potencia * sentido_motor))
+
+            # Anti-patinaje: si el IMU dice que no giramos pero los encoders
+            # dicen que si, hay una rueda girando en el aire o contra algo.
+            ciclos += 1
+            if ciclos % 10 == 0 and error_abs > 5:
+                odometria = self._odometria_giro(activos)
+                if (abs(rumbo - rumbo_anterior) < 1.0
+                        and abs(odometria - odometria_anterior) > 6.0):
+                    ciclos_bloqueado += 1
+                    if ciclos_bloqueado > 3:
+                        # Micro-freno invertido para recuperar traccion.
+                        for motor, sentido_motor in activos:
+                            motor.dc(self.chasis.compensar_voltaje(-18 * sentido * sentido_motor))
+                        wait(15)
+                        ciclos_bloqueado = 0
+                else:
+                    ciclos_bloqueado = max(0, ciclos_bloqueado - 1)
+
+                rumbo_anterior = rumbo
+                odometria_anterior = odometria
+                if rueda_fija is not None:
+                    rueda_fija.hold()
+
             error_previo = error
-            wait(10)
-            
+            wait(2)
+
         if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
+            if rueda_fija is None:
+                self.chasis._terminar_movimiento_encadenado()
+            else:
+                self.chasis._frenar_motor_encadenado(activos[0][0])
         else:
-            self.chasis.drive_base.stop()
+            for motor, _ in activos:
+                motor.hold()
+            if rueda_fija is not None:
+                rueda_fija.hold()
+            wait(20)
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
 
-    def giro_absoluto_pd(self, angulo_objetivo, max_speed=800, min_speed=40, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False):
-        self.chasis.drive_base.stop()
-        error_previo = 0
-        angulo_actual_inicial = self.chasis.hub.imu.heading()
-        error_bruto_inicial = angulo_objetivo - angulo_actual_inicial
-        error_corto_inicial = (error_bruto_inicial + 180) % 360 - 180
-        
-        if ruta_corta:
-            giro_requerido = error_corto_inicial
-        else:
-            giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else error_corto_inicial + 360 if error_corto_inicial < 0 else 0
-                
-        angulo_meta = angulo_actual_inicial + giro_requerido
-        # Por debajo del ruido del IMU no vale la pena moverse: el PD se queda
-        # pataleando con un turn_rate que no alcanza a vencer la friccion estatica.
+    def _odometria_giro(self, activos):
+        """Promedio del angulo de los motores que empujan el giro, en grados.
+
+        Argumentos:
+            activos: lista de pares (motor, sentido) como la que devuelve
+                _motores_del_giro().
+        """
+        total = 0
+        for motor, _ in activos:
+            total += motor.angle()
+        return total / len(activos)
+
+    def giro_absoluto(self, rumbo_objetivo, rueda_pivote=None, max_potencia=85,
+                      min_potencia=None, kp=None, kd=None, tolerancia=1.5,
+                      ruta_corta=True, encadenado=False):
+        """Gira hasta un rumbo fijo del mapa, venga de donde venga el robot.
+
+        Absorbe el derrape y el desfase que dejo el movimiento anterior, asi
+        que el error no se acumula de un giro al siguiente. Necesita que el
+        IMU este alineado con el mapa: eso lo da cuadrar_contra_pared().
+
+        Argumentos:
+            rumbo_objetivo: rumbo absoluto del mapa al que hay que quedar
+                apuntando, en grados del IMU.
+            rueda_pivote: None gira sobre el eje con las dos ruedas;
+                "izquierda" o "derecha" nombra la rueda que se queda quieta.
+            max_potencia: techo de duty-cycle, 0-100.
+            min_potencia: piso de duty-cycle. None usa el del perfil.
+            kp, kd: ganancias del PD. None usa las del perfil.
+            tolerancia: error en grados que ya se considera llegada.
+            ruta_corta: True va por el camino mas corto, False por la vuelta
+                larga.
+            encadenado: True frena con el micro-freno pasivo para enlazar el
+                movimiento siguiente.
+        """
+        self._preparar_giro(rueda_pivote)
+        rumbo_actual, giro_requerido = self._rumbo_a_giro(rumbo_objetivo, ruta_corta)
         if abs(giro_requerido) < config.BANDA_MUERTA_GIRO:
             return
-        
-        # Guardamos la dirección inicial para detectar si la inercia nos hace cruzar la meta
-        error_inicial_signo = 1 if giro_requerido > 0 else -1
-        
-        reloj = StopWatch()
-        while True:
-            error = angulo_meta - self.chasis.hub.imu.heading()
-            
-            if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
-                break
-            if reloj.time() > config.TIMEOUT_GIRO_MS:
-                print("TIMEOUT giro_absoluto_pd: faltaban %d grados" % error)
-                break
-            
-            derivada = error - error_previo
-            turn_rate = (error * kp) + (derivada * kd)
-            
-            # Piso efectivo de velocidad. Antes esto era 0 por debajo de 5 grados: con un
-            # error de 2 grados el turn_rate quedaba en ~6 grados/s, que no mueve el robot,
-            # la derivada se iba a 0 y el lazo se quedaba trabado hasta que el ruido del
-            # IMU lo sacaba de casualidad.
-            if abs(error) > 15:
-                min_speed_actual = min_speed
-            elif abs(error) > 5:
-                min_speed_actual = 40
-            else:
-                min_speed_actual = config.PISO_VELOCIDAD_GIRO
-            
-            turn_rate = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
-            
-            self.chasis.drive_base.drive(0, turn_rate)
-            error_previo = error
-            wait(10)
-            
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.drive_base.stop()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
+        kp, kd, min_potencia = self._perfil_giro(rueda_pivote, kp, kd, min_potencia)
+        self._lazo_giro_pd(rumbo_actual + giro_requerido, giro_requerido,
+                           rueda_pivote, max_potencia, min_potencia, kp, kd,
+                           tolerancia, encadenado, "giro_absoluto")
 
-    def giro_turbo(self, angulo_objetivo, max_potencia=85, min_potencia=30,
-                   kp=3.5, kd=5.0, tolerancia=1.5, ruta_corta=True,
-                   encadenado=False):
+    def giro_relativo(self, angulo, rueda_pivote=None, max_potencia=85,
+                      min_potencia=None, kp=None, kd=None, tolerancia=1.5,
+                      encadenado=False):
+        """Gira una cantidad de grados desde donde el robot este apuntando.
+
+        No le importa como quedo el IMU respecto del mapa, pero el error de
+        cada giro se hereda: dos giros relativos seguidos acumulan el desfase
+        del primero. Para tramos largos conviene giro_absoluto().
+
+        Argumentos:
+            angulo: grados a girar. Positivo es horario (a la derecha),
+                negativo antihorario (a la izquierda).
+            rueda_pivote: None gira sobre el eje con las dos ruedas;
+                "izquierda" o "derecha" nombra la rueda que se queda quieta.
+            max_potencia: techo de duty-cycle, 0-100.
+            min_potencia: piso de duty-cycle. None usa el del perfil.
+            kp, kd: ganancias del PD. None usa las del perfil.
+            tolerancia: error en grados que ya se considera llegada.
+            encadenado: True frena con el micro-freno pasivo para enlazar el
+                movimiento siguiente.
         """
-        Giro absoluto hiperoptimizado con control DC directo a 500 Hz.
-
-        Usa dc() en vez de drive_base.drive() para eliminar la latencia del
-        PID interno de Pybricks. El lazo PD externo es el unico controlador,
-        con ganancias adaptativas y filtro EMA en la derivada.
-
-        Funciona para giros de 3 grados y de 180 grados con la misma precision:
-        auto-escala la potencia maxima y las ganancias segun la magnitud.
-
-        Parametros
-        ----------
-        angulo_objetivo : float
-            Angulo absoluto del campo al que se quiere llegar (grados IMU).
-        max_potencia : int
-            Techo de duty-cycle (0-100). Default 85.
-        min_potencia : int
-            Piso que vence la friccion estatica. Default 30.
-        kp : float
-            Ganancia proporcional base. Default 3.5.
-        kd : float
-            Ganancia derivativa base. Default 5.0.
-        tolerancia : float
-            Error aceptable para terminar (grados). Default 1.5.
-        ruta_corta : bool
-            True = camino mas corto, False = vuelta larga.
-        encadenado : bool
-            True = micro-freno rapido para enlazar movimientos.
-        """
-        # ═══════════════════════════════════════════════════════════════
-        # 1. PRE-ESTABILIZACIÓN
-        #    hold() bloquea activamente los motores (PID interno mantiene
-        #    posicion). stop() solo corta la señal y deja girar por inercia.
-        #    Los 25 ms dejan que el tren de engranajes se asiente.
-        # ═══════════════════════════════════════════════════════════════
-        self.chasis.drive_base.stop()
-        self.chasis.motor_izquierda.hold()
-        self.chasis.motor_derecha.hold()
-        wait(25)
-
-        # ═══════════════════════════════════════════════════════════════
-        # 2. CÁLCULO DE RUTA (shortest-path o vuelta larga)
-        # ═══════════════════════════════════════════════════════════════
-        angulo_actual = self.chasis.hub.imu.heading()
-        error_bruto = angulo_objetivo - angulo_actual
-        error_corto = (error_bruto + 180) % 360 - 180
-
-        if ruta_corta:
-            giro_req = error_corto
-        else:
-            giro_req = (error_corto - 360 if error_corto > 0
-                        else error_corto + 360 if error_corto < 0
-                        else 0)
-
-        meta = angulo_actual + giro_req
-
-        # Banda muerta: debajo del ruido del IMU no vale moverse
-        if abs(giro_req) < config.BANDA_MUERTA_GIRO:
+        if abs(angulo) < config.BANDA_MUERTA_GIRO:
             return
-
-        # ═══════════════════════════════════════════════════════════════
-        # 3. AUTO-ESCALADO DE POTENCIA PARA GIROS CORTOS
-        #    Un giro de 8° con 85 % de duty lo pasa de largo porque el PD
-        #    no tiene espacio angular para frenar. Bajamos el techo para
-        #    que la rampa de desaceleracion del controlador tenga margen.
-        # ═══════════════════════════════════════════════════════════════
-        mag = abs(giro_req)
-        if mag < 10:
-            techo = min(max_potencia, 45)
-        elif mag < 25:
-            techo = min(max_potencia, 65)
-        else:
-            techo = max_potencia
-
-        # ═══════════════════════════════════════════════════════════════
-        # 4. ESTADO INICIAL DEL CONTROLADOR
-        # ═══════════════════════════════════════════════════════════════
-        signo = 1 if giro_req > 0 else -1
-        err_prev = giro_req          # error conocido en t = 0
-        d_filt = 0.0                 # derivada filtrada (EMA)
-        estables = 0                 # lecturas consecutivas dentro de tolerancia
-
-        # Anti-patinaje
-        imu_prev = angulo_actual
-        odom_prev = (self.chasis.motor_izquierda.angle()
-                     + self.chasis.motor_derecha.angle()) * 0.5
-        bloqueo_cnt = 0
-        it = 0
-
-        reloj = StopWatch()
-
-        # ═══════════════════════════════════════════════════════════════
-        # 5. LAZO DE CONTROL  ─  500 Hz (wait 2 ms)
-        # ═══════════════════════════════════════════════════════════════
-        while True:
-            imu = self.chasis.hub.imu.heading()
-            err = meta - imu
-            err_a = abs(err)
-
-            # ── 5a. Salida por tolerancia (2 lecturas estables) ──────
-            #    Exigir 2 lecturas evita salir por un pico de ruido del
-            #    IMU que casualmente cae dentro de la ventana.
-            if err_a <= tolerancia:
-                estables += 1
-                if estables >= 2:
-                    break
-            else:
-                estables = 0
-
-            # ── 5b. Salida por sobreimpulso ──────────────────────────
-            #    Si el signo del error se invierte, la inercia nos llevo
-            #    pasados de la meta. Mejor frenar ya que intentar volver
-            #    (el hold() final mantiene la posicion).
-            if err * signo < 0:
-                break
-
-            # ── 5c. Timeout de emergencia ────────────────────────────
-            if reloj.time() > config.TIMEOUT_GIRO_MS:
-                print("TIMEOUT giro_turbo: faltaban %d°" % err)
-                break
-
-            # ── 5d. Ganancias dinámicas ──────────────────────────────
-            #        Lejos  (>30°): crucero con amortiguamiento alto
-            #        Medio  (10-30°): desaceleracion controlada
-            #        Cerca  (<10°): precision quirurgica, kd minimo
-            if err_a > 30:
-                kp_e = kp * 1.1
-                kd_e = kd * 1.1
-            elif err_a > 10:
-                kp_e = kp * 1.3
-                kd_e = kd * 0.6
-            else:
-                kp_e = kp * 1.6
-                kd_e = kd * 0.25
-
-            # ── 5e. PD con filtro EMA en la derivada ─────────────────
-            #    El filtro 70/30 suaviza los picos de ruido del IMU sin
-            #    perder reactividad: la señal real pasa, el ruido no.
-            d_raw = err - err_prev
-            d_filt = d_raw * 0.7 + d_filt * 0.3
-            corr = err * kp_e + d_filt * kd_e
-
-            # ── 5f. Rampa de arranque (80 ms) ────────────────────────
-            #    Previene el golpe mecanico del primer instante: el techo
-            #    sube linealmente desde min_potencia hasta el techo real.
-            t = reloj.time()
-            t_eff = min_potencia + (techo - min_potencia) * t / 80.0 if t < 80 else techo
-
-            # ── 5g. Saturacion + piso de friccion estatica ───────────
-            if corr > t_eff:
-                pot = t_eff
-            elif corr < -t_eff:
-                pot = -t_eff
-            else:
-                pot = corr
-
-            if abs(pot) < min_potencia and err_a > tolerancia:
-                pot = min_potencia if err > 0 else -min_potencia
-
-            # ── 5h. Aplicar DC con compensacion de voltaje ───────────
-            #    compensar_voltaje() normaliza a 8 V de referencia para
-            #    que el comportamiento sea identico con bateria llena o
-            #    medio descargada.
-            self.chasis.motor_izquierda.dc(
-                self.chasis.compensar_voltaje(pot))
-            self.chasis.motor_derecha.dc(
-                self.chasis.compensar_voltaje(-pot))
-
-            # ── 5i. Deteccion de bloqueo (cada 10 ciclos, >5° error) ─
-            #    Si el IMU dice "no giras" pero los encoders dicen "si
-            #    giro", una rueda esta patinando en el aire o contra un
-            #    obstaculo. Micro-freno inverso para recuperar traccion.
-            it += 1
-            if it % 10 == 0 and err_a > 5:
-                d_imu = abs(imu - imu_prev)
-                odom = (self.chasis.motor_izquierda.angle()
-                        + self.chasis.motor_derecha.angle()) * 0.5
-                d_odom = abs(odom - odom_prev)
-
-                if d_imu < 1.0 and d_odom > 5.0:
-                    bloqueo_cnt += 1
-                    if bloqueo_cnt > 3:
-                        self.chasis.motor_izquierda.dc(
-                            self.chasis.compensar_voltaje(-15 * signo))
-                        self.chasis.motor_derecha.dc(
-                            self.chasis.compensar_voltaje(15 * signo))
-                        wait(15)
-                        bloqueo_cnt = 0
-                else:
-                    bloqueo_cnt = max(0, bloqueo_cnt - 1)
-
-                imu_prev = imu
-                odom_prev = odom
-
-            err_prev = err
-            wait(2)
-
-        # ═══════════════════════════════════════════════════════════════
-        # 6. FRENADO
-        #    encadenado: micro-freno pasivo (brake → stop) para enlazar
-        #                movimientos sin tiempo muerto.
-        #    normal:     hold() mantiene posicion activamente + 20 ms
-        #                de asentamiento mecanico.
-        # ═══════════════════════════════════════════════════════════════
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.motor_izquierda.hold()
-            self.chasis.motor_derecha.hold()
-            wait(20)
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
-
-    def giro_relativo_turbo(self, angulo, max_potencia=85, min_potencia=30,
-                            kp=3.5, kd=5.0, tolerancia=1.5,
-                            encadenado=False):
-        """
-        Giro RELATIVO hiperoptimizado. No necesita heading absoluto ni
-        cuadrar_contra_pared: cada giro se mide desde la posicion actual.
-
-        Positivo = horario (derecha), Negativo = antihorario (izquierda).
-
-        Usa dc() directo a 500 Hz con PD adaptativo, filtro EMA, rampa
-        de arranque, auto-escalado de potencia y deteccion de bloqueo.
-        """
-        if angulo == 0 or abs(angulo) < config.BANDA_MUERTA_GIRO:
-            return
-
-        # ─── PRE-ESTABILIZACIÓN ───────────────────────────────────────
-        self.chasis.drive_base.stop()
-        self.chasis.motor_izquierda.hold()
-        self.chasis.motor_derecha.hold()
-        wait(25)
-
-        # ─── META RELATIVA ────────────────────────────────────────────
-        # Leemos el heading DESPUÉS del hold para que la lectura sea
-        # con el robot completamente quieto (maxima precision).
-        inicio = self.chasis.hub.imu.heading()
-        meta = inicio + angulo
-
-        # ─── AUTO-ESCALADO PARA GIROS CORTOS ─────────────────────────
-        mag = abs(angulo)
-        if mag < 10:
-            techo = min(max_potencia, 45)
-        elif mag < 25:
-            techo = min(max_potencia, 65)
-        else:
-            techo = max_potencia
-
-        # ─── ESTADO DEL CONTROLADOR ──────────────────────────────────
-        signo = 1 if angulo > 0 else -1
-        err_prev = angulo
-        d_filt = 0.0
-        estables = 0
-
-        # Anti-patinaje
-        imu_prev = inicio
-        odom_prev = (self.chasis.motor_izquierda.angle()
-                     + self.chasis.motor_derecha.angle()) * 0.5
-        bloqueo_cnt = 0
-        it = 0
-
-        reloj = StopWatch()
-
-        # ─── LAZO DE CONTROL ─ 500 Hz ────────────────────────────────
-        while True:
-            imu = self.chasis.hub.imu.heading()
-            err = meta - imu
-            err_a = abs(err)
-
-            # Salida por tolerancia (2 lecturas consecutivas)
-            if err_a <= tolerancia:
-                estables += 1
-                if estables >= 2:
-                    break
-            else:
-                estables = 0
-
-            # Salida por sobreimpulso
-            if err * signo < 0:
-                break
-
-            # Timeout
-            if reloj.time() > config.TIMEOUT_GIRO_MS:
-                print("TIMEOUT giro_relativo_turbo: faltaban %d°" % err)
-                break
-
-            # Ganancias dinámicas
-            if err_a > 30:
-                kp_e = kp * 1.1
-                kd_e = kd * 1.1
-            elif err_a > 10:
-                kp_e = kp * 1.3
-                kd_e = kd * 0.6
-            else:
-                kp_e = kp * 1.6
-                kd_e = kd * 0.25
-
-            # PD con filtro EMA 70/30
-            d_raw = err - err_prev
-            d_filt = d_raw * 0.7 + d_filt * 0.3
-            corr = err * kp_e + d_filt * kd_e
-
-            # Rampa de arranque (80 ms)
-            t = reloj.time()
-            t_eff = min_potencia + (techo - min_potencia) * t / 80.0 if t < 80 else techo
-
-            # Saturación + piso de fricción estática
-            if corr > t_eff:
-                pot = t_eff
-            elif corr < -t_eff:
-                pot = -t_eff
-            else:
-                pot = corr
-
-            if abs(pot) < min_potencia and err_a > tolerancia:
-                pot = min_potencia if err > 0 else -min_potencia
-
-            # DC directo con compensación de voltaje
-            self.chasis.motor_izquierda.dc(
-                self.chasis.compensar_voltaje(pot))
-            self.chasis.motor_derecha.dc(
-                self.chasis.compensar_voltaje(-pot))
-
-            # Detección de bloqueo (cada 10 ciclos, >5° error)
-            it += 1
-            if it % 10 == 0 and err_a > 5:
-                d_imu = abs(imu - imu_prev)
-                odom = (self.chasis.motor_izquierda.angle()
-                        + self.chasis.motor_derecha.angle()) * 0.5
-                d_odom = abs(odom - odom_prev)
-
-                if d_imu < 1.0 and d_odom > 5.0:
-                    bloqueo_cnt += 1
-                    if bloqueo_cnt > 3:
-                        self.chasis.motor_izquierda.dc(
-                            self.chasis.compensar_voltaje(-15 * signo))
-                        self.chasis.motor_derecha.dc(
-                            self.chasis.compensar_voltaje(15 * signo))
-                        wait(15)
-                        bloqueo_cnt = 0
-                else:
-                    bloqueo_cnt = max(0, bloqueo_cnt - 1)
-
-                imu_prev = imu
-                odom_prev = odom
-
-            err_prev = err
-            wait(2)
-
-        # ─── FRENADO ─────────────────────────────────────────────────
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.motor_izquierda.hold()
-            self.chasis.motor_derecha.hold()
-            wait(20)
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
-
-    # ═══════════════════════════════════════════════════════════════════
-    # GIROS PIVOTE CON UN MOTOR (TURBO DC - 500 Hz)
-    # ═══════════════════════════════════════════════════════════════════
-
-    def _lazo_giro_un_motor_turbo(self, motor_activo, motor_fijo, sentido_motor,
-                                  giro_req, meta, max_potencia=85, min_potencia=32,
-                                  kp=4.0, kd=6.0, tolerancia=1.5, encadenado=False,
-                                  nombre="giro_un_motor_turbo"):
-        """
-        Núcleo de ejecución para giros pivote sobre una rueda inmóvil.
-        Frecuencia 500 Hz (wait 2ms), control DC directo al motor activo,
-        PID adaptativo dinámico, filtro EMA en derivada y compensación de voltaje.
-        """
-        # Auto-escalado de potencia máxima para giros de poco ángulo
-        mag = abs(giro_req)
-        if mag < 10:
-            techo = min(max_potencia, 48)
-        elif mag < 25:
-            techo = min(max_potencia, 68)
-        else:
-            techo = max_potencia
-
-        signo = 1 if giro_req > 0 else -1
-        err_prev = giro_req
-        d_filt = 0.0
-        estables = 0
-
-        # Anti-patinaje y monitoreo
-        imu_prev = self.chasis.hub.imu.heading()
-        odom_prev = motor_activo.angle()
-        bloqueo_cnt = 0
-        it = 0
-
-        reloj = StopWatch()
-
-        while True:
-            imu = self.chasis.hub.imu.heading()
-            err = meta - imu
-            err_a = abs(err)
-
-            # 1. Criterio de parada por tolerancia (2 lecturas consecutivas)
-            if err_a <= tolerancia:
-                estables += 1
-                if estables >= 2:
-                    break
-            else:
-                estables = 0
-
-            # 2. Criterio de corte por sobreimpulso inercial
-            if err * signo < 0:
-                break
-
-            # 3. Timeout de seguridad
-            if reloj.time() > config.TIMEOUT_GIRO_MS:
-                print("TIMEOUT %s: faltaban %d grados" % (nombre, err))
-                break
-
-            # 4. Ganancias dinámicas según proximidad al objetivo
-            if err_a > 30:
-                kp_e = kp * 1.1
-                kd_e = kd * 1.1
-            elif err_a > 10:
-                kp_e = kp * 1.3
-                kd_e = kd * 0.6
-            else:
-                kp_e = kp * 1.6
-                kd_e = kd * 0.25
-
-            # 5. PD con filtro EMA 70/30 en derivada (elimina ruido IMU)
-            d_raw = err - err_prev
-            d_filt = d_raw * 0.7 + d_filt * 0.3
-            corr = err * kp_e + d_filt * kd_e
-
-            # 6. Rampa de aceleración inicial (80 ms)
-            t = reloj.time()
-            t_eff = min_potencia + (techo - min_potencia) * t / 80.0 if t < 80 else techo
-
-            # 7. Saturación y piso contra fricción estática
-            if corr > t_eff:
-                pot = t_eff
-            elif corr < -t_eff:
-                pot = -t_eff
-            else:
-                pot = corr
-
-            if abs(pot) < min_potencia and err_a > tolerancia:
-                pot = min_potencia if err > 0 else -min_potencia
-
-            # 8. Aplicar DC directo al motor activo con sentido y compensación de batería
-            pot_motor = pot * sentido_motor
-            motor_activo.dc(self.chasis.compensar_voltaje(pot_motor))
-
-            # 9. Detección de patinaje y reaseguro de rueda fija
-            it += 1
-            if it % 10 == 0 and err_a > 5:
-                d_imu = abs(imu - imu_prev)
-                odom_act = motor_activo.angle()
-                d_odom = abs(odom_act - odom_prev)
-
-                if d_imu < 1.0 and d_odom > 6.0:
-                    bloqueo_cnt += 1
-                    if bloqueo_cnt > 3:
-                        motor_activo.dc(self.chasis.compensar_voltaje(-18 * signo * sentido_motor))
-                        wait(15)
-                        bloqueo_cnt = 0
-                else:
-                    bloqueo_cnt = max(0, bloqueo_cnt - 1)
-
-                imu_prev = imu
-                odom_prev = odom_act
-                motor_fijo.hold()
-
-            err_prev = err
-            wait(2)
-
-        # 10. Frenado
-        if encadenado:
-            motor_activo.brake()
-            wait(4)
-            motor_activo.stop()
-            wait(2)
-        else:
-            motor_activo.hold()
-            motor_fijo.hold()
-            wait(20)
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
-
-    def giro_relativo_motor_izquierdo_turbo(self, angulo, max_potencia=85, min_potencia=32,
-                                            kp=4.0, kd=6.0, tolerancia=1.5,
-                                            encadenado=False, desaceleracion=None):
-        """
-        Giro RELATIVO pivotando sobre la rueda DERECHA inmóvil.
-        Mueve únicamente el motor IZQUIERDO.
-
-        Ángulo positivo = gira a la derecha (horario, motor izquierdo hacia adelante).
-        Ángulo negativo = gira a la izquierda (antihorario, motor izquierdo hacia atrás).
-        """
-        if angulo == 0 or abs(angulo) < config.BANDA_MUERTA_GIRO:
-            return
-
-        self.chasis.drive_base.stop()
-        self.chasis.motor_derecha.hold()
-        self.chasis.motor_izquierda.hold()
-        wait(25)
-
-        inicio = self.chasis.hub.imu.heading()
-        meta = inicio + angulo
-
-        self._lazo_giro_un_motor_turbo(
-            motor_activo=self.chasis.motor_izquierda,
-            motor_fijo=self.chasis.motor_derecha,
-            sentido_motor=1,
-            giro_req=angulo,
-            meta=meta,
-            max_potencia=max_potencia,
-            min_potencia=min_potencia,
-            kp=kp,
-            kd=kd,
-            tolerancia=tolerancia,
-            encadenado=encadenado,
-            nombre="giro_relativo_motor_izquierdo_turbo"
-        )
-
-    def giro_absoluto_motor_izquierdo_turbo(self, angulo_objetivo, max_potencia=85, min_potencia=32,
-                                            kp=4.0, kd=6.0, tolerancia=1.5, ruta_corta=True,
-                                            encadenado=False, desaceleracion=None):
-        """
-        Giro ABSOLUTO hacia rumbo fijo del mapa pivotando sobre la rueda DERECHA.
-        Mueve únicamente el motor IZQUIERDO.
-        """
-        self.chasis.drive_base.stop()
-        self.chasis.motor_derecha.hold()
-        self.chasis.motor_izquierda.hold()
-        wait(25)
-
-        actual = self.chasis.hub.imu.heading()
-        error_bruto = angulo_objetivo - actual
-        error_corto = (error_bruto + 180) % 360 - 180
-
-        if ruta_corta:
-            giro_req = error_corto
-        else:
-            giro_req = (error_corto - 360 if error_corto > 0
-                        else error_corto + 360 if error_corto < 0
-                        else 0)
-
-        if abs(giro_req) < config.BANDA_MUERTA_GIRO:
-            return
-
-        meta = actual + giro_req
-
-        self._lazo_giro_un_motor_turbo(
-            motor_activo=self.chasis.motor_izquierda,
-            motor_fijo=self.chasis.motor_derecha,
-            sentido_motor=1,
-            giro_req=giro_req,
-            meta=meta,
-            max_potencia=max_potencia,
-            min_potencia=min_potencia,
-            kp=kp,
-            kd=kd,
-            tolerancia=tolerancia,
-            encadenado=encadenado,
-            nombre="giro_absoluto_motor_izquierdo_turbo"
-        )
-
-    def giro_relativo_motor_derecho_turbo(self, angulo, max_potencia=85, min_potencia=32,
-                                          kp=4.0, kd=6.0, tolerancia=1.5,
-                                          encadenado=False, desaceleracion=None):
-        """
-        Giro RELATIVO pivotando sobre la rueda IZQUIERDA inmóvil.
-        Mueve únicamente el motor DERECHO.
-
-        Ángulo positivo = gira a la derecha (horario, motor derecho hacia atrás).
-        Ángulo negativo = gira a la izquierda (antihorario, motor derecho hacia adelante).
-        """
-        if angulo == 0 or abs(angulo) < config.BANDA_MUERTA_GIRO:
-            return
-
-        self.chasis.drive_base.stop()
-        self.chasis.motor_izquierda.hold()
-        self.chasis.motor_derecha.hold()
-        wait(25)
-
-        inicio = self.chasis.hub.imu.heading()
-        meta = inicio + angulo
-
-        self._lazo_giro_un_motor_turbo(
-            motor_activo=self.chasis.motor_derecha,
-            motor_fijo=self.chasis.motor_izquierda,
-            sentido_motor=-1,
-            giro_req=angulo,
-            meta=meta,
-            max_potencia=max_potencia,
-            min_potencia=min_potencia,
-            kp=kp,
-            kd=kd,
-            tolerancia=tolerancia,
-            encadenado=encadenado,
-            nombre="giro_relativo_motor_derecho_turbo"
-        )
-
-    def giro_absoluto_motor_derecho_turbo(self, angulo_objetivo, max_potencia=85, min_potencia=32,
-                                          kp=4.0, kd=6.0, tolerancia=1.5, ruta_corta=True,
-                                          encadenado=False, desaceleracion=None):
-        """
-        Giro ABSOLUTO hacia rumbo fijo del mapa pivotando sobre la rueda IZQUIERDA.
-        Mueve únicamente el motor DERECHO.
-        """
-        self.chasis.drive_base.stop()
-        self.chasis.motor_izquierda.hold()
-        self.chasis.motor_derecha.hold()
-        wait(25)
-
-        actual = self.chasis.hub.imu.heading()
-        error_bruto = angulo_objetivo - actual
-        error_corto = (error_bruto + 180) % 360 - 180
-
-        if ruta_corta:
-            giro_req = error_corto
-        else:
-            giro_req = (error_corto - 360 if error_corto > 0
-                        else error_corto + 360 if error_corto < 0
-                        else 0)
-
-        if abs(giro_req) < config.BANDA_MUERTA_GIRO:
-            return
-
-        meta = actual + giro_req
-
-        self._lazo_giro_un_motor_turbo(
-            motor_activo=self.chasis.motor_derecha,
-            motor_fijo=self.chasis.motor_izquierda,
-            sentido_motor=-1,
-            giro_req=giro_req,
-            meta=meta,
-            max_potencia=max_potencia,
-            min_potencia=min_potencia,
-            kp=kp,
-            kd=kd,
-            tolerancia=tolerancia,
-            encadenado=encadenado,
-            nombre="giro_absoluto_motor_derecho_turbo"
-        )
-
-    def desplazar_lateral_turbo(self, distancia_cm, max_potencia=85, min_potencia=32,
-                                kp=4.0, kd=6.0, tolerancia=1.5,
-                                compensar_avance=False, reversa=False, encadenado=False):
-        """
-        Desplaza el robot lateralmente una cantidad de centímetros a la izquierda o derecha
-        utilizando dos giros pivote consecutivos con un solo motor turbo, finalizando en la
-        misma orientación original del robot.
-
-        Geometría del desplazamiento:
-        - d = abs(distancia_cm)
-        - Ancho de vía: L = config.SEPARACION_RUEDAS / 10.0 (cm)
-        - Ángulo de cada giro pivote: alpha = arccos(1 - d/L)
-        - Desplazamiento longitudinal circular resultante: delta_y = L * sin(alpha)
-
-        Parámetros:
-        - distancia_cm (float): Desplazamiento lateral deseado en cm.
-                                Negativo (-) para desplazar hacia la IZQUIERDA.
-                                Positivo (+) para desplazar hacia la DERECHA.
-        - max_potencia (int): Techo de potencia DC para los giros turbo (default 85).
-        - min_potencia (int): Piso de potencia DC para vencer fricción estática (default 32).
-        - kp, kd (float): Constantes de control PD dinámico para el giro con una sola rueda.
-        - tolerancia (float): Tolerancia en grados para la parada con el giroscopio (default 1.5).
-        - compensar_avance (bool): Si es True, ejecuta un tramo recto (avanzar_recto) para
-                                  cancelar el avance longitudinal de los arcos circulares (delta_y),
-                                  dejando al robot exactamente sobre su línea original.
-        - reversa (bool): Si es False (default), los giros pivotan avanzando.
-                          Si es True, los giros pivotan retrocediendo.
-        - encadenado (bool): Si es True, no emite sonido ni frena en seco al concluir.
-
-        Retorna:
-        - (alpha_grados, delta_y_cm): Ángulo calculado para cada giro y avance longitudinal.
+        self._preparar_giro(rueda_pivote)
+        kp, kd, min_potencia = self._perfil_giro(rueda_pivote, kp, kd, min_potencia)
+        meta = self.chasis.hub.imu.heading() + angulo
+        self._lazo_giro_pd(meta, angulo, rueda_pivote, max_potencia,
+                           min_potencia, kp, kd, tolerancia, encadenado,
+                           "giro_relativo")
+
+    def desplazar_lateral(self, distancia_cm, max_potencia=85, min_potencia=None,
+                          kp=None, kd=None, tolerancia=1.5,
+                          compensar_avance=False, reversa=False, encadenado=False):
+        """Corre el robot de costado dejandolo en la orientacion original.
+
+        Encadena dos giros pivote opuestos: el primero saca al robot de su
+        linea y el segundo lo devuelve al rumbo inicial, ya desplazado. Como
+        los dos giros son arcos, el robot tambien avanza de paso; ese avance
+        es delta_y y se puede cancelar con compensar_avance.
+
+        Con L = ancho de via y d = desplazamiento pedido:
+            alpha = arccos(1 - d/L)     angulo de cada giro pivote
+            delta_y = L * sin(alpha)    avance longitudinal que sobra
+
+        Argumentos:
+            distancia_cm: desplazamiento lateral. Negativo a la izquierda,
+                positivo a la derecha. El limite fisico son dos anchos de via;
+                mas que eso se acota y se avisa por consola.
+            max_potencia: techo de duty-cycle de los dos giros, 0-100.
+            min_potencia: piso de duty-cycle. None usa el del perfil pivote.
+            kp, kd: ganancias del PD. None usa las del perfil pivote.
+            tolerancia: error en grados que ya se considera llegada.
+            compensar_avance: True agrega una recta que cancela delta_y y deja
+                al robot sobre su linea original.
+            reversa: False pivota avanzando, True pivota retrocediendo.
+            encadenado: True frena con el micro-freno pasivo al terminar.
+
+        Devuelve (alpha_grados, delta_y_cm), utiles para calibrar en pista.
         """
         if distancia_cm == 0:
             return 0.0, 0.0
@@ -796,16 +365,13 @@ class Navegacion:
         ancho_via_cm = config.SEPARACION_RUEDAS / 10.0
         d = abs(distancia_cm)
 
-        # Límite físico: dos giros pivote pueden desplazar a lo sumo 2 * L
         if d >= (2.0 * ancho_via_cm):
             d_max = 2.0 * ancho_via_cm * 0.99
-            print("AVISO desplazar_lateral_turbo: distancia %.1f cm excede límite físico (%.1f cm), acotando a %.1f cm."
+            print("AVISO desplazar_lateral: distancia %.1f cm excede el limite fisico (%.1f cm), acotando a %.1f cm."
                   % (d, 2.0 * ancho_via_cm, d_max))
             d = d_max
 
-        # Cálculo trigonométrico: cos(alpha) = 1 - d/L
-        cos_alpha = 1.0 - (d / ancho_via_cm)
-        cos_alpha = max(-1.0, min(1.0, cos_alpha))
+        cos_alpha = max(-1.0, min(1.0, 1.0 - (d / ancho_via_cm)))
         alpha_rad = math.acos(cos_alpha)
         alpha_deg = alpha_rad * 180.0 / math.pi
 
@@ -815,96 +381,25 @@ class Navegacion:
         delta_y_cm = ancho_via_cm * math.sin(alpha_rad)
         rumbo_inicial = self.chasis.hub.imu.heading()
 
-        if distancia_cm < 0:
-            # === DESPLAZAMIENTO A LA IZQUIERDA ===
-            if not reversa:
-                # Giro 1: Motor derecho avanza -> gira robot a la izquierda (-alpha)
-                self.giro_relativo_motor_derecho_turbo(
-                    -alpha_deg,
-                    max_potencia=max_potencia,
-                    min_potencia=min_potencia,
-                    kp=kp,
-                    kd=kd,
-                    tolerancia=tolerancia,
-                    encadenado=True
-                )
-                # Giro 2: Motor izquierdo avanza -> gira robot a la derecha hasta volver al rumbo inicial exacto
-                self.giro_absoluto_motor_izquierdo_turbo(
-                    rumbo_inicial,
-                    max_potencia=max_potencia,
-                    min_potencia=min_potencia,
-                    kp=kp,
-                    kd=kd,
-                    tolerancia=tolerancia,
-                    encadenado=(encadenado and not compensar_avance)
-                )
-            else:
-                # Giro 1: Motor izquierdo retrocede -> gira robot a la izquierda (-alpha)
-                self.giro_relativo_motor_izquierdo_turbo(
-                    -alpha_deg,
-                    max_potencia=max_potencia,
-                    min_potencia=min_potencia,
-                    kp=kp,
-                    kd=kd,
-                    tolerancia=tolerancia,
-                    encadenado=True
-                )
-                # Giro 2: Motor derecho retrocede -> gira robot a la derecha hasta rumbo inicial
-                self.giro_absoluto_motor_derecho_turbo(
-                    rumbo_inicial,
-                    max_potencia=max_potencia,
-                    min_potencia=min_potencia,
-                    kp=kp,
-                    kd=kd,
-                    tolerancia=tolerancia,
-                    encadenado=(encadenado and not compensar_avance)
-                )
-        else:
-            # === DESPLAZAMIENTO A LA DERECHA ===
-            if not reversa:
-                # Giro 1: Motor izquierdo avanza -> gira robot a la derecha (+alpha)
-                self.giro_relativo_motor_izquierdo_turbo(
-                    alpha_deg,
-                    max_potencia=max_potencia,
-                    min_potencia=min_potencia,
-                    kp=kp,
-                    kd=kd,
-                    tolerancia=tolerancia,
-                    encadenado=True
-                )
-                # Giro 2: Motor derecho avanza -> gira robot a la izquierda hasta volver al rumbo inicial exacto
-                self.giro_absoluto_motor_derecho_turbo(
-                    rumbo_inicial,
-                    max_potencia=max_potencia,
-                    min_potencia=min_potencia,
-                    kp=kp,
-                    kd=kd,
-                    tolerancia=tolerancia,
-                    encadenado=(encadenado and not compensar_avance)
-                )
-            else:
-                # Giro 1: Motor derecho retrocede -> gira robot a la derecha (+alpha)
-                self.giro_relativo_motor_derecho_turbo(
-                    alpha_deg,
-                    max_potencia=max_potencia,
-                    min_potencia=min_potencia,
-                    kp=kp,
-                    kd=kd,
-                    tolerancia=tolerancia,
-                    encadenado=True
-                )
-                # Giro 2: Motor izquierdo retrocede -> gira robot a la izquierda hasta rumbo inicial
-                self.giro_absoluto_motor_izquierdo_turbo(
-                    rumbo_inicial,
-                    max_potencia=max_potencia,
-                    min_potencia=min_potencia,
-                    kp=kp,
-                    kd=kd,
-                    tolerancia=tolerancia,
-                    encadenado=(encadenado and not compensar_avance)
-                )
+        hacia_izquierda = distancia_cm < 0
+        angulo = -alpha_deg if hacia_izquierda else alpha_deg
 
-        # Compensación del avance longitudinal si el usuario lo activa
+        # Yendo de frente el robot sale de su linea pivotando sobre la rueda
+        # del lado hacia el que se desplaza; en reversa, sobre la contraria.
+        if hacia_izquierda != reversa:
+            pivote_salida, pivote_regreso = "izquierda", "derecha"
+        else:
+            pivote_salida, pivote_regreso = "derecha", "izquierda"
+
+        self.giro_relativo(angulo, rueda_pivote=pivote_salida,
+                           max_potencia=max_potencia, min_potencia=min_potencia,
+                           kp=kp, kd=kd, tolerancia=tolerancia,
+                           encadenado=True)
+        self.giro_absoluto(rumbo_inicial, rueda_pivote=pivote_regreso,
+                           max_potencia=max_potencia, min_potencia=min_potencia,
+                           kp=kp, kd=kd, tolerancia=tolerancia,
+                           encadenado=(encadenado and not compensar_avance))
+
         if compensar_avance:
             avance_compensar = -delta_y_cm if not reversa else delta_y_cm
             self.chasis.avanzar_recto(avance_compensar, encadenado=encadenado)
@@ -982,129 +477,6 @@ class Navegacion:
             self.chasis.motor_derecha.stop()
             cronometro.pause()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
-    
-    def giro_absoluto_motor_izquierdo(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False, desaceleracion=None):
-        self.chasis.drive_base.stop()
-        self.chasis.motor_derecha.hold() 
-        
-        error_previo = 0
-        factor_conversion = 5.71 
-        
-        angulo_actual_inicial = self.chasis.hub.imu.heading()
-        error_bruto_inicial = angulo_objetivo - angulo_actual_inicial
-        error_corto_inicial = (error_bruto_inicial + 180) % 360 - 180
-        
-        if ruta_corta:
-            giro_requerido = error_corto_inicial
-        else:
-            giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else (error_corto_inicial + 360 if error_corto_inicial < 0 else 0)
-                
-        angulo_meta = angulo_actual_inicial + giro_requerido
-        # Por debajo del ruido del IMU no vale la pena moverse: el PD se queda
-        # pataleando con un turn_rate que no alcanza a vencer la friccion estatica.
-        if abs(giro_requerido) < config.BANDA_MUERTA_GIRO:
-            return
-        error_inicial_signo = 1 if giro_requerido > 0 else -1
-        
-        reloj = StopWatch()
-        while True:
-            error = angulo_meta - self.chasis.hub.imu.heading()
-            
-            if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
-                break
-            if reloj.time() > config.TIMEOUT_GIRO_MS:
-                print("TIMEOUT giro_absoluto_motor_izquierdo: faltaban %d grados" % error)
-                break
-            
-            if desaceleracion is None:
-                # Control P clasico. Ojo: entre ~31 y ~8 grados de error el termino P
-                # vale menos que min_speed, asi que el piso pasa a ser la velocidad real
-                # y el giro se aplana. Por eso existe la rama de abajo.
-                derivada = error - error_previo
-                turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
-                min_speed_actual = min_speed if abs(error) > 8 else (config.PISO_VELOCIDAD_GIRO * factor_conversion)
-                velocidad_aplicar = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
-            else:
-                # Perfil de desaceleracion constante: omega = raiz(2 * alfa * error).
-                # Corre a fondo hasta el ultimo momento y baja en rampa lineal hasta
-                # clavar la meta, en vez de la cola exponencial que deja un control P.
-                omega = (2.0 * desaceleracion * abs(error)) ** 0.5
-                omega = max(omega, config.PISO_VELOCIDAD_GIRO)
-                velocidad_aplicar = min(omega * factor_conversion, max_speed)
-                if error < 0:
-                    velocidad_aplicar = -velocidad_aplicar
-                
-            self.chasis.motor_izquierda.run(velocidad_aplicar)
-            error_previo = error
-            wait(10)
-            
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.motor_izquierda.hold()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
-
-    def giro_absoluto_motor_derecho(self, angulo_objetivo, max_speed=800, min_speed=120, kp=4.0, kd=18.0, margen_grados=0, ruta_corta=True, encadenado=False, desaceleracion=None):
-        self.chasis.drive_base.stop()
-        self.chasis.motor_izquierda.hold() 
-        
-        error_previo = 0
-        factor_conversion = 5.71 
-        
-        angulo_actual_inicial = self.chasis.hub.imu.heading()
-        error_bruto_inicial = angulo_objetivo - angulo_actual_inicial
-        error_corto_inicial = (error_bruto_inicial + 180) % 360 - 180
-        
-        if ruta_corta:
-            giro_requerido = error_corto_inicial
-        else:
-            giro_requerido = error_corto_inicial - 360 if error_corto_inicial > 0 else (error_corto_inicial + 360 if error_corto_inicial < 0 else 0)
-                
-        angulo_meta = angulo_actual_inicial + giro_requerido
-        # Por debajo del ruido del IMU no vale la pena moverse: el PD se queda
-        # pataleando con un turn_rate que no alcanza a vencer la friccion estatica.
-        if abs(giro_requerido) < config.BANDA_MUERTA_GIRO:
-            return
-        error_inicial_signo = 1 if giro_requerido > 0 else -1
-        
-        reloj = StopWatch()
-        while True:
-            error = angulo_meta - self.chasis.hub.imu.heading()
-            
-            # Protección contra sobreimpulso
-            if abs(error) <= max(1, margen_grados) or (error * error_inicial_signo < 0): 
-                break
-            if reloj.time() > config.TIMEOUT_GIRO_MS:
-                print("TIMEOUT giro_absoluto_motor_derecho: faltaban %d grados" % error)
-                break
-            
-            if desaceleracion is None:
-                # Control P clasico. Ojo: entre ~31 y ~8 grados de error el termino P
-                # vale menos que min_speed, asi que el piso pasa a ser la velocidad real
-                # y el giro se aplana. Por eso existe la rama de abajo.
-                derivada = error - error_previo
-                turn_rate = ((error * kp) + (derivada * kd)) * factor_conversion
-                min_speed_actual = min_speed if abs(error) > 8 else (config.PISO_VELOCIDAD_GIRO * factor_conversion)
-                velocidad_aplicar = min(max(turn_rate, min_speed_actual), max_speed) if turn_rate > 0 else max(min(turn_rate, -min_speed_actual), -max_speed)
-            else:
-                # Perfil de desaceleracion constante: omega = raiz(2 * alfa * error).
-                # Corre a fondo hasta el ultimo momento y baja en rampa lineal hasta
-                # clavar la meta, en vez de la cola exponencial que deja un control P.
-                omega = (2.0 * desaceleracion * abs(error)) ** 0.5
-                omega = max(omega, config.PISO_VELOCIDAD_GIRO)
-                velocidad_aplicar = min(omega * factor_conversion, max_speed)
-                if error < 0:
-                    velocidad_aplicar = -velocidad_aplicar
-                
-            self.chasis.motor_derecha.run(-velocidad_aplicar)
-            error_previo = error
-            wait(10)
-            
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.motor_derecha.hold()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)   
     
     def avanzar_manteniendo_rumbo(self, distancia_cm, velocidad=800, angulo_objetivo=None, kp=2.5, kd=10.0, margen_cm=0, encadenado=False):
         """
