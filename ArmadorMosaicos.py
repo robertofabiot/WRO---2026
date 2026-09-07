@@ -47,11 +47,11 @@ class ArmadorMosaicos:
         rutina_a_ejecutar()
     
     def _armar_verde_verde(self):
-        """Mosaico 1: verde-verde. Sin empezar."""
+        """Rutina de armado para mosaico verde-verde (pendiente de desarrollo)."""
         pass
 
     def _armar_verde_amarillo(self):
-        """Mosaico 2: verde-amarillo. Escrito pero todavia no funciona."""
+        """Rutina de armado para mosaico verde-amarillo (en desarrollo)."""
         # Acomodo
         self.robot.chasis.mover_motor_derecho(-600, encadenado=True)
         self.robot.chasis.avanzar_recto(-2, velocidad=1000, encadenado=True)
@@ -87,7 +87,7 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(12, velocidad=100)
 
     def _armar_azul(self):
-        """Mosaico 3: azul. La primera mitad anda; falta dejar las ultimas piezas."""
+        """Rutina de armado para mosaico azul (primera mitad operativa)."""
         # Acomodo
         self.robot.chasis.mover_motor_derecho(-600, encadenado=True)
         self.robot.chasis.avanzar_recto(-2, velocidad=1000, encadenado=True)
@@ -198,9 +198,9 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(20)
 
     def _armar_amarillo(self):
-        """Mosaico 4: amarillo. Sin empezar."""
+        """Rutina de armado para mosaico amarillo (pendiente de desarrollo)."""
         pass
 
     def _armar_blanco(self):
-        """Mosaico 5: blanco. Sin empezar."""
+        """Rutina de armado para mosaico blanco (pendiente de desarrollo)."""
         pass

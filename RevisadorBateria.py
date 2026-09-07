@@ -29,7 +29,7 @@ class RevisadorBateria:
         if bateria < bateria_minima:
             print(f"Batería menor a {bateria_minima}")
             
-            # Sonido "Gamer" de batería baja (versión mucho más grave)
+            # Alerta sonora de bateria baja
             self.robot.hub.speaker.beep(350, 150)
             self.robot.hub.speaker.beep(250, 150)
             self.robot.hub.speaker.beep(150, 150)

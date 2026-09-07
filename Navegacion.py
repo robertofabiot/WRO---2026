@@ -208,8 +208,7 @@ class Navegacion:
             error = meta - rumbo
             error_abs = abs(error)
 
-            # Se exigen dos lecturas seguidas dentro de la tolerancia: con una
-            # sola, un pico de ruido del IMU corta el giro antes de llegar.
+            # Confirmacion por dos lecturas consecutivas para filtrar ruido del IMU
             if error_abs <= tolerancia:
                 lecturas_en_tolerancia += 1
                 if lecturas_en_tolerancia >= 2:
@@ -217,8 +216,7 @@ class Navegacion:
             else:
                 lecturas_en_tolerancia = 0
 
-            # El error cambio de signo: la inercia nos paso de la meta y
-            # volver cuesta mas de lo que corrige. El hold() final aguanta.
+            # Detener si hubo sobregiro (cruce por cero del error)
             if error * sentido < 0:
                 break
 
@@ -226,7 +224,7 @@ class Navegacion:
                 print("TIMEOUT %s: faltaban %d grados" % (nombre, error))
                 break
 
-            # Lejos manda el amortiguamiento, cerca manda la precision.
+            # Ganancias adaptativas segun la magnitud del error
             if error_abs > 30:
                 kp_efectivo, kd_efectivo = kp * 1.1, kd * 1.1
             elif error_abs > 10:
@@ -237,8 +235,7 @@ class Navegacion:
             derivada_filtrada = (error - error_previo) * 0.7 + derivada_filtrada * 0.3
             correccion = error * kp_efectivo + derivada_filtrada * kd_efectivo
 
-            # Rampa de arranque de 80 ms contra el golpe mecanico del primer
-            # instante.
+            # Rampa suave de arranque (80 ms) para reducir impacto mecanico inicial
             transcurrido = reloj.time()
             if transcurrido < 80:
                 techo_efectivo = min_potencia + (techo - min_potencia) * transcurrido / 80.0
@@ -252,8 +249,7 @@ class Navegacion:
             for motor, sentido_motor in activos:
                 motor.dc(self.chasis.compensar_voltaje(potencia * sentido_motor))
 
-            # Anti-patinaje: si el IMU dice que no giramos pero los encoders
-            # dicen que si, hay una rueda girando en el aire o contra algo.
+            # Deteccion de patinaje por discrepancia entre IMU y odometria
             ciclos += 1
             if ciclos % 10 == 0 and error_abs > 5:
                 odometria = self._odometria_giro(activos)
@@ -261,7 +257,7 @@ class Navegacion:
                         and abs(odometria - odometria_anterior) > 6.0):
                     ciclos_bloqueado += 1
                     if ciclos_bloqueado > 3:
-                        # Micro-freno invertido para recuperar traccion.
+                        # Impulso inverso para recuperar traccion
                         for motor, sentido_motor in activos:
                             motor.dc(self.chasis.compensar_voltaje(-18 * sentido * sentido_motor))
                         wait(15)
@@ -418,8 +414,7 @@ class Navegacion:
         hacia_izquierda = distancia_cm < 0
         angulo = -alpha_deg if hacia_izquierda else alpha_deg
 
-        # Yendo de frente el robot sale de su linea pivotando sobre la rueda
-        # del lado hacia el que se desplaza; en reversa, sobre la contraria.
+        # Asignacion de ruedas pivote segun sentido de marcha y desplazamiento
         if hacia_izquierda != reversa:
             pivote_salida, pivote_regreso = "izquierda", "derecha"
         else:
@@ -558,8 +553,7 @@ class Navegacion:
                           % distancia_maxima_cm)
                     break
 
-                # Rampa de frenado: llegar despacio al punto esperado es lo
-                # que permite leer el color sin pasarse.
+                # Reduccion proporcional de velocidad al aproximarse a la distancia esperada
                 if grados_objetivo is not None:
                     progreso = min(1.0, recorrido / grados_objetivo)
                     velocidad_actual = min(velocidad_actual,
@@ -677,8 +671,7 @@ class Navegacion:
         contador_color = 0
         encontrado = False
 
-        # Fase 1: a fondo y sin mirar el sensor. Ninguna linea intermedia puede
-        # confundir al robot porque directamente no se esta leyendo el color.
+        # Fase 1: avance ciego para superar lineas intermedias
         self.chasis.drive_base.drive(signo * abs(velocidad_alta), 0)
         while abs(self.chasis.drive_base.distance() - inicio) < ciega_mm:
             if self.chasis.drive_base.stalled():
@@ -688,7 +681,7 @@ class Navegacion:
                 break
             wait(5)
 
-        # Fase 2: busqueda del color, mas lento y con tope de seguridad.
+        # Fase 2: busqueda de color con limite de distancia maxima
         self.chasis.drive_base.drive(signo * abs(velocidad_escaneo), 0)
         while abs(self.chasis.drive_base.distance() - inicio) < maxima_mm:
             if self.detectar_color_preciso(sensor_color) == color_objetivo:
@@ -707,15 +700,14 @@ class Navegacion:
             if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
                 print("TIMEOUT avanzar_distancia_luego_color (busqueda)")
                 break
-            # 10 ms y no 5: leer mas rapido que el refresco del sensor devuelve
-            # la misma muestra dos veces y las confirmaciones dejan de filtrar.
+            # Pausa de 10 ms ajustada a la tasa de refresco del sensor de color
             wait(10)
 
         if not encontrado:
             print("AVISO: %s no aparecio entre %d y %d cm. Corregi la ventana."
                   % (color_objetivo, distancia_ciega_cm, distancia_maxima_cm))
 
-        # Fase 3: distancia extra, medida desde donde aparecio el color.
+        # Fase 3: distancia extra desde la deteccion
         if extra_mm > 0:
             marca = self.chasis.drive_base.distance()
             while abs(self.chasis.drive_base.distance() - marca) < extra_mm:
@@ -728,9 +720,7 @@ class Navegacion:
         if encadenado:
             self.chasis._terminar_movimiento_encadenado()
         else:
-            # brake() y no stop(): este metodo existe para posicionar con
-            # precision, y coastear desde la velocidad de escaneo agrega
-            # un centimetro de deriva que no hace falta regalar.
+            # Freno activo con brake() para evitar deriva inercial
             self.chasis.drive_base.brake()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
 

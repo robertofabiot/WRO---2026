@@ -23,8 +23,7 @@ class Chasis:
         self.motor_derecha = motor_derecho
         self.hub = hub
         self.velocidad_base = velocidad_base
-        # Ultimo (velocidad, aceleracion) aplicado al drive_base. Sirve para no
-        # llamar a settings() en cada movimiento: solo cuando el valor cambia.
+        # Cache de ajustes para aplicar settings() solo si cambian los valores
         self._ajustes_aplicados = None
 
     def _aplicar_velocidad(self, velocidad, aceleracion=None):
@@ -91,8 +90,7 @@ class Chasis:
         if wait_after and margen_cm > 0:
             distancia_inicial = self.drive_base.distance()
             margen_mm = abs(margen_cm * 10)
-            # Si el margen se come toda la distancia, la condicion del while es
-            # falsa en la primera vuelta y el movimiento se cancela solo.
+            # Validacion para advertir si el margen cancela la espera completa
             if margen_mm >= abs(distancia_mm):
                 print("AVISO avanzar_recto: margen_cm=%d >= distancia=%d cm, el movimiento no espera nada"
                       % (margen_cm, abs(distancia_cm)))
@@ -284,7 +282,7 @@ class Chasis:
         meta_mm = abs(distancia_total_mm)
         
         accion_ejecutada = False
-        # Sin accion secundaria, la marcamos como ejecutada desde el inicio
+        # Si no hay callback secundario, se considera completada
         accion_secundaria_ejecutada = False if accion_secundaria_callback else True
         tiempo_accion_1 = 0
 
@@ -321,8 +319,7 @@ class Chasis:
         else:
             Utils.emitir_sonido_confirmacion(self.hub)
             
-        # El recorrido puede terminar antes de que venza el retraso: aca el
-        # chasis ya esta quieto, asi que esperar con wait() no cuesta nada.
+        # Esperar tiempo restante antes de la accion secundaria si el chasis llego antes
         if accion_ejecutada and not accion_secundaria_ejecutada:
             tiempo_faltante = retraso_secundaria_ms - (reloj_seg.time() - tiempo_accion_1)
             if tiempo_faltante > 0:
