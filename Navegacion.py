@@ -573,64 +573,7 @@ class Navegacion:
 
         self._terminar_seguidor(encadenado, cronometro)
 
-    def avanzar_manteniendo_rumbo(self, distancia_cm, velocidad=800, rumbo_objetivo=None, kp=2.5, kd=10.0, margen_cm=0, encadenado=False):
-        """Avanza una distancia corrigiendo el rumbo con un lazo PD propio.
 
-        Es la alternativa a Chasis.avanzar_recto() cuando hace falta enderezar
-        el robot mientras avanza, en vez de solo mantener el rumbo con el que
-        arranco.
-
-        Argumentos:
-            distancia_cm: distancia a recorrer. Negativa para ir en reversa.
-            velocidad: mm/s; el signo lo pone distancia_cm.
-            rumbo_objetivo: rumbo absoluto del mapa al que corregir mientras
-                avanza. None mantiene el rumbo actual.
-            kp, kd: ganancias del PD sobre el error de rumbo.
-            margen_cm: corta la espera esa cantidad de centimetros antes de la
-                meta, para encadenar el movimiento siguiente.
-            encadenado: True frena con el micro-freno pasivo.
-        """
-        if rumbo_objetivo is None:
-            angulo_meta = self.chasis.hub.imu.heading()
-        else:
-            angulo_meta = rumbo_objetivo
-
-        dist_inicial = self.chasis.drive_base.distance()
-        distancia_mm_objetivo = abs(distancia_cm * 10)
-        margen_mm = abs(margen_cm * 10)
-        velocidad_real = abs(velocidad) if distancia_cm > 0 else -abs(velocidad)
-        error_previo = 0
-        
-        reloj_seg = StopWatch()
-        while True:
-            if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
-                print("TIMEOUT avanzar_manteniendo_rumbo")
-                break
-            distancia_actual = abs(self.chasis.drive_base.distance() - dist_inicial)
-            if distancia_actual >= max(1, distancia_mm_objetivo - margen_mm):
-                break
-                
-            # Error normalizado a ±180 para que el cruce por 360 no lo dispare
-            error_bruto = angulo_meta - self.chasis.hub.imu.heading()
-            error = (error_bruto + 180) % 360 - 180
-            
-            derivada = error - error_previo
-            turn_rate = (error * kp) + (derivada * kd)
-            
-            # Sin tope, el robot sacrifica todo el avance lineal por corregir
-            turn_rate = min(max(turn_rate, -200), 200) 
-            
-            self.chasis.drive_base.drive(velocidad_real, turn_rate)
-            
-            error_previo = error
-            wait(10)
-            
-        if encadenado:
-            self.chasis._terminar_movimiento_encadenado()
-        else:
-            self.chasis.drive_base.stop()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
-    
     def avanzar_tiempo_luego_color(self, sensor_color, tiempo_ciego_s, color_objetivo, distancia_extra_cm=0, velocidad_alta=950, velocidad_escaneo=150, lecturas_confirmacion=2, encadenado=False):
         """Corre a fondo un tiempo ciego y despues busca un color, mas lento.
 

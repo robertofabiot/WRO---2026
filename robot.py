@@ -41,7 +41,6 @@ class Robot:
         
         self.chasis = Chasis(self.drive_base, self.motor_izquierda, self.motor_derecha, self.hub, config.VELOCIDAD_BASE)
         self.navegacion = Navegacion(self.chasis)
-        self.chasis.navegacion = self.navegacion
         
         self.garra_trasera = GarraTrasera(self.motor_garra_trasera, rango_maximo_grados=config.RANGO_MAXIMO_GARRA_TRASERA)
         self.garra_delantera = GarraDelantera(
