@@ -1,0 +1,90 @@
+from pybricks.parameters import Stop, Color
+from pybricks.tools import wait
+import config
+from robot import Robot
+import Utils
+
+class Misiones:
+    def __init__(self, robot : Robot, sensor_frente):
+        self.robot = robot
+        self.sensor = sensor_frente
+
+    def _identificar_combinacion(self, sensor, distancia_si_verde):
+        color_principal = sensor.color()
+        if color_principal not in config.MOSAICOS: 
+            return -1  
+            
+        decision = config.MOSAICOS[color_principal]
+        
+        # Si la decisión es un diccionario, significa que leyó Verde y necesita desempatar
+        if type(decision) is dict:
+            self.robot.chasis.avanzar_recto(distancia_si_verde)
+            wait(50) # Micro-pausa para que el sensor lea sin vibraciones del motor
+            color_anterior = sensor.color()
+            
+            self.robot.chasis.avanzar_recto(-distancia_si_verde)
+            
+            if color_anterior not in decision: 
+                return -1
+            return decision[color_anterior]
+            
+        return decision
+        self.robot.navegacion.curva_coordenada_local(40, -15, encadenado=True)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, 100, 130, lado="izquierda", encadenado=True)
+
+    def __recoger_bloques(self, distancia, wait_ms=200, bajar=165):
+        self.robot.chasis.avanzar_recto(-distancia, 1000, wait_after=False)
+        wait(wait_ms)
+        self.robot.garra_trasera.ir_a_porcentaje(97, velocidad=600)
+
+    def _bajar_y_soltar_delantera(self):
+        self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(20, velocidad=1000, wait_after=False)
+
+    def cemento_y_llana(self):
+        # Agarrar cemento
+        self.robot.navegacion.giro_relativo_motor_izquierdo_turbo(90, max_potencia=100, min_potencia=80, encadenado=True)
+        self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor, 100, 2, 0, distancia_inicial_cm=35, tiempo_acomodo_ms=0, encadenado=True)
+        self.robot.navegacion.giro_relativo_turbo(-90)
+        self.robot.garra_trasera.ir_a_porcentaje(100, wait_after=False)
+        self.robot.chasis.avanzar_recto(-10, encadenado=True)
+
+        # Dejar llana
+        self.robot.navegacion.giro_relativo_turbo(90, encadenado=True)
+        self.robot.chasis.avanzar_recto(-40)
+
+    def recoger_pala(self):
+        self.robot.garra_delantera.ir_a_porcentaje(90, wait_after=False)
+        self.robot.navegacion.giro_relativo_motor_izquierdo_turbo(5, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(60, wait_after=False)
+        self.robot.chasis.avanzar_recto(85, encadenado=True)
+        self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
+        self.robot.garra_delantera.ir_a_porcentaje(0, wait_after=False)
+        self.robot.navegacion.giro_relativo_turbo(-5)
+
+    def dejar_cemento(self):
+        self.robot.chasis.avanzar_recto(10, encadenado=True)
+        self.robot.chasis.mover_motor_derecho(-550)
+        self.robot.chasis.avanzar_y_accionar_en_recorrido(
+            distancia_total_cm=-35,
+            distancia_accion_cm=-10,
+            accion_callback=lambda: self.robot.garra_delantera.ir_a_porcentaje(90, velocidad=1000, wait_after=False),
+            accion_sec_callback=lambda: self.robot.garra_delantera.ir_a_porcentaje_pinza(20, velocidad=1000, wait_after=False),
+            delay_sec_ms=800,  
+            margen_cm=2
+        )
+        self.robot.navegacion.giro_relativo_turbo(-180)
+        self.robot.garra_trasera.ir_a_porcentaje(0, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje(0, wait_after=False)
+        self.robot.chasis.avanzar_recto(10)
+
+    def recoger_verdes(self):
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, distancia_ciega_cm=0, color_objetivo=Color.WHITE, distancia_maxima_cm=10, velocidad_escaneo=900, encadenado=True)
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, distancia_ciega_cm=0, color_objetivo=Color.BLACK, distancia_maxima_cm=10, distancia_extra_cm=3)
+        self.robot.navegacion.giro_relativo_turbo(90)
+        self.__recoger_bloques(60, wait_ms=500)
+
+    def detectar_mosaico(self):
+        return self._identificar_combinacion(self.sensor, 5)
+    
+        

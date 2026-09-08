@@ -110,6 +110,7 @@ class ArmadorMosaicos:
         wait(500)
         self.robot.chasis.avanzar_recto(-25)
         self.robot.garra_delantera.ir_a_porcentaje(90, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(50, wait_after=False)
         self.robot.chasis.avanzar_recto(35, velocidad=300)
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
 
@@ -120,53 +121,57 @@ class ArmadorMosaicos:
         self.robot.navegacion.giro_absoluto_pd(180)
         self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, tiempo_ciego_s=0, color_objetivo=Color.BLUE, encadenado=True)
         self.robot.navegacion.giro_absoluto_pd(180, encadenado=False)
-        self.robot.chasis.avanzar_recto(14, encadenado=True)
-        self.robot.garra_delantera.ir_a_porcentaje(70)
-        self.robot.garra_delantera.ir_a_porcentaje_pinza(70)
+        self.robot.chasis.avanzar_recto(15, encadenado=True)
+
+        self.robot.garra_delantera.ir_a_porcentaje(85)
         
-        # Sacudir uwu
-        #self.__sacudir()
-
-        # Acomodarse para amarillos
-        self.robot.garra_delantera.ir_a_porcentaje(0)
-        self.robot.chasis.avanzar_recto(-30)
-
-        # NUEVO: cuadrar contra pared otra vez
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(60) 
+        self.robot.chasis.sacudir(iteraciones=4, potencia=60, tiempo_ms=100)
+        self.robot.garra_delantera.abrir_al_tope(velocidad=1200, limite_potencia=100) 
+        self.robot.chasis.avanzar_recto(-30) 
         self.robot.navegacion.giro_absoluto_pd(0)
+        self.robot.garra_trasera.ir_a_porcentaje(0, wait_after=False)
         self.robot.navegacion.seguidor_linea_cruces_y_distancia(self.sensor_color, 80, 1, 0, 10, lado="izquierda", tiempo_acomodo_ms=0)
         self.robot.navegacion.giro_preciso_pd(-90, encadenado=True)
+        self.robot.garra_trasera.ir_a_porcentaje(90, wait_after=False)
         self.robot.chasis.avanzar_recto(-32, velocidad=1000)
-        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=100, potencia=80, angulo_referencia=270)
-        self.robot.chasis.avanzar_recto(55)
+        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=300, potencia=80, angulo_referencia=270)
+        self.robot.chasis.avanzar_recto(53)
         self.robot.navegacion.giro_absoluto_pd(0)
 
         # Recoger amarillos
         self.robot.garra_delantera.ir_a_porcentaje(90)
-        self.robot.chasis.avanzar_recto(15)
+        self.robot.chasis.avanzar_recto(16)
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
         self.robot.garra_delantera.ir_a_porcentaje(0)
         
         self.robot.navegacion.giro_absoluto_pd(90)
-        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 0.3, Color.WHITE, distancia_extra_cm=2)
+        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 0.3, Color.WHITE, distancia_extra_cm=2, velocidad_alta=150)
         self.robot.navegacion.giro_absoluto_pd(180)
-        self.robot.garra_delantera.ir_a_porcentaje(90)
+        self.robot.garra_delantera.ir_a_porcentaje(85)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(67)
-        self.robot.garra_delantera.ir_a_porcentaje(20)
+        self.robot.garra_delantera.ir_a_porcentaje(0)
 
+        self.robot.garra_trasera.ir_a_porcentaje(0, wait_after=False)
         self.robot.chasis.avanzar_recto(-5)
         self.robot.navegacion.giro_absoluto_pd(0, kp=3, kd=20)
         self.robot.garra_delantera.ir_a_porcentaje(90)
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
-        self.robot.chasis.avanzar_recto(-14)
+        self.robot.chasis.avanzar_recto(-20)
         self.robot.garra_delantera.abrir_al_tope(limite_potencia=100)
         self.robot.garra_delantera.ir_a_porcentaje(0)
-        self.robot.chasis.avanzar_recto(18, velocidad=1000)
+        self.robot.chasis.avanzar_recto(13, velocidad=1000)
         
-        self.robot.navegacion.giro_preciso_pd(38)
-        self.robot.chasis.avanzar_recto(9)
+        self.robot.navegacion.giro_absoluto_motor_izquierdo(90)
+        self.robot.chasis.avanzar_recto(12)
         self.robot.garra_delantera.ir_a_porcentaje(90)
 
-        self.robot.navegacion.giro_absoluto_pd(280)
+        self.robot.navegacion.giro_absoluto_pd(320)
+        self.robot.garra_delantera.ir_a_porcentaje(60)
+        self.robot.chasis.avanzar_recto(12)
+
+        self.robot.garra_delantera.ir_a_porcentaje(90)
+        self.robot.navegacion.giro_absoluto_motor_derecho(280)
         self.robot.garra_delantera.ir_a_porcentaje(0)
         self.robot.chasis.avanzar_recto(20)
 
