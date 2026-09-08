@@ -419,11 +419,3 @@ class Chasis:
         else:
             self.drive_base.stop()
             Utils.emitir_sonido_confirmacion(self.hub)
-
-    def desplazar_lateral_turbo(self, distancia_cm, **kwargs):
-        """Delegación a Navegacion.desplazar_lateral_turbo para acceso directo desde Chasis."""
-        if hasattr(self, 'navegacion') and self.navegacion is not None:
-            return self.navegacion.desplazar_lateral_turbo(distancia_cm, **kwargs)
-        raise AttributeError("Chasis no tiene vinculada la instancia de Navegacion.")
-
-    desplazamiento_lateral_turbo = desplazar_lateral_turbo
