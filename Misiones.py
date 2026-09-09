@@ -149,7 +149,7 @@ class Misiones:
 
         # 5. Bajar jaula trasera para tomar el cemento (-169° = 94.4%) y retroceder
         self.robot.garra_trasera.ir_a_porcentaje(94.4, velocidad=600, wait_after=False)
-        self.robot.chasis.avanzar_recto(-14, velocidad=1000, encadenado=False)
+        self.robot.chasis.avanzar_recto(-12, velocidad=1000, encadenado=False)
 
         # 6. Pequeño avance y giro hacia la llana
         self.robot.chasis.avanzar_recto(8, velocidad=1000, encadenado=False)
@@ -229,11 +229,12 @@ class Misiones:
 
         # 6. Reacomodo y giro de -188°
         self.robot.chasis.avanzar_recto(-7, velocidad=900, encadenado=True)
-        self.robot.navegacion.giro_relativo(-180, max_potencia=90, encadenado=True)
+        self.robot.navegacion.giro_relativo(-183, max_potencia=90, encadenado=True)
 
         # 7. Bajar jaula (-170° = 95.0%) y retroceder sobre los cementos verdes
         self.robot.garra_trasera.ir_a_porcentaje(95.0, velocidad=250, wait_after=False)
-        self.robot.chasis.avanzar_recto(-22, velocidad=900, encadenado=True)
+        self.robot.chasis.avanzar_recto(-20, velocidad=700, encadenado=True)
+        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=150, potencia=80)
 
     # =========================================================================
     # SECCIÓN 3: Seguir hasta matriz, escanear y dejar cementos verdes
@@ -248,11 +249,12 @@ class Misiones:
             color_objetivo=Color.GREEN,
             lado="izquierda",
             tiempo_acomodo_ms=0,
+            distancia_cm=70,
             encadenado=True
         )
 
         # 2. Entrar a escanear la matriz
-        self.robot.navegacion.giro_relativo(5, max_potencia=54, min_potencia=34)
+        self.robot.navegacion.giro_absoluto(0)
         self.robot.chasis.avanzar_recto(20, velocidad=700)
 
         # 3. Escaneo del mosaico con la lógica de MIO SIN CAMBIO
@@ -261,13 +263,12 @@ class Misiones:
         print("Mosaico detectado:", mosaico)
 
         # 4. Reacomodo y salida de la matriz
-        self.robot.navegacion.giro_relativo(-5, max_potencia=54, min_potencia=34)
         self.robot.chasis.avanzar_recto(-37.5, velocidad=900)
         self.robot.navegacion.giro_relativo(-180, max_potencia=90, encadenado=True)
         gc.collect()
 
         # 5. Dejar los cementos verdes
-        self.robot.chasis.avanzar_recto(-19.6, velocidad=900, encadenado=True)
+        self.robot.chasis.avanzar_recto(-16, velocidad=900, encadenado=True)
         self.robot.garra_trasera.ir_a_porcentaje(0, velocidad=350, wait_after=False)
 
         return mosaico
@@ -284,10 +285,10 @@ class Misiones:
 
         # 2. Zigzag entre líneas
         self.robot.navegacion.giro_relativo(-90, max_potencia=90, encadenado=True)
-        self.robot.chasis.avanzar_recto(23, velocidad=900, encadenado=True)
-        self.robot.navegacion.giro_relativo(-90, max_potencia=80, encadenado=True)
-        self.robot.chasis.avanzar_recto(15, velocidad=900, encadenado=True)
-        self.robot.navegacion.giro_relativo(-93.5, max_potencia=80, encadenado=True)
+        self.robot.chasis.avanzar_recto(25, velocidad=900, encadenado=True)
+        self.robot.navegacion.giro_relativo(-90, max_potencia=80, encadenado=False)
+        self.robot.chasis.avanzar_recto(20, velocidad=900, encadenado=False)
+        self.robot.navegacion.giro_relativo(-90, max_potencia=80, encadenado=False)
         wait(100)
 
         # 3. Ir por los azules cruzando 2 líneas con 6.3 cm de distancia extra
@@ -299,11 +300,11 @@ class Misiones:
             distancia_extra_cm=6.3,
             debug=False
         )
-        self.robot.navegacion.giro_relativo(89, max_potencia=80, encadenado=True)
+        self.robot.navegacion.giro_relativo(90, max_potencia=80, encadenado=True)
 
         # 4. Bajar jaula sobre los azules (-170° = 95.0%) y retroceder
         self.robot.garra_trasera.ir_a_porcentaje(95.0, velocidad=250, wait_after=False)
-        self.robot.chasis.avanzar_recto(-22, velocidad=900, encadenado=True)
+        self.robot.chasis.avanzar_recto(-22, velocidad=700, encadenado=True)
 
     # =========================================================================
     # SECCIÓN 5: Ir por la pala y dejar los amarillos
@@ -312,7 +313,7 @@ class Misiones:
     def seccion_5_tomar_pala_y_dejar_amarillos(self):
         """Captura de la pala con elevador y pinza, y depósito de los amarillos."""
         # 1. Avance y giro hacia la pala
-        self.robot.chasis.avanzar_recto(20, velocidad=900, encadenado=True)
+        self.robot.chasis.avanzar_recto(12, velocidad=900, encadenado=True)
         self.robot.navegacion.giro_relativo(-38, max_potencia=90, encadenado=True)
 
         # 2. Posicionar garra delantera (245° / 353° = 69.4%) y abrir pinza (200° / 420° = 47.6%)
