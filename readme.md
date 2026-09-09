@@ -1,69 +1,106 @@
-# WRO 2026 - Código Migrado y Modularizado
+<div align="center">
 
-Repositorio migrado del proyecto del equipo amigo hacia la arquitectura limpia y modular de **WRO---2026 - MIO**, incorporando la versión oficial actualizada del recorrido (**`prueba_reto_1`**).
+# 🤖 WRO 2026 — Autonomous Robotics Platform
 
----
+**High-performance autonomous navigation, PID line tracking, and closed-loop mechanism control for World Robot Olympiad 2026.**
 
-## 📌 Propósito de la Migración
+[![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Pybricks](https://img.shields.io/badge/Pybricks-MicroPython-008559?style=for-the-badge&logo=lego&logoColor=white)](https://pybricks.com/)
+[![WRO Season](https://img.shields.io/badge/WRO-2026%20Season-E65100?style=for-the-badge)](https://wro-association.org/)
+[![Status](https://img.shields.io/badge/Status-Competition%20Ready-00C853?style=for-the-badge)](#)
+[![License](https://img.shields.io/badge/License-MIT-7B1FA2?style=for-the-badge)](#)
 
-El código original del equipo (`WRO_2026_Robotica - OTRO EQUIPO / prueba_reto_1`) contaba con el recorrido afinado y calibrado, pero concentrado de forma secuencial y dependiente de una clase base con funciones sueltas.
-
-Esta versión refactorizada (`WRO---2026 - MIGRADO`):
-1. **Preserva al 100% el comportamiento físico de `prueba_reto_1`:** Mantiene intactas las distancias, ángulos, curvas de aceleración, ganancias PID de seguidor y giros, tiempos de estabilización, filtros de color HSV y llamadas a `gc.collect()`.
-2. **Estructura Orientada a Objetos:** Separa limpiamente responsabilidades entre subsistemas (`Robot`, `Chasis`, `Navegacion`, `Mecanismos`, `Misiones`, `ArmadorMosaicos`).
-3. **Configuración Centralizada:** Elimina números mágicos dispersos mediante `config.py`.
-4. **Control por Porcentaje 100% Integrado:** Todos los mecanismos y garras han sido migrados a `ir_a_porcentaje()` empleando los rangos máximos físicos calibrados en el robot real.
+</div>
 
 ---
 
-## 📂 Estructura del Código
+## ⚡ Key Features
 
-| Archivo | Responsabilidad |
-|---|---|
-| [`app.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/app.py) | Punto de entrada principal para pruebas individuales de misiones o la corrida completa de `prueba_reto_1`. |
-| [`config.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/config.py) | Puertos de hardware, dimensiones del chasis, constantes PID, librerías de color HSV y rangos máximos calibrados. |
-| [`robot.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/robot.py) | Único lugar donde se instancian `PrimeHub`, motores y sensores; cablea todos los subsistemas. |
-| [`Chasis.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Chasis.py) | Tracción directa, frenado, reset de encoders, `avanzar_recto` y `avanzar_con_torque` coordinado con porcentaje. |
-| [`Navegacion.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Navegacion.py) | Giros IMU (`girar`, `giro_de_arco`, `girar_a_rumbo`, `girar_corto`), seguidores de línea y `seguir_linea_y_mover_torque`. |
-| [`Mecanismos.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Mecanismos.py) | Clases `MecanismoTorque`, `GarraDelantera` y `GarraPrincipal` con soporte para porcentaje (`ir_a_porcentaje`) y apriete. |
-| [`Misiones.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Misiones.py) | Recorrido de `prueba_reto_1` desglosado en 6 secciones modulares con todos los movimientos de garras activos por porcentaje. |
-| [`ArmadorMosaicos.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/ArmadorMosaicos.py) | Lógica de lectura estática, escaneo de matriz y rutinas de resolución de matrices 1 a 4 con garras activas por porcentaje. |
-| [`Utils.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Utils.py) | Operaciones matemáticas auxiliares (`limitar`, `error_angular`, sonidos). |
-| [`RevisadorBateria.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/RevisadorBateria.py) | Verificación previa de voltaje con alertas audibles y confirmación interactiva. |
-| [`odd_shit/`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/odd_shit/) | Herramientas de calibración y diagnóstico (`medir_limites.py`, `calibrador_mecanismos.py`). |
+* **🧭 Gyro-Stabilized DriveBase:** Real-time IMU heading compensation, smooth S-curve acceleration/deceleration ramps, and synchronized odometry.
+* **🎯 Percentage-Based Actuators:** Zero-drift closed-loop mechanism control (`0.0% – 100.0%`) with automatic endstop stall re-zeroing.
+* **⚡ Predictive PID Line Following:** High-frequency derivative filtering, adaptive speed scaling, and multi-line intersection counting.
+* **🎨 Statistical Color Classification:** Multi-sample voting pipeline with calibrated HSV thresholding to prevent false positives under dynamic lighting.
+* **🧩 Modular OOP Architecture:** Complete decoupling between hardware (`Robot`), kinematics (`Chasis`, `Navegacion`), mechanisms (`Mecanismos`), and strategy (`Misiones`, `ArmadorMosaicos`).
 
 ---
 
-## 🗺️ Secciones del Recorrido (`Misiones.py` basado en `prueba_reto_1`)
+## 📂 Architecture Overview
 
-1. **`seccion_1_salida_y_cemento`**: Reset de encoders a 0°, giro en arco de 22 cm a 90°, seguidor de 79 cm, bajada de torque al 93.0% (-169°), avance y giro a 70° para empujar la llana (-32 cm), cruce de 2 líneas y posicionamiento con arco de 19°.
-2. **`seccion_2_dejar_cemento_y_tomar_verdes`**: Seguidor de 50 cm, giro -90°, avance coordinado de 39.5 cm subiendo el torque a 0% a los 13 cm, giro 90°, seguidor a verde, reversa -7 cm, giro -188° y bajada de torque a 93.4% (-170° a -22 cm) para tomar verdes.
-3. **`seccion_3_escanear_matriz_y_dejar_verdes`**: Seguidor a verde de matriz, acomodo corto, avance 14 cm, lectura de color (`escanear_matriz`), salida (-37.5 cm, giro -180°), depósito de verdes (-19.6 cm y subida de torque a 0%). Devuelve `matriz_detectada`.
-4. **`seccion_4_amarillos_y_azules`**: Seguidor de 48 cm, maniobra por pasillo (-90°, 23 cm, -90°, 15 cm, -93.5°) para tomar amarillos, cruce de 2 líneas, giro 89° y toma de azules con torque a 93.4% (-170° a -22 cm).
-5. **`seccion_5_tomar_pala_y_dejar_amarillos`**: Avance 20 cm, giro -38°, posicionamiento de garra delantera a 69.4% (245°) y garra principal a 47.6% (200°), cruce de 2 líneas, cierre de pinza a 0%, avance 48 cm, apertura al 71.4% (300°) para soltar amarillos, repliegue de garra delantera a 0%, alineación a 90°, avance híbrido al amarillo y salida de zona (-22.5 cm, giro -92°).
-6. **`seccion_6_retorno_pala_y_fin`**: Preparación de pinza (47.6%) y garra delantera (69.4%), reversa -2 cm, seguidor de 85 cm con activación de torque (subida a 0%) a los 65 cm para colocar la pala, alineación de norte, repliegue de garras a 0% y resolución de la matriz identificada.
-
----
-
-## 🔌 Configuración de Hardware y Límites Calibrados (Robot del Usuario)
-
-* **Tracción:**
-  * Motor Izquierdo: `Port.B` (`Direction.COUNTERCLOCKWISE`)
-  * Motor Derecho: `Port.E` (`Direction.CLOCKWISE`)
-  * Diámetro de rueda: `56 mm`
-  * Ancho de eje (*axle track*): `160 mm`
-* **Mecanismos:**
-  * Motor de Torque / Jaula Trasera: `Port.F` (`Direction.COUNTERCLOCKWISE`) -> `RANGO_MAXIMO_TORQUE = -179` (0% = arriba, 100% = abajo al tope)
-  * Garra Delantera / Elevador: `Port.C` -> `RANGO_MAXIMO_GARRA_DELANTERA = 672` (0% = arriba, 100% = abajo al tope)
-  * Garra Principal / Pinza: `Port.A` -> `RANGO_MAXIMO_GARRA_PRINCIPAL = 798` (0% = cerrada, 100% = abierta al tope)
-* **Sensores:**
-  * Sensor de Color / Seguidor: `Port.D`
+```
+├── app.py                  # Entrypoint — Mission runner & integration tests
+├── config.py               # Centralized configuration (ports, PID gains, physical constants)
+├── robot.py                # Hardware abstraction layer & subsystem dependency wiring
+├── Chasis.py               # DriveBase kinematics, odometry & gyro-guided straight tracking
+├── Navegacion.py           # Gyro turns (point, short, arc, heading) & PID line follower
+├── Mecanismos.py           # Closed-loop actuators (Torque, Elevador, Pinza)
+├── Misiones.py             # Official game field routines (Sections 1 through 6)
+├── ArmadorMosaicos.py      # Color scanning, matrix parsing & mosaic placement logic
+├── RevisadorBateria.py     # Pre-run battery diagnostics & acoustic warnings
+├── Utils.py                # Math helpers, angle normalization & audio utilities
+└── odd_shit/
+    ├── calibrador_mecanismos.py  # Interactive stall-torque mechanism calibrator
+    └── medir_limites.py          # Traction, speed saturation & slip diagnostic suite
+```
 
 ---
 
-## 🚀 Para Ejecutar las Pruebas
+## 🔌 Hardware Specifications
 
-1. Conecta el PrimeHub mediante Bluetooth o USB.
-2. Abre el espacio de trabajo en VS Code con la extensión de Pybricks (`pybricksdev`).
-3. Abre [`app.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/app.py).
-4. Descomenta la sección que desees probar y ejecuta con F5 o el botón de ejecución de Pybricks.
+| Component | Hardware Port | Configuration |
+|---|---|---|
+| **Left Drive Motor** | `Port.B` | Counter-Clockwise (`56 mm` wheel) |
+| **Right Drive Motor** | `Port.E` | Clockwise (`56 mm` wheel) |
+| **Torque Mechanism / Rear Cage** | `Port.F` | Range: `0%` (home) to `100%` (`-179°`) |
+| **Front Lift Mechanism** | `Port.C` | Range: `0%` (up) to `100%` (`672°`) |
+| **Primary Gripper / Pinza** | `Port.A` | Range: `0%` (closed) to `100%` (`798°`) |
+| **Color / Line Sensor** | `Port.D` | High-frequency reflective & HSV modes |
+| **Wheelbase Track** | — | `160 mm` |
+
+---
+
+## 🚀 Quick Start
+
+1. **Prerequisites:** Connect your LEGO SPIKE Prime / MINDSTORMS Robot Inventor hub flashed with [Pybricks](https://pybricks.com/).
+2. **Open in VS Code:** Use the [Pybricks extension](https://marketplace.visualstudio.com/items?itemName=pybricks.pybricks-code) or `pybricksdev`.
+3. **Run Missions:** Open [`app.py`](app.py), uncomment the desired mission section or mosaic challenge, and press **F5**:
+
+```python
+# Execute complete tournament run
+misiones.seccion_1_salida_y_cemento()
+misiones.seccion_2_dejar_cemento_y_tomar_verdes()
+matriz_detectada = misiones.seccion_3_escanear_matriz_y_dejar_verdes(armador)
+misiones.seccion_4_amarillos_y_azules()
+misiones.seccion_5_tomar_pala_y_dejar_amarillos()
+misiones.seccion_6_retorno_pala_y_fin(armador, matriz_detectada)
+```
+
+---
+
+## 👥 Collaborators
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/robertofabiot">
+        <img src="https://avatars.githubusercontent.com/u/203884931?v=4" width="100px;" alt="Roberto F. Tercero"/><br />
+        <sub><b>Roberto F. Tercero</b></sub>
+      </a><br />
+      <sub>Lead Developer & Robotics Architecture</sub>
+    </td>
+    <td align="center">
+      <a href="https://github.com/uxvcharlie">
+        <img src="https://avatars.githubusercontent.com/u/211022677?v=4" width="100px;" alt="Carlos Rafael Umaña Vásquez"/><br />
+        <sub><b>Carlos Rafael Umaña Vásquez</b></sub>
+      </a><br />
+      <sub>Developer & Strategy</sub>
+    </td>
+  </tr>
+</table>
+</div>
+
+---
+
+<div align="center">
+<sub>Built with ❤️ for WRO 2026. Powered by <a href="https://pybricks.com/">Pybricks</a>.</sub>
+</div>
