@@ -1,118 +1,326 @@
-from pybricks.parameters import Stop
-from pybricks.tools import wait
+"""Módulo de control del chasis y tren de tracción.
+
+Contiene las operaciones de bajo nivel (frenado, reseteo, preparación) y
+el avance recto con control de giroscopio y perfil de aceleración/desaceleración
+proveniente del equipo original.
+"""
+
+from pybricks.tools import wait, StopWatch
+import config
+from Utils import Utils
+
 
 class Chasis:
-    def __init__(self, drive_base, motor_izq, motor_der, hub, velocidad_base):
+    """Controlador de tracción y desplazamientos rectos."""
+
+    def __init__(self, drive_base, motor_izquierdo, motor_derecho, hub, torque=None):
+        """
+        Argumentos:
+            drive_base: Instancia de DriveBase configurada.
+            motor_izquierdo: Motor de la rueda izquierda.
+            motor_derecho: Motor de la rueda derecha.
+            hub: Instancia de PrimeHub.
+            torque: Mecanismo de torque opcional para acciones coordinadas.
+        """
         self.drive_base = drive_base
-        self.motor_izquierda = motor_izq
-        self.motor_derecha = motor_der
+        self.motor_izquierdo = motor_izquierdo
+        self.motor_derecho = motor_derecho
         self.hub = hub
-        self.velocidad_base = velocidad_base
+        self.torque = torque
 
-    def avanzar_recto(self, distancia_cm, velocidad=None, frenado=Stop.BRAKE, wait_after=True, margen_cm=0):
-        if velocidad is None:
-            velocidad = self.velocidad_base
-        velocidad = max(min(velocidad, 976), -976)
-        distancia_mm = distancia_cm * 10
-        
-        if wait_after and margen_cm > 0:
-            distancia_inicial = self.drive_base.distance()
-            margen_mm = abs(margen_cm * 10)
-            self.drive_base.straight(distancia_mm, then=frenado, wait=False)
-            
-            while abs(self.drive_base.distance() - distancia_inicial) < (abs(distancia_mm) - margen_mm):
-                if self.drive_base.stalled():
-                    break
-                wait(2)
+        self.diametro_rueda = config.DIAMETRO_RUEDA
+        self.circunferencia = config.CIRCUNFERENCIA
+        self.grados_por_mm = config.GRADOS_POR_MM
+
+    # =========================================================================
+    # UTILIDADES DE BAJO NIVEL (Preservadas de utilidades.py)
+    # =========================================================================
+
+    def frenar(self):
+        """Frena inmediatamente ambos motores de tracción."""
+        self.motor_izquierdo.brake()
+        self.motor_derecho.brake()
+        wait(3)
+
+    def reset_motores(self):
+        """Reinicia los contadores de grados de ambos motores de tracción."""
+        self.motor_izquierdo.reset_angle(0)
+        self.motor_derecho.reset_angle(0)
+
+    def distancia_promedio_grados(self):
+        """Calcula el promedio absoluto de grados recorridos por ambas ruedas."""
+        return (abs(self.motor_izquierdo.angle()) + abs(self.motor_derecho.angle())) / 2.0
+
+    def preparar_movimiento(self, reset_motores=True, reset_gyro=True, perfil="seguro", pausa=None):
+        """Prepara sensores y motores antes de iniciar un movimiento."""
+        if reset_motores:
+            self.reset_motores()
+            self.drive_base.reset()
+
+        if reset_gyro:
+            self.hub.imu.reset_heading(0)
+            wait(15)
+
+        if pausa is not None:
+            wait(pausa)
+
+    def terminar_movimiento(self, perfil="seguro", modo="brake", pausa=None, soltar=True):
+        """Aplica el frenado y las pausas correspondientes según el perfil."""
+        if modo == "brake":
+            self.motor_izquierdo.brake()
+            self.motor_derecho.brake()
+        elif modo == "stop":
+            self.motor_izquierdo.stop()
+            self.motor_derecho.stop()
+        elif modo == "hold":
+            self.motor_izquierdo.hold()
+            self.motor_derecho.hold()
+
+        if pausa is not None:
+            wait(pausa)
+        elif perfil == "seguro":
+            wait(18)
+        elif perfil == "encadenado":
+            wait(6)
         else:
-            self.drive_base.straight(distancia_mm, then=frenado, wait=wait_after)
-            
-    def mover_en_arco(self, radio_cm, angulo=None, distancia_cm=None, stop=Stop.HOLD, wait_after=True, margen_grados=0, margen_cm=0):
-        radio_mm = radio_cm * 10
-        distancia_mm = distancia_cm * 10 if distancia_cm is not None else None
+            wait(15)
 
-        if wait_after and (margen_grados > 0 or margen_cm > 0):
-            self.drive_base.arc(radio_mm, angle=angulo, distance=distancia_mm, then=stop, wait=False)
-            
-            if distancia_cm is not None and margen_cm > 0:
-                dist_inicial = self.drive_base.distance()
-                margen_mm_real = abs(margen_cm * 10)
-                meta_mm = abs(distancia_mm)
-                while abs(self.drive_base.distance() - dist_inicial) < (meta_mm - margen_mm_real):
-                    if self.drive_base.stalled(): break
-                    wait(2)
-            elif angulo is not None and margen_grados > 0:
-                ang_inicial = self.drive_base.angle()
-                meta_ang = abs(angulo)
-                while abs(self.drive_base.angle() - ang_inicial) < (meta_ang - margen_grados):
-                    if self.drive_base.stalled(): break
-                    wait(2)
+        if soltar and modo == "brake":
+            self.motor_izquierdo.stop()
+            self.motor_derecho.stop()
+            wait(2)
+
+    # =========================================================================
+    # AVANCE RECTO CON CONTROL DE IMU Y RAMPAS (Preservado de navegacion.py)
+    # =========================================================================
+
+    def avanzar_recto(
+        self,
+        distancia_cm,
+        velocidad_max=900,
+        velocidad_min=100,
+        kp_gyro=20.0,
+        zona_rampa_cm=8,
+        perfil="encadenado",
+        rumbo_esperado=None,
+        torque_grados=None,
+        torque_velocidad=180,
+        torque_retraso_ms=0,
+        accion_torque_callback=None,
+        torque_porcentaje=None
+    ):
+        """Avanza o retrocede una distancia manteniendo el rumbo con IMU y rampas de velocidad."""
+        if distancia_cm == 0:
+            return
+
+        self.preparar_movimiento(
+            reset_motores=False,
+            reset_gyro=False,
+            perfil=perfil
+        )
+
+        self.motor_izquierdo.hold()
+        self.motor_derecho.hold()
+        wait(90)
+
+        self.drive_base.reset()
+
+        # Memoria de rumbo
+        if rumbo_esperado is not None:
+            heading_objetivo = rumbo_esperado
         else:
-            self.drive_base.arc(radio_mm, angle=angulo, distance=distancia_mm, then=stop, wait=wait_after)
+            heading_objetivo = self.hub.imu.heading()
 
-    def girar_sobre_eje(self, grados, wait_after=True, margen_grados=0):
-        if wait_after and margen_grados > 0:
-            angulo_inicial = self.drive_base.angle()
-            self.drive_base.turn(grados, wait=False)
-            while abs(self.drive_base.angle() - angulo_inicial) < (abs(grados) - margen_grados):
-                if self.drive_base.stalled(): break
-                wait(2)
-        else:
-            self.drive_base.turn(grados, wait=wait_after)
+        grados_por_cm = config.GRADOS_POR_CM
+        grados_objetivo = abs(distancia_cm) * grados_por_cm
+        rampa_efectiva_cm = min(zona_rampa_cm, abs(distancia_cm) / 2.0)
+        grados_rampa = rampa_efectiva_cm * grados_por_cm
+        signo = 1 if distancia_cm > 0 else -1
 
-    def giro_preciso(self, angulo_objetivo, kp_nuevo=2.5, tolerancia=1, margen_grados=0):
-        self.hub.imu.reset_heading(0) 
-        kp = kp_nuevo
-        min_speed = 50 
+        cronometro = StopWatch()
+        cronometro.reset()
+
+        torque_iniciado = False
+
         while True:
-            angulo_actual = self.hub.imu.heading()
-            error = angulo_objetivo - angulo_actual
-            if abs(error) <= max(tolerancia, margen_grados):
+            recorrido = abs(self.drive_base.distance()) * self.grados_por_mm
+            restante = grados_objetivo - recorrido
+
+            if restante <= 1.5:
                 break
-            turn_rate = error * kp
-            if turn_rate > 0:
-                turn_rate = max(turn_rate, min_speed)
+
+            actual_heading = self.hub.imu.heading()
+            error_gyro = Utils.error_angular(heading_objetivo, actual_heading)
+
+            # Rampa de aceleración
+            if recorrido < grados_rampa:
+                proporcion = recorrido / grados_rampa
+                vel_base = velocidad_min + (velocidad_max - velocidad_min) * proporcion
+            # Rampa de desaceleración
+            elif restante < grados_rampa:
+                proporcion = restante / grados_rampa
+                vel_base = velocidad_min * 0.4 + (velocidad_max - velocidad_min * 0.4) * proporcion
             else:
-                turn_rate = min(turn_rate, -min_speed)
-            self.drive_base.drive(0, turn_rate)
-            wait(10)
+                vel_base = velocidad_max
+
+            tiempo_ms = cronometro.time()
+
+            # Torque retrasado durante el avance
+            if (torque_porcentaje is not None or torque_grados is not None) and not torque_iniciado and tiempo_ms >= torque_retraso_ms:
+                if accion_torque_callback is not None:
+                    accion_torque_callback()
+                elif self.torque is not None:
+                    if torque_porcentaje is not None:
+                        self.torque.ir_a_porcentaje(
+                            porcentaje=torque_porcentaje,
+                            velocidad=torque_velocidad,
+                            wait_after=False
+                        )
+                    else:
+                        self.torque.mover_grados(
+                            grados_torque=torque_grados,
+                            velocidad_torque=torque_velocidad,
+                            esperar=False
+                        )
+                torque_iniciado = True
+
+            # Rampa temporal inicial original
+            if tiempo_ms < 150:
+                vel = vel_base * (tiempo_ms / 150.0)
+            else:
+                vel = vel_base
+
+            vel = Utils.limitar(vel, 25, velocidad_max)
+            correccion_giro = error_gyro * kp_gyro
+
+            self.drive_base.drive(vel * signo, correccion_giro)
+
+        # Frenado original de dos fases
         self.drive_base.stop()
+        self.motor_izquierdo.brake()
+        self.motor_derecho.brake()
+        wait(60)
 
-    def mover_motor_izquierdo(self, grados, velocidad=500, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        if wait_after and margen_grados > 0:
-            angulo_meta = self.motor_izquierda.angle() + grados
-            self.motor_izquierda.run_angle(velocidad, grados, then=frenado, wait=False) # <- Añadido then=frenado
-            while abs(angulo_meta - self.motor_izquierda.angle()) > margen_grados:
-                if self.motor_izquierda.stalled(): break
-                wait(2)
+        self.motor_izquierdo.hold()
+        self.motor_derecho.hold()
+        wait(20)
+
+    def avanzar_con_torque(
+        self,
+        distancia_cm,
+        distancia_activacion_torque_cm,
+        torque_grados=None,
+        torque_velocidad=900,
+        velocidad_max=900,
+        velocidad_min=100,
+        kp_gyro=20.0,
+        zona_rampa_cm=8,
+        perfil="encadenado",
+        rumbo_esperado=None,
+        accion_torque_callback=None,
+        torque_porcentaje=None
+    ):
+        """Avanza recto activando el torque en función de la distancia recorrida."""
+        if distancia_cm == 0:
+            return
+
+        self.preparar_movimiento(
+            reset_motores=False,
+            reset_gyro=False,
+            perfil=perfil
+        )
+
+        self.motor_izquierdo.hold()
+        self.motor_derecho.hold()
+        wait(90)
+
+        self.drive_base.reset()
+
+        if rumbo_esperado is not None:
+            heading_objetivo = rumbo_esperado
         else:
-            self.motor_izquierda.run_angle(velocidad, grados, then=frenado, wait=wait_after) # <- Añadido then=frenado
+            heading_objetivo = self.hub.imu.heading()
 
-    def mover_motor_derecho(self, grados, velocidad=800, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
-        if wait_after and margen_grados > 0:
-            angulo_meta = self.motor_derecha.angle() + grados
-            self.motor_derecha.run_angle(velocidad, grados, then=frenado, wait=False)
-            while abs(angulo_meta - self.motor_derecha.angle()) > margen_grados:
-                if self.motor_derecha.stalled(): break
-                wait(2)
-        else:
-            self.motor_derecha.run_angle(velocidad, grados, then=frenado, wait=wait_after)
-            
-    def sacudir(self, iteraciones=5, potencia=100, tiempo_ms=60):
-        self.drive_base.stop() 
-        for _ in range(iteraciones):
-            self.motor_izquierda.dc(potencia)
-            self.motor_derecha.dc(-potencia)
-            wait(tiempo_ms)
-            self.motor_izquierda.dc(-potencia)
-            self.motor_derecha.dc(potencia)
-            wait(tiempo_ms)
-        self.motor_izquierda.brake()
-        self.motor_derecha.brake()
-        wait(100)
+        grados_por_cm = config.GRADOS_POR_CM
+        grados_objetivo = abs(distancia_cm) * grados_por_cm
+        grados_activacion_torque = abs(distancia_activacion_torque_cm) * grados_por_cm
+        rampa_efectiva_cm = min(zona_rampa_cm, abs(distancia_cm) / 2.0)
+        grados_rampa = rampa_efectiva_cm * grados_por_cm
+        signo = 1 if distancia_cm > 0 else -1
 
-    def compensar_voltaje(self, potencia_deseada):
-        voltaje_actual = self.hub.battery.voltage()
-        if voltaje_actual == 0: return potencia_deseada
-        potencia_compensada = potencia_deseada * (8000 / voltaje_actual)
-        return max(-100, min(100, potencia_compensada))
+        cronometro = StopWatch()
+        cronometro.reset()
+
+        torque_iniciado = False
+
+        while True:
+            recorrido = abs(self.drive_base.distance()) * self.grados_por_mm
+            restante = grados_objetivo - recorrido
+
+            if restante <= 1.5:
+                break
+
+            actual_heading = self.hub.imu.heading()
+            error_gyro = Utils.error_angular(heading_objetivo, actual_heading)
+
+            if recorrido < grados_rampa:
+                proporcion = recorrido / grados_rampa
+                vel_base = velocidad_min + (velocidad_max - velocidad_min) * proporcion
+            elif restante < grados_rampa:
+                proporcion = restante / grados_rampa
+                vel_base = velocidad_min * 0.4 + (velocidad_max - velocidad_min * 0.4) * proporcion
+            else:
+                vel_base = velocidad_max
+
+            tiempo_ms = cronometro.time()
+
+            if (torque_porcentaje is not None or torque_grados is not None) and not torque_iniciado and recorrido >= grados_activacion_torque:
+                if accion_torque_callback is not None:
+                    accion_torque_callback()
+                elif self.torque is not None:
+                    if torque_porcentaje is not None:
+                        self.torque.ir_a_porcentaje(
+                            porcentaje=torque_porcentaje,
+                            velocidad=torque_velocidad,
+                            wait_after=False
+                        )
+                    else:
+                        self.torque.mover_grados(
+                            grados_torque=torque_grados,
+                            velocidad_torque=torque_velocidad,
+                            esperar=False
+                        )
+                torque_iniciado = True
+
+            if tiempo_ms < 150:
+                vel = vel_base * (tiempo_ms / 150.0)
+            else:
+                vel = vel_base
+
+            vel = Utils.limitar(vel, 25, velocidad_max)
+            correccion_giro = error_gyro * kp_gyro
+
+            self.drive_base.drive(vel * signo, correccion_giro)
+
+        self.drive_base.stop()
+        self.motor_izquierdo.brake()
+        self.motor_derecho.brake()
+        wait(60)
+
+        self.motor_izquierdo.hold()
+        self.motor_derecho.hold()
+        wait(20)
+
+    def cuadrar_contra_pared(self, tiempo_ms=1000, potencia=30, angulo_referencia=0, reversa=True):
+        """Empuja contra una pared para alinearse físicamente y reiniciar el rumbo del IMU."""
+        self.drive_base.stop()
+        potencia_aplicada = -abs(potencia) if reversa else abs(potencia)
+
+        self.motor_izquierdo.dc(potencia_aplicada)
+        self.motor_derecho.dc(potencia_aplicada)
+        wait(tiempo_ms)
+
+        self.motor_izquierdo.brake()
+        self.motor_derecho.brake()
+        self.hub.imu.reset_heading(angulo_referencia)
+        wait(20)

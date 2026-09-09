@@ -1,82 +1,69 @@
-<div align="center">
+# WRO 2026 - Código Migrado y Modularizado
 
-# WRO 2026 - Pybricks Robot Codebase
-Lógica de control, navegación avanzada y rutinas para la World Robot Olympiad.
-
-![Language: MicroPython](https://img.shields.io/badge/language-MicroPython-306998)
-![FrameWork: Pybricks](https://img.shields.io/badge/framework-Pybricks-ED1C24)
-![Status: In Development](https://img.shields.io/badge/status-In_Development-orange)
-![License: MIT](https://img.shields.io/badge/license-MIT-blue)
-
-</div>
-
-## Descripción y Propósito
-
-Este repositorio contiene el código fuente completo para la operación del robot en la competencia WRO 2026. El código está escrito en Python y utiliza el framework Pybricks (MicroPython) para la comunicación con el PrimeHub.
-
-El proyecto está estructurado de manera modular para separar el control de bajo nivel del hardware (`robot.py`) de la orquestación de las misiones específicas en la pista (`app.py`). El enfoque principal del equipo es la estabilidad de navegación mediante algoritmos PID y un sistema de detección de color preciso y anti-rebote.
+Repositorio migrado del proyecto del equipo amigo hacia la arquitectura limpia y modular de **WRO---2026 - MIO**, incorporando la versión oficial actualizada del recorrido (**`prueba_reto_1`**).
 
 ---
 
-## Configuración de Hardware
+## 📌 Propósito de la Migración
 
-El robot está construido sobre la plataforma LEGO Education SPIKE Prime, utilizando un PrimeHub con la siguiente distribución de puertos:
+El código original del equipo (`WRO_2026_Robotica - OTRO EQUIPO / prueba_reto_1`) contaba con el recorrido afinado y calibrado, pero concentrado de forma secuencial y dependiente de una clase base con funciones sueltas.
 
-### Tracción (Chasis)
-* Puerto A: Motor Izquierdo
-* Puerto B: Motor Derecho
-
-### Mecanismos
-* Puerto C: Garra Trasera
-* Puerto F: Garra Delantera / Pala
-
-### Sensores
-* Puerto D: Sensor de Color Principal (Frontal)
-
-> **Nota técnica sobre potencia:** Las rutinas de las garras que utilizan topes mecánicos (funciones `run_until_stalled`) deben ejecutarse con potencia y velocidad al máximo para vencer la resistencia de los hules tensores e inercia del mecanismo.
+Esta versión refactorizada (`WRO---2026 - MIGRADO`):
+1. **Preserva al 100% el comportamiento físico de `prueba_reto_1`:** Mantiene intactas las distancias, ángulos, curvas de aceleración, ganancias PID de seguidor y giros, tiempos de estabilización, filtros de color HSV y llamadas a `gc.collect()`.
+2. **Estructura Orientada a Objetos:** Separa limpiamente responsabilidades entre subsistemas (`Robot`, `Chasis`, `Navegacion`, `Mecanismos`, `Misiones`, `ArmadorMosaicos`).
+3. **Configuración Centralizada:** Elimina números mágicos dispersos mediante `config.py`.
+4. **Control por Porcentaje 100% Integrado:** Todos los mecanismos y garras han sido migrados a `ir_a_porcentaje()` empleando los rangos máximos físicos calibrados en el robot real.
 
 ---
 
-## Estado del Proyecto y Misiones
+## 📂 Estructura del Código
 
-Se ha estandarizado la recolección de bloques utilizando un flujo directo con la garra trasera, eliminando secuencias complejas. El estado actual de las tareas es el siguiente:
-
-### Funcionalidades Implementadas
-* Construcción Inicial: [OK] Despliegue estable del bloque de cemento y la llana.
-* Bloques Blancos: [OK] Rutina de recolección unificada completada.
-* Mosaico: [OK] Escaneo exitoso y detección de combinaciones de colores (integrado con el sensor frontal).
-* Bloques Amarillos y Azules: [OK] Recolección y reubicación operativa.
-* Armado de Mosaico: [Parcial] Soporte inicial (Caso 1: verde-verde, 4/12 bloques).
-
-### Limitaciones Conocidas / Pendientes
-* Llevada de la pala: Está pendiente desarrollar una mejor solución para el transporte de la pala en el inicio, debido a la ausencia de los brazos frontales con los que se agarraba en iteraciones anteriores del diseño.
-
----
-
-## Lógica de Control y Mejoras Técnicas
-
-El núcleo del robot (`robot.py`) ha sido optimizado con las siguientes funciones personalizadas para superar las limitaciones del hardware estándar:
-
-* **Detección de Color Avanzada (HSV):** Se migró a un sistema de detección basado en valores HSV (`detectar_color_preciso`) con lógica anti-rebote (*debouncing*). Esto elimina lecturas inconsistentes (especialmente en los bordes de la línea negra/blanca) y hace al robot mucho más predecible.
-* **Seguidores de Línea PID:** Implementación de múltiples seguidores de línea (por distancia o por color) para máxima estabilidad. Incluye una función de frenado progresivo (`seguidor_linea_distancia_desacelerado`) para lograr detenciones milimétricas.
-* **Navegación y Detección de Cruces:** El sistema utiliza un modelo optimizado de seguimiento mediante un solo sensor frontal para la detección de intersecciones y finalización de tramos.
-* **Manejo de Fricción (Sacudidas):** Implementación de inyección de voltaje directo (`dc`) con la función `sacudir` para asentar bloques pesados venciendo la fricción sin causar un estancamiento del código.
+| Archivo | Responsabilidad |
+|---|---|
+| [`app.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/app.py) | Punto de entrada principal para pruebas individuales de misiones o la corrida completa de `prueba_reto_1`. |
+| [`config.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/config.py) | Puertos de hardware, dimensiones del chasis, constantes PID, librerías de color HSV y rangos máximos calibrados. |
+| [`robot.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/robot.py) | Único lugar donde se instancian `PrimeHub`, motores y sensores; cablea todos los subsistemas. |
+| [`Chasis.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Chasis.py) | Tracción directa, frenado, reset de encoders, `avanzar_recto` y `avanzar_con_torque` coordinado con porcentaje. |
+| [`Navegacion.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Navegacion.py) | Giros IMU (`girar`, `giro_de_arco`, `girar_a_rumbo`, `girar_corto`), seguidores de línea y `seguir_linea_y_mover_torque`. |
+| [`Mecanismos.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Mecanismos.py) | Clases `MecanismoTorque`, `GarraDelantera` y `GarraPrincipal` con soporte para porcentaje (`ir_a_porcentaje`) y apriete. |
+| [`Misiones.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Misiones.py) | Recorrido de `prueba_reto_1` desglosado en 6 secciones modulares con todos los movimientos de garras activos por porcentaje. |
+| [`ArmadorMosaicos.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/ArmadorMosaicos.py) | Lógica de lectura estática, escaneo de matriz y rutinas de resolución de matrices 1 a 4 con garras activas por porcentaje. |
+| [`Utils.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/Utils.py) | Operaciones matemáticas auxiliares (`limitar`, `error_angular`, sonidos). |
+| [`RevisadorBateria.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/RevisadorBateria.py) | Verificación previa de voltaje con alertas audibles y confirmación interactiva. |
+| [`odd_shit/`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/odd_shit/) | Herramientas de calibración y diagnóstico (`medir_limites.py`, `calibrador_mecanismos.py`). |
 
 ---
 
-## Ejecución y Desarrollo
+## 🗺️ Secciones del Recorrido (`Misiones.py` basado en `prueba_reto_1`)
 
-El repositorio está configurado para un flujo de trabajo ágil utilizando Visual Studio Code y la extensión `pybricksdev`.
-
-1.  Enciende el PrimeHub y asegúrate de que el Bluetooth esté activo.
-2.  Abre el repositorio en VS Code.
-3.  Utiliza la configuración incluida en `.vscode/launch.json` ejecutando la tarea "Python Debugger: Module" (F5). Esto compilará y enviará el script principal vía Bluetooth.
-4.  El punto de entrada es `app.py`.
+1. **`seccion_1_salida_y_cemento`**: Reset de encoders a 0°, giro en arco de 22 cm a 90°, seguidor de 79 cm, bajada de torque al 93.0% (-169°), avance y giro a 70° para empujar la llana (-32 cm), cruce de 2 líneas y posicionamiento con arco de 19°.
+2. **`seccion_2_dejar_cemento_y_tomar_verdes`**: Seguidor de 50 cm, giro -90°, avance coordinado de 39.5 cm subiendo el torque a 0% a los 13 cm, giro 90°, seguidor a verde, reversa -7 cm, giro -188° y bajada de torque a 93.4% (-170° a -22 cm) para tomar verdes.
+3. **`seccion_3_escanear_matriz_y_dejar_verdes`**: Seguidor a verde de matriz, acomodo corto, avance 14 cm, lectura de color (`escanear_matriz`), salida (-37.5 cm, giro -180°), depósito de verdes (-19.6 cm y subida de torque a 0%). Devuelve `matriz_detectada`.
+4. **`seccion_4_amarillos_y_azules`**: Seguidor de 48 cm, maniobra por pasillo (-90°, 23 cm, -90°, 15 cm, -93.5°) para tomar amarillos, cruce de 2 líneas, giro 89° y toma de azules con torque a 93.4% (-170° a -22 cm).
+5. **`seccion_5_tomar_pala_y_dejar_amarillos`**: Avance 20 cm, giro -38°, posicionamiento de garra delantera a 69.4% (245°) y garra principal a 47.6% (200°), cruce de 2 líneas, cierre de pinza a 0%, avance 48 cm, apertura al 71.4% (300°) para soltar amarillos, repliegue de garra delantera a 0%, alineación a 90°, avance híbrido al amarillo y salida de zona (-22.5 cm, giro -92°).
+6. **`seccion_6_retorno_pala_y_fin`**: Preparación de pinza (47.6%) y garra delantera (69.4%), reversa -2 cm, seguidor de 85 cm con activación de torque (subida a 0%) a los 65 cm para colocar la pala, alineación de norte, repliegue de garras a 0% y resolución de la matriz identificada.
 
 ---
 
-## Contributors
+## 🔌 Configuración de Hardware y Límites Calibrados (Robot del Usuario)
 
-<a href="https://github.com/robertofabiot/WRO---2026/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=robertofabiot/WRO---2026" />
-</a>
+* **Tracción:**
+  * Motor Izquierdo: `Port.B` (`Direction.COUNTERCLOCKWISE`)
+  * Motor Derecho: `Port.E` (`Direction.CLOCKWISE`)
+  * Diámetro de rueda: `56 mm`
+  * Ancho de eje (*axle track*): `160 mm`
+* **Mecanismos:**
+  * Motor de Torque / Jaula Trasera: `Port.F` (`Direction.COUNTERCLOCKWISE`) -> `RANGO_MAXIMO_TORQUE = -179` (0% = arriba, 100% = abajo al tope)
+  * Garra Delantera / Elevador: `Port.C` -> `RANGO_MAXIMO_GARRA_DELANTERA = 672` (0% = arriba, 100% = abajo al tope)
+  * Garra Principal / Pinza: `Port.A` -> `RANGO_MAXIMO_GARRA_PRINCIPAL = 798` (0% = cerrada, 100% = abierta al tope)
+* **Sensores:**
+  * Sensor de Color / Seguidor: `Port.D`
+
+---
+
+## 🚀 Para Ejecutar las Pruebas
+
+1. Conecta el PrimeHub mediante Bluetooth o USB.
+2. Abre el espacio de trabajo en VS Code con la extensión de Pybricks (`pybricksdev`).
+3. Abre [`app.py`](file:///C:/Users/rfter/Desktop/repos%20robotica/WRO---2026%20-%20MIGRADO/app.py).
+4. Descomenta la sección que desees probar y ejecuta con F5 o el botón de ejecución de Pybricks.

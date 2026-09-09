@@ -1,9 +1,9 @@
-// Esto es solo para launchear desde vsc
+// Configuración para ejecutar mediante pybricksdev desde VS Code
 {
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Module",
+            "name": "Pybricks BLE: Run File",
             "type": "debugpy",
             "request": "launch",
             "module": "pybricksdev",
