@@ -139,6 +139,31 @@ HSV_RANGOS = {
     }
 }
 
+# -----------------------------------------------------------------------------
+# 5.b ESCÁNER PRECISO (Calibración propia del robot del usuario / MIO)
+# -----------------------------------------------------------------------------
+# Umbrales de Navegacion.detectar_color_preciso(). color() de Pybricks confunde
+# los tonos de la pista bajo la luz de competencia, así que se clasifica a mano
+# sobre HSV: primero se separan los acromáticos por saturación y después los
+# cromáticos por tono. Se recalibran con odd_shit/calibrador_color.py.
+UMBRAL_SATURACION_CROMATICA = 35   # s por debajo de esto: blanco / gris / negro
+UMBRAL_VALOR_BLANCO = 65           # v por encima de esto: blanco
+UMBRAL_VALOR_GRIS = 40             # v por encima de esto: gris; por debajo: negro
+UMBRAL_TONO_AMARILLO_BAJO = 95     # h por debajo de esto: amarillo
+UMBRAL_TONO_AMARILLO_ALTO = 310    # h por encima de esto: amarillo (vuelta del círculo)
+UMBRAL_TONO_VERDE = 185            # h por debajo de esto: verde; por encima: azul
+
+# -----------------------------------------------------------------------------
+# 5.c LECTURA ESTÁTICA DE LA MATRIZ (Lógica de escaneo del robot del usuario)
+# -----------------------------------------------------------------------------
+# El escaneo por votación del equipo original costaba ~1,25 s por celda
+# (250 ms de espera + 25 lecturas x 40 ms) y hasta ~2,5 s cuando salía verde.
+# Con el escáner preciso alcanza con confirmar lecturas seguidas iguales.
+LECTURAS_CONFIRMACION_MATRIZ = 2   # lecturas seguidas iguales para dar el color por bueno
+ESPERA_ASENTAMIENTO_MS = 50        # micro-pausa para leer sin vibraciones del motor
+INTERVALO_LECTURAS_MATRIZ_MS = 5   # cadencia de muestreo, igual que los lazos de Navegacion
+LECTURAS_MAXIMAS_MATRIZ = 25       # corte de emergencia si nunca aparece un color válido
+
 # =============================================================================
 # 6. OPCIONES DE SISTEMA Y SEGURIDAD
 # =============================================================================

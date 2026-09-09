@@ -26,47 +26,82 @@ class ArmadorMosaicos:
         self.matriz_detectada = None
 
     # =========================================================================
-    # LECTURA Y ESCANEO DE LA MATRIZ (Preservado de matriz.py)
+    # LECTURA Y ESCANEO DE LA MATRIZ (Lógica de escaneo del robot del usuario)
     # =========================================================================
+
+    # Colores que la matriz puede mostrar. Todo lo demás que devuelva el escáner
+    # preciso (GRAY, BLACK) es piso o línea: se descarta y se vuelve a leer en
+    # lugar de dar la lectura por buena.
+    COLORES_MATRIZ = (Color.GREEN, Color.YELLOW, Color.BLUE, Color.RED, Color.WHITE)
 
     def realizar_lectura_estatica(
         self,
-        cantidad_lecturas=25,
-        espera_inicial_ms=250,
-        intervalo_lecturas_ms=40,
-        votos_minimos=5
+        lecturas_confirmacion=None,
+        espera_inicial_ms=None,
+        intervalo_lecturas_ms=None,
+        lecturas_maximas=None
     ):
-        """Toma varias lecturas con el robot detenido y devuelve el color ganador por mayoría."""
+        """Lee el color de la celda con el robot detenido y lo devuelve.
+
+        Reemplaza la votación por mayoría del equipo original (250 ms de espera
+        más 25 lecturas cada 40 ms: ~1,25 s por celda) por el criterio de los
+        lazos de Navegacion: se clasifica con detectar_color_preciso() y se
+        exigen unas pocas lecturas seguidas iguales. Ronda los 60 ms por celda.
+
+        Argumentos:
+            lecturas_confirmacion: lecturas seguidas del mismo color que se
+                exigen antes de dar el corte por bueno.
+            espera_inicial_ms: micro-pausa tras frenar, para que el sensor lea
+                sin las vibraciones del motor.
+            intervalo_lecturas_ms: cadencia de muestreo.
+            lecturas_maximas: corte de emergencia si nunca aparece un color de
+                matriz válido.
+
+        Devuelve un Color de Pybricks, o None si la lectura no cierra.
+        """
+        if lecturas_confirmacion is None:
+            lecturas_confirmacion = config.LECTURAS_CONFIRMACION_MATRIZ
+        if espera_inicial_ms is None:
+            espera_inicial_ms = config.ESPERA_ASENTAMIENTO_MS
+        if intervalo_lecturas_ms is None:
+            intervalo_lecturas_ms = config.INTERVALO_LECTURAS_MATRIZ_MS
+        if lecturas_maximas is None:
+            lecturas_maximas = config.LECTURAS_MAXIMAS_MATRIZ
+
         self.robot.frenar()
         wait(espera_inicial_ms)
 
-        conteos = {
-            Color.GREEN: 0,
-            Color.YELLOW: 0,
-            Color.BLUE: 0,
-            Color.RED: 0,
-            Color.WHITE: 0
-        }
+        color_candidato = None
+        confirmaciones = 0
 
-        lecturas_validas = 0
-        for _ in range(cantidad_lecturas):
-            color = self.sensor.color()
-            if color in conteos:
-                conteos[color] += 1
-                lecturas_validas += 1
+        for _ in range(lecturas_maximas):
+            color = self.robot.detectar_color_preciso(self.sensor)
+
+            if color in self.COLORES_MATRIZ:
+                if color == color_candidato:
+                    confirmaciones += 1
+                else:
+                    color_candidato = color
+                    confirmaciones = 1
+
+                if confirmaciones >= lecturas_confirmacion:
+                    return color_candidato
+            else:
+                color_candidato = None
+                confirmaciones = 0
+
             wait(intervalo_lecturas_ms)
 
-        if lecturas_validas == 0:
-            return None
-
-        color_ganador = max(conteos, key=conteos.get)
-        if conteos[color_ganador] < votos_minimos:
-            return None
-
-        return color_ganador
+        return None
 
     def escanear_matriz(self):
-        """Escanea la matriz de colores y devuelve el número correspondiente (1 a 5)."""
+        """Escanea la matriz de colores y devuelve el número correspondiente (1 a 5).
+
+        La numeración y el recorrido son los del equipo original y no se tocan:
+        solo cambia de dónde sale el color. El avance de 4 cm cuando sale verde
+        (para desempatar matriz 1 contra matriz 4) se conserva tal cual, igual
+        que el hecho de no volver atrás después de leer la segunda celda.
+        """
         primer_color = self.realizar_lectura_estatica()
         if primer_color is None:
             print("No se detectó un color de matriz válido.")

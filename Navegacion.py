@@ -896,6 +896,43 @@ class Navegacion:
     # 3. DETECCIÓN DE COLOR Y CRUCES (Preservados de deteccion_color.py)
     # =========================================================================
 
+    def detectar_color_preciso(self, sensor=None):
+        """Clasifica la lectura del sensor en uno de los colores de la pista.
+
+        El color() de Pybricks confunde los tonos de la pista bajo la luz de
+        competencia, así que se clasifica a mano sobre HSV: primero se separan
+        los acromáticos por saturación y después los cromáticos por tono. Los
+        umbrales salen de config (sección 5.b) y se recalibran con
+        odd_shit/calibrador_color.py.
+
+        Argumentos:
+            sensor: ColorSensor a leer. Por defecto el seguidor del robot.
+
+        Devuelve un Color de Pybricks: WHITE, GRAY, BLACK, YELLOW, GREEN o BLUE.
+        """
+        if sensor is None:
+            sensor = self.seguidor
+
+        color_hsv = sensor.hsv()
+        h, s, v = color_hsv.h, color_hsv.s, color_hsv.v
+
+        # Colores acromáticos (Blanco, Gris, Negro)
+        if s < config.UMBRAL_SATURACION_CROMATICA:
+            if v > config.UMBRAL_VALOR_BLANCO:
+                return Color.WHITE
+            elif v >= config.UMBRAL_VALOR_GRIS:
+                return Color.GRAY
+            else:
+                return Color.BLACK
+        # Colores cromáticos (Amarillo, Verde, Azul)
+        else:
+            if h < config.UMBRAL_TONO_AMARILLO_BAJO or h > config.UMBRAL_TONO_AMARILLO_ALTO:
+                return Color.YELLOW
+            elif h < config.UMBRAL_TONO_VERDE:
+                return Color.GREEN
+            else:
+                return Color.BLUE
+
     def _es_color(self, color):
         """Comprueba si la lectura actual está dentro de los rangos HSV calibrados."""
         if color not in config.HSV_RANGOS:

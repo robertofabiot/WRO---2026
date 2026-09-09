@@ -125,6 +125,10 @@ class Robot:
         """Atajo directo a navegacion.seguir_linea_y_mover_torque."""
         return self.navegacion.seguir_linea_y_mover_torque(*args, **kwargs)
 
+    def detectar_color_preciso(self, *args, **kwargs):
+        """Atajo directo a navegacion.detectar_color_preciso."""
+        return self.navegacion.detectar_color_preciso(*args, **kwargs)
+
     def avanzar_hasta_color(self, *args, **kwargs):
         """Atajo directo a navegacion.avanzar_hasta_color."""
         return self.navegacion.avanzar_hasta_color(*args, **kwargs)
