@@ -5,7 +5,7 @@ from pybricks.tools import wait
 class ArmadorMosaicos:
     """Rutinas de armado de la matriz, una por cada mosaico posible.
 
-    El numero de mosaico sale de Misiones.detectar_mosaico() y elige que
+    El numero de mosaico sale de Misiones.escanear_mosaico() y elige que
     rutina correr. Cada rutina supone que el robot arranca cuadrado en la
     esquina de la matriz.
     """
@@ -39,7 +39,7 @@ class ArmadorMosaicos:
         """Corre la rutina de armado del mosaico pedido.
 
         Argumentos:
-            numero_mosaico: numero devuelto por Misiones.detectar_mosaico().
+            numero_mosaico: numero devuelto por Misiones.escanear_mosaico().
                 Si no esta en la tabla, cae en la rutina verde-verde.
         """
         rutina_a_ejecutar = self.rutinas.get(numero_mosaico, self._armar_verde_verde)
