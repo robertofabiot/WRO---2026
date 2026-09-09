@@ -1,59 +1,50 @@
-"""Medidor de límites reales del chasis para el robot migrado.
+"""
+Medidor de limites reales del chasis. CORRELO SOBRE EL TAPETE DE COMPETENCIA.
 
-CORRER SOBRE EL TAPETE DE COMPETENCIA.
+La aceleracion maxima no es una propiedad del robot sino de la superficie:
+depende de cuando la rueda patina contra ESE tapete. Medirlo en una mesa o en
+el piso da un numero equivocado, y si queda alto el patinaje corrompe la
+odometria, que es de lo que dependen todas las distancias del recorrido.
 
-La aceleración máxima no es una propiedad intrínseca del robot sino de la
-superficie: depende del punto en el que la rueda patina contra el tapete.
-Medirlo en una mesa o piso da un valor equivocado; si la aceleración queda
-demasiado alta, el patinaje corrompe la odometría y descalibra los recorridos.
+Cabe en 90 cm: el patinaje ocurre en el transitorio de arranque, no hace
+falta pista larga. Lo que hace falta son repeticiones, porque 2 mm de
+deslizamiento por viaje son invisibles sueltos y obvios acumulados.
 
-CÓMO CORRERLO:
-  1. Colocar el robot sobre el tapete con al menos 70 cm libres al frente.
-  2. Colocar una cinta en el suelo marcando el borde delantero del robot.
-  3. Ejecutar este script. Entre bloque y bloque espera pulsar el botón central
-     del Hub: aprovecha para revisar cuánto se desplazó el robot de la cinta.
+COMO CORRERLO
+  1. Robot sobre el tapete, 70 cm libres por delante.
+  2. Cinta en el piso marcando el borde delantero del robot.
+  3. Correlo. Entre bloque y bloque espera que aprietes el boton central:
+     aprovecha para mirar cuanto se corrio el robot respecto de la cinta.
 
-QUÉ OBSERVAR:
-  - Deriva de rumbo: el patinaje longitudinal rara vez es simétrico, por lo que
-    deja el robot girado. Es una medición automática del IMU.
-  - Distancia contra la cinta: mide el deslizamiento longitudinal real.
-  Elige la aceleración más alta que conserve ambas lecturas limpias (deriva < 2°).
+QUE MIRAR
+  - Deriva de rumbo: el patinaje en recta casi nunca es simetrico, asi que
+    deja el robot girado. Es la medicion automatica, no depende de tu ojo.
+  - Distancia contra la cinta: mide el deslizamiento longitudinal.
+  Elegi la aceleracion mas alta que todavia vuelva limpia en las dos.
 """
 
-import sys
-try:
-    import config
-except ImportError:
-    sys.path.append("..")
-    sys.path.append(".")
-    import config
-
 from pybricks.hubs import PrimeHub
-from pybricks.parameters import Button, Direction, Stop
+from pybricks.parameters import Axis, Button, Direction, Stop
 from pybricks.pupdevices import Motor
 from pybricks.robotics import DriveBase
 from pybricks.tools import StopWatch, wait
+import config
 
-PISTA_MM = 600           # Distancia de ida y vuelta de cada viaje
-PISTA_TECHO_MM = 400     # Distancia para medir la velocidad máxima real
-REPETICIONES = 4         # Cantidad de viajes de ida y vuelta por cada aceleración
+PISTA_MM = 600           # ida y vuelta de cada viaje
+PISTA_TECHO_MM = 400     # para medir la velocidad maxima
+REPETICIONES = 4         # viajes de ida y vuelta por cada aceleracion
 ACELERACIONES = (700, 1500, 2000, 3000, 4000)
 
-# Inicialización con el cableado del robot configurado
-hub = PrimeHub()
-izq = Motor(config.PORT_MOTOR_IZQ, config.DIRECCION_MOTOR_IZQ)
-der = Motor(config.PORT_MOTOR_DER, config.DIRECCION_MOTOR_DER)
+hub = PrimeHub(top_side=Axis.Z, front_side=Axis.X)
+izq = Motor(config.PORT_MOTOR_IZQ, Direction.COUNTERCLOCKWISE)
+der = Motor(config.PORT_MOTOR_DER, Direction.CLOCKWISE)
 
 
 def esperar_boton(mensaje):
     print("")
     print(">>> %s" % mensaje)
-    print(">>> Presiona el botón central del Hub para continuar...")
-    try:
-        hub.speaker.beep(500, 120)
-    except Exception:
-        pass
-
+    print(">>> Apreta el boton central para seguir.")
+    hub.speaker.beep(500, 120)
     while Button.CENTER in hub.buttons.pressed():
         wait(50)
     while Button.CENTER not in hub.buttons.pressed():
@@ -64,32 +55,31 @@ def esperar_boton(mensaje):
 
 print("")
 print("==========================================")
-print(" 1. LÍMITES DECLARADOS POR LOS MOTORES")
+print(" 1. LIMITES DECLARADOS POR LOS MOTORES")
 print("==========================================")
-print("Motor izquierdo Port %s (vel, acel, torque):" % config.PORT_MOTOR_IZQ, izq.control.limits())
-print("Motor derecho   Port %s (vel, acel, torque):" % config.PORT_MOTOR_DER, der.control.limits())
+print("motor izquierdo (vel, acel, torque):", izq.control.limits())
+print("motor derecho   (vel, acel, torque):", der.control.limits())
 
 circunferencia = 3.1416 * config.DIAMETRO_RUEDA
 tope_motor = izq.control.limits()[0]
 print("")
 print("Circunferencia de rueda: %d mm" % circunferencia)
-print("Ancho de vía (axle track): %d mm" % config.SEPARACION_RUEDAS)
-print("Techo teórico de tracción: %d mm/s" % (tope_motor / 360.0 * circunferencia))
+print("Techo teorico:           %d mm/s" % (tope_motor / 360.0 * circunferencia))
 
 base = DriveBase(izq, der, config.DIAMETRO_RUEDA, config.SEPARACION_RUEDAS)
 base.use_gyro(True)
 
 por_defecto = base.settings()
 print("")
-print("settings() automáticos de Pybricks:", por_defecto)
-print("Pybricks calibra al ~40%% del máximo -> Máximo estimado ~= %d mm/s" % (por_defecto[0] / 0.4))
-print("Tu config.py tiene configurado VELOCIDAD_MAX_RECTA = %d mm/s" % config.VELOCIDAD_MAX_RECTA)
+print("settings() automaticos de Pybricks:", por_defecto)
+print("Pybricks los calibra al ~40%% del maximo -> maximo ~= %d mm/s" % (por_defecto[0] / 0.4))
+print("Tu config.py fuerza straight_speed = %d mm/s" % config.STRAIGHT_SPEED)
 
 print("")
 print("==========================================")
 print(" 2. TECHO REAL DE VELOCIDAD (%d mm)" % PISTA_TECHO_MM)
 print("==========================================")
-print("Exigiendo velocidad máxima para medir saturación del motor en carga...")
+print("Pidiendo una velocidad imposible para ver donde satura el motor...")
 
 base.settings(straight_speed=2000, straight_acceleration=4000)
 base.straight(PISTA_TECHO_MM, then=Stop.BRAKE, wait=False)
@@ -102,24 +92,24 @@ while not base.done():
     wait(5)
 
 print("")
-print(">>> VELOCIDAD MÁXIMA MEDIDA: %d mm/s <<<" % velocidad_pico)
-if config.VELOCIDAD_MAX_RECTA > velocidad_pico:
-    print("    AVISO: Tu VELOCIDAD_MAX_RECTA (%d mm/s) supera el techo físico real." % config.VELOCIDAD_MAX_RECTA)
-    print("    El motor no podrá alcanzarla; la palanca de tiempo es la aceleración.")
+print(">>> VELOCIDAD MAXIMA MEDIDA: %d mm/s <<<" % velocidad_pico)
+if config.STRAIGHT_SPEED > velocidad_pico:
+    print("    Tu STRAIGHT_SPEED (%d) esta POR ENCIMA del techo fisico." % config.STRAIGHT_SPEED)
+    print("    Subirlo no hace nada: la palanca de velocidad es la aceleracion.")
 else:
-    print("    Tu VELOCIDAD_MAX_RECTA (%d mm/s) está dentro del límite seguro." % config.VELOCIDAD_MAX_RECTA)
-    print("    Podrías incrementarla hasta %d mm/s si el tramo es largo." % velocidad_pico)
+    print("    Tu STRAIGHT_SPEED (%d) esta por debajo del techo." % config.STRAIGHT_SPEED)
+    print("    Subirlo hasta %d si te sobra pista de aceleracion." % velocidad_pico)
 
 base.settings(straight_speed=velocidad_pico, straight_acceleration=4000)
 base.straight(-PISTA_TECHO_MM)
 wait(500)
 
-esperar_boton("Coloca nuevamente el robot exactamente sobre la cinta testigo.")
+esperar_boton("Volve a poner el robot exactamente sobre la cinta.")
 
 print("")
 print("==========================================")
-print(" 3. BARRIDO DE ACELERACIÓN")
-print("    %d ciclos ida y vuelta de %d mm por cada valor" % (REPETICIONES, PISTA_MM))
+print(" 3. BARRIDO DE ACELERACION")
+print("    %d viajes de %d mm por cada valor" % (REPETICIONES, PISTA_MM))
 print("==========================================")
 
 reloj = StopWatch()
@@ -144,31 +134,26 @@ for accel in ACELERACIONES:
     resultados.append((accel, total_ms, por_viaje, deriva))
 
     print("")
-    print("  Aceleración %4d mm/s²" % accel)
-    print("     Tiempo medio por tramo : %d ms" % por_viaje)
-    print("     Deriva de rumbo final  : %.1f grados  %s"
-          % (deriva, "<-- ¡PATINA!" if abs(deriva) > 2.0 else "OK (estable)"))
+    print("  accel %4d mm/s2" % accel)
+    print("     tiempo por tramo : %d ms" % por_viaje)
+    print("     deriva de rumbo  : %.1f grados  %s"
+          % (deriva, "<-- PATINA" if abs(deriva) > 2 else "ok"))
 
-    esperar_boton("Revisa la cinta: ¿cuánto se desplazó el robot con accel %d mm/s²?" % accel)
+    esperar_boton("Mira la cinta: cuanto se corrio el robot con accel %d?" % accel)
 
 print("")
 print("==========================================")
-print(" RESUMEN COMPARATIVO")
+print(" RESUMEN")
 print("==========================================")
 referencia = resultados[0][2]
 for accel, total, por_viaje, deriva in resultados:
-    print("  accel %4d mm/s² -> %4d ms/tramo | Ahorro: %3d ms | Deriva: %5.1f° %s"
+    print("  accel %4d -> %4d ms/tramo | ahorro %3d ms | deriva %5.1f deg %s"
           % (accel, por_viaje, referencia - por_viaje, deriva,
-             "¡PATINA!" if abs(deriva) > 2.0 else "OK"))
+             "PATINA" if abs(deriva) > 2 else ""))
 
 print("")
-print("CONCLUSIÓN:")
-print("  Elige la aceleración más alta donde:")
-print("    1. La deriva de rumbo permanezca por debajo de 2.0°.")
-print("    2. El robot regrese alineado sobre la cinta testigo.")
-print("  Y anótala en config.py como la aceleración recomendada.")
-
-try:
-    hub.speaker.beep(900, 300)
-except Exception:
-    pass
+print("Elegi la aceleracion mas alta que cumpla LAS DOS cosas:")
+print("  - deriva de rumbo por debajo de 2 grados")
+print("  - el robot vuelve sobre la cinta")
+print("Y ponela en config.py como STRAIGHT_ACCEL.")
+hub.speaker.beep(900, 300)
