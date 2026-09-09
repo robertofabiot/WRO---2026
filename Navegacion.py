@@ -909,3 +909,36 @@ class Navegacion:
         else:
             self.chasis.drive_base.stop()
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
+
+    def avanzar_hasta_salir_negro(self, sensor_color, velocidad=900, umbral_reflexion=15, lecturas_salida=4, encadenado=False):
+        """Avanza recto con corrección de giroscopio hasta dejar de detectar línea negra.
+
+        Argumentos:
+            sensor_color: sensor de color a monitorear.
+            velocidad: mm/s de avance recto.
+            umbral_reflexion: valor de reflexión por encima del cual se considera salida del negro.
+            lecturas_salida: lecturas consecutivas para confirmar la salida.
+            encadenado: True usa micro-freno pasivo para enlazar el movimiento siguiente.
+        """
+        self.chasis.drive_base.drive(velocidad, 0)
+        contador_salida = 0
+        reloj_seg = StopWatch()
+        while True:
+            if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                print("TIMEOUT avanzar_hasta_salir_negro")
+                break
+            if sensor_color.reflection() > umbral_reflexion:
+                contador_salida += 1
+                if contador_salida >= lecturas_salida:
+                    break
+            else:
+                contador_salida = 0
+            if self.chasis.drive_base.stalled():
+                break
+            wait(2)
+
+        if encadenado:
+            self.chasis._terminar_movimiento_encadenado()
+        else:
+            self.chasis.drive_base.stop()
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)

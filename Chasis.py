@@ -325,3 +325,46 @@ class Chasis:
             if tiempo_faltante > 0:
                 wait(tiempo_faltante)
             accion_secundaria_callback()
+
+    def giro_de_arco(self, radio_cm, angulo_deg, velocidad=None, aceleracion=None,
+                     lado="derecha", frenado=Stop.BRAKE, wait_after=True, encadenado=False):
+        """Recorre un arco de radio fijo, girando y avanzando a la vez.
+
+        Es la unica primitiva de movimiento que no estaba: sirve para salir de
+        una zona sin frenar a girar en el lugar. Se apoya en curve() del
+        drive_base, que reparte solo la velocidad entre las dos ruedas y
+        respeta el use_gyro(True) del chasis.
+
+        Argumentos:
+            radio_cm: radio del circulo que describe el centro del robot.
+            angulo_deg: cuanto se recorre sobre ese circulo. Positivo avanza,
+                negativo recorre el mismo arco en reversa.
+            velocidad: mm/s sobre el arco. None usa la velocidad base.
+            aceleracion: mm/s². None usa config.ACELERACION_RECTA.
+            lado: "derecha" curva en sentido horario, "izquierda" antihorario.
+            frenado: modo de frenado de Pybricks al llegar.
+            wait_after: True bloquea hasta terminar el arco.
+            encadenado: True reemplaza el frenado por el micro-freno pasivo.
+        """
+        if angulo_deg == 0 or radio_cm == 0:
+            return
+
+        self._aplicar_velocidad(velocidad, aceleracion)
+
+        if encadenado:
+            frenado = Stop.NONE
+
+        # curve() toma el radio con signo: positivo curva a la derecha.
+        radio_mm = abs(radio_cm) * 10
+        if lado == "izquierda":
+            radio_mm = -radio_mm
+        elif lado != "derecha":
+            raise ValueError("lado tiene que ser 'derecha' o 'izquierda'")
+
+        self.drive_base.curve(radio_mm, angulo_deg, then=frenado, wait=wait_after)
+
+        if wait_after and encadenado:
+            self._terminar_movimiento_encadenado()
+
+        if not encadenado:
+            Utils.emitir_sonido_confirmacion(self.hub)
