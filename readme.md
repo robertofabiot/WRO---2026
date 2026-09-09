@@ -55,16 +55,17 @@ Cada misión arranca donde termina la anterior, así que para probar una sola ha
 
 | # | Misión (`Misiones.py`) | Estado | Notas |
 |---|---|---|---|
-| 1 | 🟢 `cemento_y_llana` | Completada | Estable. Pendiente de testeo exhaustivo. |
-| 2 | 🟢 `recoger_pala` | Completada | Estable. Pendiente de testeo exhaustivo. |
-| 3 | 🟢 `dejar_cemento` | Completada | Estable. Pendiente de testeo exhaustivo. |
-| 4 | 🟢 `recoger_verdes` | Completada | Estable. Pendiente de testeo exhaustivo. |
-| 5 | 🟢 `detectar_mosaico` | Completada | Devuelve el número de mosaico que consume el armador. |
-| 6 | 🟢 `dejar_verdes` | Completada | Estable. Pendiente de testeo exhaustivo. |
-| 7 | 🟢 `agarrar_amarillos` | Completada | Estable. Pendiente de testeo exhaustivo. |
-| 8 | 🟢 `agarrar_azules` | Completada | Estable. Pendiente de testeo exhaustivo. |
-| 9 | 🟢 `dejar_amarillos` | Completada | Estable. Pendiente de testeo exhaustivo. |
-| 10 | 🟢 `dejar_pala` | Completada | Estable. Pendiente de testeo exhaustivo. |
+| 1 | 🟢 `agarrar_cemento` | Completada | Salida inicial, seguidor de línea y captura del cemento con jaula trasera. |
+| 2 | 🟢 `dejar_llana` | Completada | Empuje de llana y regreso a la línea cruzando intersecciones. |
+| 3 | 🟢 `dejar_cemento` | Completada | Navegación a zona y descarga de cemento en movimiento. |
+| 4 | 🟢 `agarrar_verdes` | Completada | Seguidor hasta verde y captura de bloques verdes con jaula trasera. |
+| 5 | 🟢 `escanear_mosaico` | Completada | Entrada a matriz y detección del patrón de mosaico. |
+| 6 | 🟢 `dejar_verdes` | Completada | Salida de matriz y descarga de bloques verdes en su zona. |
+| 7 | 🟢 `agarrar_amarillos` | Completada | Seguidor de línea y recorrido en zigzag por el pasillo amarillo. |
+| 8 | 🟢 `agarrar_azules` | Completada | Conteo de líneas y encierro de bloques azules con jaula trasera. |
+| 9 | 🟢 `agarrar_pala` | Completada | Posicionamiento de garra/pinza delantera y sujeción de la pala. |
+| 10 | 🟢 `dejar_amarillos` | Completada | Descarga y acomodo de bloques amarillos en su zona. |
+| 11 | 🟢 `dejar_pala_y_azules` | Completada | Descarga coordinada de azules y acomodo final en esquina de matriz. |
 
 ### Matrices de Mosaicos (`ArmadorMosaicos.py`)
 
