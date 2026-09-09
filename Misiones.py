@@ -1,355 +1,670 @@
-"""Módulo de misiones del recorrido de competencia.
+"""Secuencia de misiones autónomas y armado de matriz para WRO 2026.
 
-Basado en la versión actualizada de prueba_reto_1, modularizado en métodos
-independientes por sección, preservando al 100% las distancias, ángulos,
-tiempos de espera, llamadas a gc.collect() y orden de ejecución.
-
-Las llamadas a mecanismos quedan comentadas con la etiqueta TODO para su
-posterior conversión a porcentaje en cuanto se definan los rangos máximos.
+Estructura modular dividida en misiones atómicas individuales que pueden
+ejecutarse por separado para calibración y pruebas, o encadenadas en recorrido_completo().
 """
 
 from pybricks.parameters import Color
 from pybricks.tools import wait
 import gc
 import config
+from robot import Robot
 
 
 class Misiones:
-    """Secuencias de misiones del recorrido oficial WRO 2026 (rama actualizada)."""
+    """Misiones del recorrido secuencial y rutinas de armado de matriz."""
 
-    def __init__(self, robot, sensor_color=None):
+    def __init__(self, robot: Robot, sensor_frente):
         """
         Argumentos:
-            robot: Instancia de Robot.
-            sensor_color: Sensor de color del frente (por defecto robot.seguidor).
+            robot: instancia de Robot con el chasis y los mecanismos armados.
+            sensor_frente: ColorSensor delantero (el seguidor).
         """
         self.robot = robot
-        self.sensor = sensor_color if sensor_color is not None else robot.seguidor
+        self.sensor = sensor_frente
+        self.matriz_detectada = None
 
     # =========================================================================
-    # SECCIÓN 1: Giro de salida y seguidor hasta el cemento
+    # AUXILIARES
     # =========================================================================
-    def seccion_1_salida_y_cemento(self):
-        """Salida de base con arco, seguidor, toma de cemento y empuje de llana."""
-        robot = self.robot
 
-        # Inicialización de encoders a 0° en posición de salida
-        robot.garra_principal.reset_angle(0)
-        robot.garra_delantera.reset_angle(0)
-        robot.torque.reset_angle(0)
-
-        robot.giro_de_arco(
-            radio_cm=22,
-            angulo_deg=90,
-            potencia_max=90,
-            lado="derecha"
+    def _seguir_linea_distancia(
+        self,
+        distancia_cm,
+        velocidad_max=100,
+        lado="derecha",
+        kp=1.15,
+        kd=3.8,
+        k_freno=0.05,
+        tiempo_acomodo_ms=50,
+        encadenado=True):
+        """Sigue el borde de la línea una distancia fija utilizando seguidor_linea_cruces."""
+        self.robot.navegacion.seguidor_linea_cruces(
+            self.sensor,
+            velocidad_max=velocidad_max,
+            cruces_objetivo=0,
+            distancia_extra_cm=distancia_cm,
+            distancia_inicial_cm=0,
+            lado=lado,
+            tiempo_acomodo_ms=tiempo_acomodo_ms,
+            kp=kp,
+            kd=kd,
+            k_freno=k_freno,
+            margen_cm=0,
+            encadenado=encadenado
         )
+
+    def _identificar_combinacion(self, distancia_verificacion_cm=5):
+        """Lee el mosaico a armar y devuelve su número según config.MOSAICOS."""
+        color_principal = self.sensor.color()
+        if color_principal not in config.MOSAICOS:
+            return -1
+
+        decision = config.MOSAICOS[color_principal]
+
+        if type(decision) is dict:
+            self.robot.chasis.avanzar_recto(distancia_verificacion_cm)
+            wait(50)
+            color_anterior = self.sensor.color()
+            self.robot.chasis.avanzar_recto(-distancia_verificacion_cm)
+
+            if color_anterior not in decision:
+                return -1
+            return decision[color_anterior]
+
+        return decision
+
+    # =========================================================================
+    # MISIONES ATÓMICAS (RETO 1)
+    # =========================================================================
+
+    def agarrar_cemento(self):
+        """Salida inicial, seguidor de línea y captura del cemento con la jaula trasera."""
+        self.robot.garra_trasera.establecer_cero()
+        self.robot.garra_delantera.establecer_cero()
+        self.robot.garra_delantera.establecer_cero_pinza()
+
+        self.robot.navegacion.giro_relativo(90, rueda_pivote="derecha", min_potencia=60, encadenado=True)
         gc.collect()
 
-        robot.seguir_linea(
-            sensor_color=robot.seguidor,
+        self._seguir_linea_distancia(
             distancia_cm=79,
             velocidad_max=100,
             lado="derecha",
-            tiempo_acomodo_ms=50,
-            tiempo_aceleracion_ms=80,
             kp=1.15,
             kd=3.8,
             k_freno=0.05,
-            correccion_max=100,
-            objetivo_reflexion=27,
-            captura_inicial=True,
-            tiempo_captura_ms=280,
-            potencia_captura=60,
-            kp_captura=2.5,
-            perfil_salida="encadenado"
+            tiempo_acomodo_ms=50,
+            encadenado=True
         )
         gc.collect()
 
-        # Giro frente al cemento
-        robot.girar(angulo_deg=-90, potencia_max=100, perfil="encadenado")
+        self.robot.navegacion.giro_relativo(-90, max_potencia=100, encadenado=True)
+        self.robot.garra_trasera.ir_a_porcentaje(94.4, velocidad=600, wait_after=False)
+        self.robot.chasis.avanzar_recto(-12, velocidad=1000, encadenado=False)
 
-        # Bajar mecanismo de torque para tomar el cemento (-169° medido = 93.0%)
-        # Original: robot.mover_torque(grados_torque=-169, velocidad_torque=600, esperar=False)
-        robot.torque.ir_a_porcentaje(93.0, velocidad=600, wait_after=False)
+    def dejar_llana(self):
+        """Empuja la llana hacia su zona y regresa a la línea cruzando intersecciones."""
+        self.robot.chasis.avanzar_recto(8, velocidad=1000, encadenado=False)
+        self.robot.navegacion.giro_relativo(70, max_potencia=100, encadenado=True)
 
-        robot.avanzar_recto(distancia_cm=-16, velocidad_max=1000, perfil="encadenado")
+        self.robot.chasis.avanzar_recto(-32, velocidad=1000)
 
-        # Avance tras tomar cemento y giro en dirección a la llana
-        robot.avanzar_recto(distancia_cm=8.5, velocidad_max=1000, perfil="encadenado")
-        robot.girar(angulo_deg=70, potencia_max=100, perfil="encadenado")
-
-        # Retroceso para dejar la llana y cruce de líneas para regresar a la línea
-        robot.avanzar_recto(distancia_cm=-32, velocidad_max=1000, perfil="seguro")
-
-        robot.avanzar_cruzando_lineas(
-            cruces_objetivo=2,
+        self.robot.chasis.avanzar_recto(8, velocidad=900, encadenado=True)
+        self.robot.navegacion.avanzar_contando_lineas(
+            self.sensor,
+            lineas_objetivo=2,
+            color_linea=Color.BLACK,
             velocidad=900,
-            escape_inicial_cm=8,
-            retraso_freno_ms=0
+            velocidad_lenta=800,
+            debug=False
         )
         gc.collect()
 
-        # Giro de arco para posicionarse sobre la línea
-        robot.giro_de_arco(
+        self.robot.chasis.giro_de_arco(
             radio_cm=13,
             angulo_deg=19,
-            potencia_max=90,
-            lado="derecha"
+            lado="derecha",
+            encadenado=False
         )
 
-    # =========================================================================
-    # SECCIÓN 2: Dejar el cemento y tomar los cementos verdes
-    # =========================================================================
-    def seccion_2_dejar_cemento_y_tomar_verdes(self):
-        """Seguidor hasta zona de cemento, depósito coordinado y agarre de verdes."""
-        robot = self.robot
-
-        robot.seguir_linea(
-            sensor_color=robot.seguidor,
+    def dejar_cemento(self):
+        """Sigue la línea, gira y descarga el cemento levantando la jaula en recorrido."""
+        self._seguir_linea_distancia(
             distancia_cm=50,
             velocidad_max=100,
             lado="derecha",
-            tiempo_acomodo_ms=50,
-            tiempo_aceleracion_ms=80,
             kp=1.15,
             kd=3.8,
             k_freno=0.05,
-            correccion_max=100,
-            objetivo_reflexion=27,
-            captura_inicial=True,
-            tiempo_captura_ms=450,
-            potencia_captura=35,
-            kp_captura=3.5,
-            margen_captura=4,
-            lecturas_estables_captura=4,
-            perfil_salida="encadenado"
+            tiempo_acomodo_ms=50,
+            encadenado=True
         )
         wait(100)
 
-        robot.girar(angulo_deg=-90, potencia_max=85, perfil="encadenado")
+        self.robot.navegacion.giro_relativo(-90, max_potencia=85, encadenado=True)
 
-        # Avance coordinado con torque para soltar el cemento (sube a 0% a los 13 cm)
-        # Original: robot.avanzar_con_torque(distancia_cm=39.5, distancia_activacion_torque_cm=13, torque_grados=170)
-        robot.avanzar_con_torque(
-            distancia_cm=39.5,
-            distancia_activacion_torque_cm=13,
-            torque_porcentaje=0,
-            torque_velocidad=900
+        self.robot.chasis.avanzar_y_accionar_en_recorrido(
+            distancia_total_cm=28,
+            distancia_accion_cm=13,
+            margen_cm=2,
+            accion_callback=lambda: self.robot.garra_trasera.ir_a_porcentaje(
+                0, velocidad=900, wait_after=False
+            ),
+        )
+        self.robot.navegacion.avanzar_distancia_luego_color(
+            self.sensor,
+            distancia_ciega_cm=0,
+            color_objetivo=Color.WHITE,
+            distancia_maxima_cm=10,
+            velocidad_escaneo=900,
+            encadenado=True
+        )
+        self.robot.navegacion.avanzar_distancia_luego_color(
+            self.sensor,
+            distancia_ciega_cm=2,
+            color_objetivo=Color.BLACK,
+            distancia_maxima_cm=10,
+            velocidad_escaneo=150,
+            distancia_extra_cm=5
         )
 
-        robot.girar(angulo_deg=90, potencia_max=85, perfil="encadenado")
+        self.robot.navegacion.giro_relativo(90, max_potencia=85, encadenado=True)
 
-        # Seguir línea para tomar los cementos verdes
-        robot.seguir_linea_hasta_color(
-            color_objetivo=Color.GREEN,
+    def agarrar_verdes(self):
+        """Sigue la línea hasta ver verde, gira y retrocede atrapando los bloques verdes."""
+        self.robot.navegacion.seguidor_linea_color(
+            self.sensor,
             velocidad_max=95,
-            lado="derecha"
-        )
-
-        robot.avanzar_recto(distancia_cm=-7, velocidad_max=900, perfil="encadenado")
-        robot.girar(angulo_deg=-188, potencia_max=90, perfil="encadenado")
-
-        # Agarrar los cementos verdes (-170° medido = 93.4%)
-        # Original: robot.mover_torque(grados_torque=-170, velocidad_torque=250, esperar=False)
-        robot.torque.ir_a_porcentaje(93.4, velocidad=250, wait_after=False)
-
-        robot.avanzar_recto(distancia_cm=-22, velocidad_max=900, perfil="encadenado")
-
-    # =========================================================================
-    # SECCIÓN 3: Escanear la matriz y dejar los cementos verdes
-    # =========================================================================
-    def seccion_3_escanear_matriz_y_dejar_verdes(self, armador):
-        """Llegada a la matriz, escaneo de colores, retroceso y depósito de verdes."""
-        robot = self.robot
-
-        # Seguir línea hasta la matriz
-        robot.seguir_linea_hasta_color(
             color_objetivo=Color.GREEN,
-            velocidad_max=95,
-            lado="izquierda"
+            lado="derecha",
+            tiempo_acomodo_ms=0,
+            distancia_cm=45,
+            distancia_maxima_cm=55,
+            encadenado=True,
         )
 
-        # Entrar a escanear la matriz
-        robot.girar_corto(5, potencia_max=54, potencia_min=34)
-        robot.avanzar_recto(14, 700)
+        self.robot.chasis.avanzar_recto(-7, velocidad=900, encadenado=True)
+        self.robot.navegacion.giro_relativo(-183, max_potencia=90, encadenado=True)
 
-        matriz_detectada = armador.escanear_matriz()
+        self.robot.garra_trasera.ir_a_porcentaje(95.0, velocidad=250, wait_after=False)
+        self.robot.chasis.avanzar_recto(-20, velocidad=700, encadenado=True)
+        self.robot.chasis.cuadrar_contra_pared(tiempo_ms=150, potencia=80)
 
-        robot.girar_corto(-5, potencia_max=54, potencia_min=34)
+    def escanear_mosaico(self, distancia_verificacion_cm=5):
+        """Sigue la línea por la izquierda, entra a la matriz y escanea el mosaico."""
+        self.robot.navegacion.seguidor_linea_color(
+            self.sensor,
+            velocidad_max=100,
+            color_objetivo=Color.GREEN,
+            lado="izquierda",
+            tiempo_acomodo_ms=0,
+            distancia_cm=70,
+            encadenado=True
+        )
 
-        # Salir de la matriz
-        robot.avanzar_recto(distancia_cm=-37.5, velocidad_max=900, perfil="seguro")
-        robot.girar(angulo_deg=-180, potencia_max=90, perfil="encadenado")
+        self.robot.navegacion.giro_absoluto(0)
+        self.robot.chasis.avanzar_recto(20, velocidad=700)
+
+        mosaico = self._identificar_combinacion(distancia_verificacion_cm)
+        self.matriz_detectada = mosaico
+        print("Mosaico detectado:", mosaico)
+        return mosaico
+
+    def detectar_mosaico(self, distancia_verificacion_cm=5):
+        """Alias para compatibilidad con ArmadorMosaicos."""
+        return self.escanear_mosaico(distancia_verificacion_cm)
+
+    def escanear_matriz(self, distancia_verificacion_cm=5):
+        """Alias para compatibilidad."""
+        return self.escanear_mosaico(distancia_verificacion_cm)
+
+    def dejar_verdes(self):
+        """Sale de la matriz en reversa, gira 180° y deposita los bloques verdes."""
+        self.robot.chasis.avanzar_recto(-37.5, velocidad=900)
+        self.robot.navegacion.giro_relativo(-180, max_potencia=90, encadenado=True)
         gc.collect()
 
-        # Dejar los cementos verdes
-        robot.avanzar_recto(distancia_cm=-19.6, velocidad_max=900, perfil="encadenado")
+        self.robot.chasis.avanzar_recto(-16, velocidad=900, encadenado=True)
+        self.robot.garra_trasera.ir_a_porcentaje(0, velocidad=350, wait_after=False)
 
-        # Subir torque para soltar los cementos verdes (retorna a 0%)
-        # Original: robot.mover_torque(grados_torque=170, velocidad_torque=350, esperar=False)
-        robot.torque.ir_a_porcentaje(0, velocidad=350, wait_after=False)
-
-        return matriz_detectada
-
-    # =========================================================================
-    # SECCIÓN 4: Ir por los cementos amarillos y tomar los azules
-    # =========================================================================
-    def seccion_4_amarillos_y_azules(self):
-        """Navegación al pasillo de amarillos y agarre de bloques azules."""
-        robot = self.robot
-
-        # Ir por los cementos amarillos
-        robot.seguir_linea(
-            sensor_color=robot.seguidor,
-            distancia_cm=48,
-            velocidad_max=100,
-            lado="derecha",
+    def agarrar_amarillos(self):
+        """Sigue la línea y navega el pasillo en zigzag recolectando los bloques amarillos."""
+        self.robot.navegacion.seguidor_linea_color(
+            self.sensor,
+            100,
+            Color.GREEN,
             tiempo_acomodo_ms=100,
-            tiempo_aceleracion_ms=80,
-            kp=1.15,
-            kd=3.8,
-            k_freno=0.05,
-            correccion_max=100,
-            objetivo_reflexion=27,
-            captura_inicial=True,
-            tiempo_captura_ms=280,
-            potencia_captura=55,
-            kp_captura=3.8,
-            perfil_salida="encadenado"
+            distancia_cm=70
         )
-        robot.avanzar_recto(distancia_cm=18, velocidad_max=900, perfil="encadenado")
+        self.robot.chasis.avanzar_recto(18, velocidad=900, encadenado=False)
 
-        robot.girar(angulo_deg=-90, potencia_max=90, perfil="encadenado")
-        robot.avanzar_recto(distancia_cm=23, velocidad_max=900, perfil="encadenado")
-        robot.girar(angulo_deg=-90, potencia_max=80, perfil="encadenado")
-        robot.avanzar_recto(distancia_cm=15, velocidad_max=900, perfil="encadenado")
-        robot.girar(angulo_deg=-93.5, potencia_max=80, perfil="encadenado")
+        self.robot.navegacion.giro_relativo(-90, max_potencia=90, encadenado=True)
+        self.robot.chasis.avanzar_recto(25, velocidad=900, encadenado=True)
+        self.robot.navegacion.giro_relativo(-90, max_potencia=80, encadenado=False)
+        self.robot.chasis.avanzar_recto(20, velocidad=900, encadenado=False)
+        self.robot.navegacion.giro_relativo(-90, max_potencia=80, encadenado=False)
         wait(100)
 
-        # Ir por los azules
-        robot.avanzar_cruzando_lineas(cruces_objetivo=2, velocidad=700, retraso_freno_ms=90)
-        robot.girar(angulo_deg=89, potencia_max=80, perfil="encadenado")
+    def agarrar_azules(self):
+        """Avanza contando líneas, gira hacia los bloques azules y los encierra con la jaula."""
+        self.robot.navegacion.avanzar_contando_lineas(
+            self.sensor,
+            lineas_objetivo=3,
+            color_linea=Color.BLACK,
+            velocidad=700,
+            distancia_extra_cm=6.3,
+            debug=False
+        )
+        self.robot.navegacion.giro_relativo(90, max_potencia=80, encadenado=True)
 
-        # Tomar los azules (-170° medido = 93.4%)
-        # Original: robot.mover_torque(grados_torque=-170, velocidad_torque=250, esperar=False)
-        robot.torque.ir_a_porcentaje(93.4, velocidad=250, wait_after=False)
+        self.robot.garra_trasera.ir_a_porcentaje(95.0, velocidad=250, wait_after=False)
+        self.robot.chasis.avanzar_recto(-22, velocidad=700, encadenado=True)
 
-        robot.avanzar_recto(distancia_cm=-22, velocidad_max=900, perfil="encadenado")
+    def agarrar_pala(self):
+        """Avanza hacia la pala, posiciona la garra/pinza y la sujeta firmemente."""
+        self.robot.chasis.avanzar_recto(12, velocidad=900, encadenado=True)
+        self.robot.navegacion.giro_relativo(-38, max_potencia=90, encadenado=True)
 
-    # =========================================================================
-    # SECCIÓN 5: Ir por la pala y dejar los amarillos
-    # =========================================================================
-    def seccion_5_tomar_pala_y_dejar_amarillos(self):
-        """Captura de la pala con garras delantera y principal, y depósito de amarillos."""
-        robot = self.robot
+        self.robot.garra_delantera.ir_a_porcentaje(69.4, velocidad=700, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(33.3, velocidad=1000, wait_after=True)
 
-        # Ir por la pala
-        robot.avanzar_recto(distancia_cm=20, velocidad_max=900, perfil="encadenado")
-        robot.girar(angulo_deg=-38, potencia_max=90, perfil="encadenado")
+        self.robot.navegacion.avanzar_contando_lineas(
+            self.sensor,
+            lineas_objetivo=2,
+            color_linea=Color.BLACK,
+            velocidad=500,
+            distancia_extra_cm=13,
+            debug=False
+        )
 
-        # Posicionar garra delantera a 245° (69.4%) y garra principal a 200° (47.6%)
-        # Original: robot.mover_garra_delantera(posicion=245, simultaneo=True)
-        # Original: robot.mover_garra_principal(velocidad=1000, grados=200, esperar=True)
-        robot.garra_delantera.ir_a_porcentaje(69.4, velocidad=700, wait_after=False)
-        robot.garra_principal.ir_a_porcentaje(47.6, velocidad=1000, wait_after=True)
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=300, limite_potencia=100)
 
-        robot.avanzar_cruzando_lineas(2, velocidad=500, distancia_extra_cm=13)
+    def dejar_amarillos(self):
+        """Descarga los bloques amarillos abriendo la pinza, los acomoda y sale de la sección."""
+        self.robot.chasis.avanzar_recto(-2.5, velocidad=900, encadenado=True)
+        self.robot.navegacion.giro_relativo(36, max_potencia=80, encadenado=True)
 
-        # Cerrar garra principal a 0%
-        # Original: robot.mover_garra_principal(velocidad=300, grados=0)
-        robot.garra_principal.ir_a_porcentaje(0, velocidad=300, wait_after=True)
+        self.robot.chasis.avanzar_recto(48, velocidad=900)
+        self.robot.garra_delantera.abrir_al_tope(velocidad=1000)
+        self.robot.garra_delantera.ir_a_porcentaje(0, velocidad=700, wait_after=False)
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=1000, limite_potencia=50)
 
-        robot.avanzar_recto(distancia_cm=-2.5, velocidad_max=900, perfil="encadenado")
-        robot.girar(angulo_deg=36, potencia_max=80, perfil="encadenado")
-
-        # Ir a dejar los amarillos
-        robot.avanzar_recto(distancia_cm=48, velocidad_max=900)
-
-        # Abrir garra principal a 300° (71.4%), subir garra delantera a 0% y cerrar garra principal a 0%
-        # Original: robot.mover_garra_principal(velocidad=1000, grados=300, esperar=True)
-        # Original: robot.mover_garra_delantera(posicion=0, simultaneo=True)
-        # Original: robot.mover_garra_principal(velocidad=1000, grados=0, esperar=True)
-        robot.garra_principal.ir_a_porcentaje(71.4, velocidad=1000, wait_after=True)
-        robot.garra_delantera.ir_a_porcentaje(0, velocidad=700, wait_after=False)
-        robot.garra_principal.ir_a_porcentaje(0, velocidad=1000, wait_after=True)
-
-        robot.girar(angulo_deg=90, potencia_max=80, perfil="encadenado")
+        self.robot.navegacion.giro_relativo(90, max_potencia=80, encadenado=True)
         wait(200)
+        self.robot.navegacion.avanzar_distancia_luego_color(
+            self.sensor,
+            distancia_ciega_cm=4,
+            color_objetivo=Color.YELLOW,
+            distancia_maxima_cm=40,
+            velocidad_alta=400,
+            velocidad_escaneo=240
+        )
+        self.robot.chasis.avanzar_recto(8, velocidad=900)
 
-        robot.avanzar_hibrido(distancia_inicial_cm=4, color_objetivo=Color.YELLOW)
-        robot.avanzar_recto(distancia_cm=8, velocidad_max=900)
-
-        # Salir de la sección amarilla
         wait(200)
-        robot.avanzar_recto(distancia_cm=-22.5, velocidad_max=900)
-        robot.girar(angulo_deg=-92, potencia_max=90, perfil="encadenado")
+        self.robot.chasis.avanzar_recto(-22.5, velocidad=900)
+        self.robot.navegacion.giro_relativo(-92, max_potencia=90, encadenado=True)
 
-    # =========================================================================
-    # SECCIÓN 6: Retorno con pala, seguidor con torque coordinado y resolución de matriz
-    # =========================================================================
-    def seccion_6_retorno_pala_y_fin(self, armador, matriz_detectada=None):
-        """Retorno con pala, depósito coordinado con seguidor de línea y armado de matriz."""
-        robot = self.robot
+    def dejar_pala_y_azules(self):
+        """Retorna con la pala, descarga los bloques azules y se posiciona en la matriz."""
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(33.3, velocidad=1000, wait_after=True)
+        self.robot.garra_delantera.ir_a_porcentaje(69.4, velocidad=700, wait_after=False)
+        self.robot.chasis.avanzar_recto(-2, velocidad=900)
 
-        # Posicionar garra principal a 200° (47.6%) y garra delantera a 245° (69.4%)
-        # Original: robot.mover_garra_principal(velocidad=1000, grados=200, esperar=True)
-        # Original: robot.mover_garra_delantera(posicion=245, simultaneo=True)
-        robot.garra_principal.ir_a_porcentaje(47.6, velocidad=1000, wait_after=True)
-        robot.garra_delantera.ir_a_porcentaje(69.4, velocidad=700, wait_after=False)
-
-        robot.avanzar_recto(distancia_cm=-2, velocidad_max=900)
-
-        # Seguir línea con disparo de torque a los 65 cm (retorna a 0%)
-        # Original: torque 170° a los 65 cm
-        robot.seguir_linea_y_mover_torque(
-            sensor_color=robot.seguidor,
-            distancia_cm=85,
+        self._seguir_linea_distancia(
+            distancia_cm=65,
             velocidad_max=100,
             lado="izquierda",
-            tiempo_acomodo_ms=100,
-            tiempo_aceleracion_ms=80,
             kp=1.15,
             kd=3.8,
             k_freno=0.05,
-            correccion_max=100,
-            objetivo_reflexion=27,
-            captura_inicial=True,
-            tiempo_captura_ms=280,
-            potencia_captura=55,
-            kp_captura=3.8,
-            perfil_salida="encadenado",
-            distancia_torque_cm=65,
-            torque_porcentaje=0,
-            torque_velocidad=350
+            tiempo_acomodo_ms=100,
+            encadenado=True
+        )
+        self.robot.garra_trasera.ir_a_porcentaje(0, velocidad=350, wait_after=False)
+        self._seguir_linea_distancia(
+            distancia_cm=20,
+            velocidad_max=100,
+            lado="izquierda",
+            kp=1.15,
+            kd=3.8,
+            k_freno=0.05,
+            encadenado=True
         )
 
-        robot.establecer_norte()
-        robot.girar_corto(-40, potencia_max=54, potencia_min=34)
-
-        # Subir garra delantera a 0% y cerrar garra principal a 0%
-        # Original: robot.mover_garra_delantera(posicion=0, simultaneo=True)
-        # Original: robot.mover_garra_principal(velocidad=1000, grados=0, esperar=True)
-        robot.garra_delantera.ir_a_porcentaje(0, velocidad=700, wait_after=False)
-        robot.garra_principal.ir_a_porcentaje(0, velocidad=1000, wait_after=True)
-
-        robot.girar_corto(40, potencia_max=54, potencia_min=34)
+        self.robot.navegacion.giro_relativo(-40, max_potencia=54, min_potencia=34)
+        self.robot.garra_delantera.ir_a_porcentaje(0, velocidad=700, wait_after=False)
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=1000, limite_potencia=50)
+        self.robot.navegacion.giro_relativo(40, max_potencia=54, min_potencia=34)
         gc.collect()
 
-        # Determinación de la matriz a ejecutar
-        target_matriz = matriz_detectada
-        if target_matriz is None:
-            target_matriz = armador.matriz_detectada
-        if target_matriz is None:
-            target_matriz = 2  # Predeterminada según prueba_reto_1
+    # =========================================================================
+    # RUTINAS DE ARMA DE MATRIZ
+    # =========================================================================
 
-        print("Matriz detectada:", target_matriz)
-        if target_matriz == 2:
+    def dejar_bloques_matriz(self):
+        """Secuencia de entrega de bloques en la matriz (primera entrega)."""
+        self._seguir_linea_distancia(
+            distancia_cm=15,
+            velocidad_max=65,
+            lado="derecha",
+            kp=1.25,
+            kd=2.7,
+            k_freno=0.16,
+            tiempo_acomodo_ms=140,
+            encadenado=True
+        )
+
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(54.8, velocidad=900, wait_after=True)
+        self.robot.garra_delantera.ir_a_porcentaje(65.2, velocidad=700, wait_after=True)
+        self.robot.chasis.avanzar_recto(-14, velocidad=400)
+
+        self.robot.garra_delantera.ir_a_porcentaje(76.5, velocidad=700, wait_after=True)
+        self._seguir_linea_distancia(
+            distancia_cm=13,
+            velocidad_max=100,
+            lado="derecha",
+            kp=1.25,
+            kd=2.7,
+            k_freno=0.16,
+            tiempo_acomodo_ms=140,
+            encadenado=True
+        )
+
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=300, limite_potencia=100)
+        self.robot.garra_delantera.ir_a_porcentaje(28.3, velocidad=700, wait_after=True)
+
+        self.robot.navegacion.seguidor_linea_color(
+            self.sensor,
+            velocidad_max=100,
+            color_objetivo=Color.BLUE,
+            lado="derecha",
+            tiempo_acomodo_ms=0
+        )
+        wait(400)
+
+        self.robot.navegacion.giro_relativo(-10, max_potencia=50, min_potencia=35)
+        self.robot.chasis.avanzar_recto(12.5, velocidad=650, encadenado=True)
+
+        self.robot.garra_delantera.ir_a_porcentaje(62.3, velocidad=700, wait_after=True)
+        self.robot.garra_delantera.abrir(130, velocidad=1000)
+
+        self.robot.chasis.avanzar_recto(-0.6, velocidad=650, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje(82.2, velocidad=700, wait_after=True)
+        self.robot.chasis.avanzar_recto(1.8, velocidad=650, encadenado=True)
+
+        self.robot.chasis.sacudir(iteraciones=4, potencia=50, tiempo_ms=70)
+
+        self.robot.chasis.avanzar_recto(-1, velocidad=500)
+        self.robot.garra_delantera.ir_a_porcentaje(28.3, velocidad=700, wait_after=True)
+        self.robot.chasis.avanzar_recto(-17, velocidad=500)
+        self.robot.navegacion.giro_relativo(180, max_potencia=80, min_potencia=70)
+
+    def dejar_bloques_matriz2(self):
+        """Secuencia auxiliar de entrega en matriz 2 (segunda entrega)."""
+        self.robot.chasis.avanzar_recto(8, velocidad=900, encadenado=True)
+        self.robot.navegacion.avanzar_contando_lineas(
+            self.sensor,
+            lineas_objetivo=1,
+            color_linea=Color.BLACK,
+            velocidad=900,
+            distancia_extra_cm=8.1,
+            debug=False
+        )
+
+        self.robot.navegacion.giro_relativo(95, max_potencia=85, min_potencia=35, encadenado=True)
+        self._seguir_linea_distancia(
+            distancia_cm=7,
+            velocidad_max=50,
+            lado="derecha",
+            kp=1.25,
+            kd=2.7,
+            k_freno=0.16,
+            tiempo_acomodo_ms=140,
+            encadenado=True
+        )
+
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(54.8, velocidad=900, wait_after=True)
+        self.robot.garra_delantera.ir_a_porcentaje(65.2, velocidad=700, wait_after=True)
+        self.robot.chasis.avanzar_recto(-17, velocidad=400)
+
+        self.robot.garra_delantera.ir_a_porcentaje(76.5, velocidad=700, wait_after=True)
+        self._seguir_linea_distancia(
+            distancia_cm=16,
+            velocidad_max=100,
+            lado="derecha",
+            kp=1.25,
+            kd=2.7,
+            k_freno=0.16,
+            tiempo_acomodo_ms=140,
+            encadenado=True
+        )
+
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=300, limite_potencia=100)
+        self.robot.garra_delantera.ir_a_porcentaje(28.3, velocidad=700, wait_after=True)
+        self.robot.navegacion.seguidor_linea_color(
+            self.sensor,
+            velocidad_max=100,
+            color_objetivo=Color.BLUE,
+            lado="derecha",
+            tiempo_acomodo_ms=0
+        )
+        wait(200)
+
+        self.robot.navegacion.giro_relativo(-11.5, max_potencia=50, min_potencia=35)
+        self.robot.chasis.avanzar_recto(3, velocidad=650, encadenado=True)
+
+        self.robot.garra_delantera.ir_a_porcentaje(62.3, velocidad=700, wait_after=True)
+        self.robot.garra_delantera.abrir(130, velocidad=1000)
+
+        self.robot.chasis.avanzar_recto(-0.6, velocidad=650, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje(82.2, velocidad=700, wait_after=True)
+        self.robot.chasis.avanzar_recto(1.8, velocidad=750, encadenado=True)
+
+        self.robot.chasis.sacudir(iteraciones=4, potencia=50, tiempo_ms=70)
+
+        self.robot.chasis.avanzar_recto(-1, velocidad=900, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje(0, velocidad=700, wait_after=True)
+        self.robot.chasis.avanzar_recto(-29, velocidad=900, encadenado=True)
+        self.robot.navegacion.giro_relativo(180, max_potencia=85, min_potencia=35, encadenado=True)
+        self.robot.chasis.avanzar_recto(-21, velocidad=900, encadenado=True)
+
+    def ejecutar_matriz_2(self):
+        """Ejecuta la secuencia de navegación y manipulación para el armado de la matriz 2."""
+        print("Voltaje Hub:", self.robot.hub.battery.voltage(), "mV")
+        print("Ejecutando recorrido de matriz 2...")
+        gc.collect()
+
+        # Primera fase: Bloques azules
+        self.robot.garra_delantera.subir_al_tope()
+        self.robot.garra_delantera.abrir_al_tope()
+
+        self.robot.chasis.avanzar_recto(-9, velocidad=900)
+        self.robot.navegacion.giro_relativo(90, max_potencia=65, min_potencia=45, encadenado=True)
+        wait(200)
+
+        self.robot.chasis.avanzar_recto(8, velocidad=900, encadenado=True)
+        self.robot.navegacion.avanzar_contando_lineas(
+            self.sensor,
+            lineas_objetivo=2,
+            color_linea=Color.BLACK,
+            velocidad=900,
+            distancia_extra_cm=8.2,
+            debug=False
+        )
+        gc.collect()
+        wait(200)
+
+        self.robot.navegacion.giro_relativo(-90, max_potencia=65, min_potencia=45, encadenado=True)
+        self.robot.garra_delantera.abrir_al_tope(velocidad=900)
+
+        self.robot.navegacion.avanzar_hasta_salir_negro(
+            self.sensor,
+            velocidad=900,
+            umbral_reflexion=15,
+            lecturas_salida=4,
+            encadenado=True
+        )
+
+        self.robot.chasis.avanzar_recto(4.3, velocidad=900, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje(82.2, velocidad=700, wait_after=True)
+        self.robot.chasis.avanzar_recto(-20.7, velocidad=900)
+        wait(200)
+
+        self.robot.navegacion.giro_relativo(-90, max_potencia=75, min_potencia=35, encadenado=True)
+        self._seguir_linea_distancia(
+            distancia_cm=8,
+            velocidad_max=60,
+            lado="izquierda",
+            kp=1.25,
+            kd=2.7,
+            k_freno=0.16,
+            tiempo_acomodo_ms=140,
+            encadenado=True
+        )
+        gc.collect()
+        wait(200)
+
+        # Primera fase: Bloques amarillos
+        self.robot.navegacion.giro_relativo(90, max_potencia=65, min_potencia=45, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje(72.2, velocidad=700, wait_after=True)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(33.3, velocidad=900, wait_after=True)
+        wait(200)
+
+        self.robot.chasis.avanzar_recto(12.5, velocidad=750, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje(73.7, velocidad=700, wait_after=True)
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=300, limite_potencia=100)
+
+        self.robot.chasis.avanzar_recto(-13, velocidad=550)
+        wait(200)
+
+        self.robot.navegacion.giro_relativo(90, max_potencia=65, min_potencia=45, encadenado=True)
+        self._seguir_linea_distancia(
+            distancia_cm=12,
+            velocidad_max=90,
+            lado="derecha",
+            kp=1.25,
+            kd=2.7,
+            k_freno=0.16,
+            tiempo_acomodo_ms=140,
+            encadenado=True
+        )
+        gc.collect()
+        wait(200)
+
+        self.robot.navegacion.giro_relativo(90, max_potencia=90, min_potencia=35, encadenado=True)
+        self.dejar_bloques_matriz()
+        gc.collect()
+
+        # Segunda fase: Recolección y descarga
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(59.5, velocidad=900, wait_after=True)
+        self._seguir_linea_distancia(
+            distancia_cm=25,
+            velocidad_max=80,
+            lado="izquierda",
+            kp=1.25,
+            kd=2.7,
+            k_freno=0.16,
+            tiempo_acomodo_ms=140,
+            encadenado=True
+        )
+        gc.collect()
+        wait(300)
+
+        self.robot.navegacion.giro_relativo(-45, max_potencia=75, min_potencia=35, encadenado=True)
+        self.robot.chasis.avanzar_recto(4.5, velocidad=500)
+        wait(200)
+        self.robot.navegacion.giro_relativo(45, max_potencia=80, min_potencia=35, encadenado=True)
+
+        self._seguir_linea_distancia(
+            distancia_cm=8,
+            velocidad_max=60,
+            lado="derecha",
+            kp=1.25,
+            kd=2.7,
+            k_freno=0.16,
+            tiempo_acomodo_ms=140,
+            encadenado=True
+        )
+        gc.collect()
+
+        self.robot.chasis.avanzar_recto(20, velocidad=350)
+        self.robot.garra_delantera.ir_a_porcentaje(85.0, velocidad=700, wait_after=True)
+        self.robot.chasis.avanzar_recto(-25.5, velocidad=600)
+        self.robot.navegacion.giro_relativo(-90, max_potencia=90, min_potencia=35, encadenado=True)
+
+        self._seguir_linea_distancia(
+            distancia_cm=13,
+            velocidad_max=70,
+            lado="izquierda",
+            kp=1.25,
+            kd=2.7,
+            k_freno=0.16,
+            tiempo_acomodo_ms=140,
+            encadenado=True
+        )
+        gc.collect()
+        wait(200)
+
+        self.robot.navegacion.giro_relativo(90, max_potencia=90, min_potencia=35, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje(75.1, velocidad=700, wait_after=True)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(35.7, velocidad=900, wait_after=True)
+        wait(300)
+
+        self.robot.chasis.avanzar_recto(12.5, velocidad=750, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje(77.9, velocidad=700, wait_after=True)
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=300, limite_potencia=80)
+        self.robot.garra_delantera.ir_a_porcentaje(53.8, velocidad=700, wait_after=True)
+        gc.collect()
+
+        self.robot.chasis.avanzar_recto(16, velocidad=350)
+        self.robot.garra_delantera.ir_a_porcentaje(73.7, velocidad=700, wait_after=True)
+        self.robot.chasis.avanzar_recto(-38.5, velocidad=600)
+        gc.collect()
+        wait(300)
+
+        self.robot.navegacion.giro_relativo(89.9, max_potencia=70, min_potencia=35, encadenado=True)
+        self.robot.chasis.avanzar_recto(-18, velocidad=600)
+
+        self.robot.garra_trasera.ir_a_porcentaje(97.8, velocidad=900, wait_after=False)
+        gc.collect()
+
+        self.dejar_bloques_matriz2()
+        gc.collect()
+
+    # =========================================================================
+    # CORRIDA COMPLETA
+    # =========================================================================
+
+    def recorrido_completo(self, forzar_matriz=None):
+        """Encadena todas las misiones del reto y ejecuta la matriz correspondiente.
+
+        Argumentos:
+            forzar_matriz: Si se especifica un número (ej. 2), omite el resultado
+                del escáner y fuerza esa matriz. Si es None, ejecuta la detectada.
+        """
+        print("=== INICIANDO RECORRIDO COMPLETO (RETO 1 + MATRIZ) ===")
+        self.agarrar_cemento()
+        self.dejar_llana()
+        self.dejar_cemento()
+        self.agarrar_verdes()
+        matriz = self.escanear_mosaico()
+        self.dejar_verdes()
+        self.agarrar_amarillos()
+        self.agarrar_azules()
+        self.agarrar_pala()
+        self.dejar_amarillos()
+        self.dejar_pala_y_azules()
+        gc.collect()
+
+        if forzar_matriz is not None:
+            matriz = forzar_matriz
+
+        print("Matriz seleccionada:", matriz)
+        if matriz == 2 or True:
             print("Iniciando recorrido de la matriz 2...")
-            armador.ejecutar_matriz_2()
-        elif target_matriz == 3:
-            print("Iniciando recorrido de la matriz 3...")
-            armador.ejecutar_matriz_3()
+            self.ejecutar_matriz_2()
         else:
-            print("Matriz Predeterminada (ejecutando 2):", target_matriz)
-            armador.ejecutar_matriz_2()
+            print("Matriz Predeterminada", matriz)
+            self.ejecutar_matriz_2()

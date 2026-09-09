@@ -1,54 +1,55 @@
-"""Punto de entrada principal del robot para WRO 2026.
+"""Punto de entrada del robot.
 
-Basado en el recorrido actualizado de prueba_reto_1.
-Permite ejecutar cada sección de forma independiente para pruebas en pista
-o encadenarlas consecutivamente para la corrida completa.
+El recorrido vive en Misiones, partido en misiones modulares y atómicas que se
+pueden correr sueltas para pruebas en pista o encadenadas con recorrido_completo().
 """
 
+from pybricks.pupdevices import ColorSensor
+import config
 from robot import Robot
-from Misiones import Misiones
-from ArmadorMosaicos import ArmadorMosaicos
 from RevisadorBateria import RevisadorBateria
-import gc
+from Misiones import Misiones
 
-# 1. Instanciación del robot y subsistemas
-mi_robot = Robot()
-misiones = Misiones(mi_robot)
-armador = ArmadorMosaicos(mi_robot)
+mi_robot = Robot(
+    port_izq=config.PORT_MOTOR_IZQ,
+    port_der=config.PORT_MOTOR_DER,
+    port_garra_trasera=config.PORT_GARRA_TRASERA,
+    port_garra_delantera=config.PORT_GARRA_DELANTERA,
+    port_pinza=config.PORT_PINZA
+)
+
+sensor = ColorSensor(config.PORT_SENSOR_FRENTE)
+misiones = Misiones(mi_robot, sensor)
 revisador_bateria = RevisadorBateria(mi_robot)
 
 if __name__ == "__main__":
-    print("--- INICIANDO ROBOT WRO 2026 (RAMA ACTUALIZADA) ---")
-
-    # 2. Chequeo de batería
     if not revisador_bateria.revisar_bateria():
-        print("Ejecución cancelada por nivel de batería.")
+        print("Ejecución cancelada.")
     else:
-        print("Batería verificada. Listo para ejecutar.")
+        mi_robot.garra_trasera.establecer_cero()
+        mi_robot.garra_delantera.establecer_cero()
+        mi_robot.garra_delantera.establecer_cero_pinza()
 
-        # =====================================================================
-        # ZONA DE EJECUCIÓN / PRUEBAS (Basado en prueba_reto_1):
-        # Descomenta las secciones que desees probar individualmente
-        # o descoméntalas todas en orden para la corrida completa.
-        # =====================================================================
+        # --- ZONA DE PRUEBAS: descomenta lo que quieras ejecutar ---
 
-        # SECCIÓN 1: Salida en arco, seguidor, toma de cemento y empuje de llana
-        # misiones.seccion_1_salida_y_cemento()
+        # 1. Corrida completa (Reto 1 completo + Matriz 2)
+        misiones.recorrido_completo()
 
-        # SECCIÓN 2: Dejar cemento con avance coordinado y agarrar cementos verdes
-        # misiones.seccion_2_dejar_cemento_y_tomar_verdes()
+        # 2. Misiones individuales del Reto 1:
+        # Cada una arranca donde termina la anterior.
+        # misiones.agarrar_cemento()
+        # misiones.dejar_llana()
+        # misiones.dejar_cemento()
+        # misiones.agarrar_verdes()
+        # matriz = misiones.escanear_mosaico()
+        # misiones.dejar_verdes()
+        # misiones.agarrar_amarillos()
+        # misiones.agarrar_azules()
+        # misiones.agarrar_pala()
+        # misiones.dejar_amarillos()
+        # misiones.dejar_pala_y_azules()
 
-        # SECCIÓN 3: Seguidor hasta matriz, escanearla, retroceso y dejar verdes
-        # matriz_detectada = misiones.seccion_3_escanear_matriz_y_dejar_verdes(armador)
-
-        # SECCIÓN 4: Navegar pasillo de amarillos y tomar bloques azules
-        # misiones.seccion_4_amarillos_y_azules()
-
-        # SECCIÓN 5: Agarrar pala con pinza/frontal y dejar bloques amarillos
-        # misiones.seccion_5_tomar_pala_y_dejar_amarillos()
-
-        # SECCIÓN 6: Retorno con pala, seguidor con torque a los 65 cm y armado de matriz
-        # misiones.seccion_6_retorno_pala_y_fin(armador, matriz_detectada=None)
-
-        # O ejecución directa de una matriz específica:
-        # armador.armar(numero_mosaico=2)
+        # 3. Recorrido de Matriz 2 suelto:
+        # misiones.ejecutar_matriz_2()
+        # misiones.dejar_bloques_matriz()
+        # misiones.dejar_bloques_matriz2()

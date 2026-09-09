@@ -73,7 +73,7 @@ por_defecto = base.settings()
 print("")
 print("settings() automaticos de Pybricks:", por_defecto)
 print("Pybricks los calibra al ~40%% del maximo -> maximo ~= %d mm/s" % (por_defecto[0] / 0.4))
-print("Tu config.py fuerza straight_speed = %d mm/s" % config.STRAIGHT_SPEED)
+print("Tu config.py fuerza straight_speed = %d mm/s" % config.VELOCIDAD_RECTA)
 
 print("")
 print("==========================================")
@@ -93,11 +93,11 @@ while not base.done():
 
 print("")
 print(">>> VELOCIDAD MAXIMA MEDIDA: %d mm/s <<<" % velocidad_pico)
-if config.STRAIGHT_SPEED > velocidad_pico:
-    print("    Tu STRAIGHT_SPEED (%d) esta POR ENCIMA del techo fisico." % config.STRAIGHT_SPEED)
+if config.VELOCIDAD_RECTA > velocidad_pico:
+    print("    Tu VELOCIDAD_RECTA (%d) esta POR ENCIMA del techo fisico." % config.VELOCIDAD_RECTA)
     print("    Subirlo no hace nada: la palanca de velocidad es la aceleracion.")
 else:
-    print("    Tu STRAIGHT_SPEED (%d) esta por debajo del techo." % config.STRAIGHT_SPEED)
+    print("    Tu VELOCIDAD_RECTA (%d) esta por debajo del techo." % config.VELOCIDAD_RECTA)
     print("    Subirlo hasta %d si te sobra pista de aceleracion." % velocidad_pico)
 
 base.settings(straight_speed=velocidad_pico, straight_acceleration=4000)
@@ -155,5 +155,5 @@ print("")
 print("Elegi la aceleracion mas alta que cumpla LAS DOS cosas:")
 print("  - deriva de rumbo por debajo de 2 grados")
 print("  - el robot vuelve sobre la cinta")
-print("Y ponela en config.py como STRAIGHT_ACCEL.")
+print("Y ponela en config.py como ACELERACION_RECTA.")
 hub.speaker.beep(900, 300)

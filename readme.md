@@ -1,143 +1,87 @@
 <div align="center">
 
-# WRO 2026
+# WRO 2026 - Pybricks Robot Codebase
+*Navegación Absoluta y Movimiento Fluido (Encadenamiento)*
 
-**Plataforma autónoma de navegación, seguimiento de línea por PID y control de mecanismos por porcentaje.**
-
-*World Robot Olympiad (WRO) 2026 — Categoría Senior · Team Perrozompopo · Nicaragua*
-
-[![Python 3](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)](config.py)
-[![Pybricks](https://img.shields.io/badge/Pybricks-MicroPython-008559?logo=lego&logoColor=white)](https://pybricks.com/)
-[![WRO 2026](https://img.shields.io/badge/WRO-2026%20Senior-E65100)](https://wro-association.org/)
-[![Hardware](https://img.shields.io/badge/Hardware-LEGO%20SPIKE%20Prime-005BBB)](config.py)
-[![Arquitectura](https://img.shields.io/badge/Arquitectura-OOP%20Modular-blueviolet)](robot.py)
-[![Control](https://img.shields.io/badge/Control-PID%20%2B%20Giroscopio-00C853)](Navegacion.py)
+![Status: En Testeo](https://img.shields.io/badge/status-En%20Testeo-blue)
+![FrameWork: Pybricks](https://img.shields.io/badge/framework-Pybricks-ED1C24)
 
 </div>
 
----
+## Propósito de esta Versión
 
-## Tabla de contenidos
+Esta rama integra dos arquitecturas de software críticas para la velocidad y precisión a nivel competitivo: la **Navegación por Coordenadas Absolutas (Absolute Heading)** para domar el error del giroscopio a largo plazo, y el nuevo **Sistema de Encadenamiento Inercial** para suprimir los tiempos muertos entre comandos.
 
-1. [Descripción](#descripción)
-2. [Arquitectura](#arquitectura)
-3. [Hardware y límites](#hardware-y-límites)
-4. [Recorrido de misiones](#recorrido-de-misiones)
-5. [Ejecución](#ejecución)
-6. [Colaboradores](#colaboradores)
-
----
-
-## Descripción
-
-Código autónomo de competencia desarrollado en MicroPython sobre Pybricks para la categoría **Senior** de la World Robot Olympiad (WRO) 2026 por el equipo **Team Perrozompopo**.
-
-Implementa odometría con corrección continua por giroscopio (IMU), seguidor de línea mediante algoritmo predictivo PID, clasificación de color en espacio HSV con votación estática, y control de mecanismos mediante posiciones normalizadas por porcentaje (`0% a 100%`) con auto-cero en topes mecánicos.
+**Características clave implementadas:**
+* **Encadenamiento Inercial (`encadenado=True`):** Bypass del perfil de desaceleración trapezoidal nativo de Pybricks. Inyecta un micro-freno electromagnético de 6 milisegundos que permite enlazar secuencias de movimiento agresivas a máxima velocidad sin cabeceo mecánico ni detención a cero.
+* **Giros sobre un único lazo PD (`giro_absoluto` / `giro_relativo`):** Control DC directo a 500 Hz, ganancias adaptativas según el error restante, filtro EMA en la derivada, rampa de arranque y detección de patinaje. `giro_absoluto` apunta a un rumbo fijo del mapa y absorbe el derrape heredado; `giro_relativo` gira desde donde esté el robot. El parámetro `rueda_pivote` (`None`, `"izquierda"` o `"derecha"`) elige si el giro es sobre el eje o pivotando sobre una rueda quieta.
+* **Cuadratura Física:** Lógica para chocar intencionalmente contra los muros y reiniciar la orientación del IMU (mitigación del *drift* y acumulación de error).
+* **Optimización de Procesador:** Los sonidos de confirmación de movimiento han sido desactivados (`config.SONIDO_ACTIVO = False`) para evitar bloqueos por latencia en el procesador durante transiciones fluidas de alta velocidad.
 
 ---
 
-## Arquitectura
+## Estructura del Código
 
-Estructura modular desacoplada en subsistemas:
-
-```text
-WRO---2026/
-├── app.py                  # Punto de entrada principal y ejecutor de misiones
-├── config.py               # Configuración central: puertos, PID, geometría y límites
-├── robot.py                # Abstracción e inyección de hardware (Hub, motores, sensores)
-├── Chasis.py               # Cinemática de tracción, rampas y avance recto con giroscopio
-├── Navegacion.py           # Giros IMU (punto, arco, rumbo) y seguimiento de línea PID
-├── Mecanismos.py           # Actuadores con posición por porcentaje y auto-cero
-├── Misiones.py             # Rutinas del recorrido oficial divididas en 6 secciones
-├── ArmadorMosaicos.py      # Escaneo de color y armado de matrices 1 a 4
-├── RevisadorBateria.py     # Diagnóstico de voltaje previo al arranque
-├── Utils.py                # Operaciones matemáticas auxiliares y normalización
-└── odd_shit/               # Herramientas de calibración (límites de motor y tracción)
-```
+| Archivo | Responsabilidad |
+|---|---|
+| `app.py` | Punto de entrada. Arma el hardware y ejecuta la corrida o una misión suelta. |
+| `config.py` | Puertos, medidas físicas, velocidades, rangos calibrados y timeouts de seguridad. |
+| `robot.py` | Único lugar donde se instancian los motores; cablea el resto de las clases. |
+| `Chasis.py` | Movimientos a ciegas del tren de tracción: rectas, cuadratura y motores sueltos. |
+| `Navegacion.py` | Todo lo que cierra un lazo con el IMU o el sensor de color: giros, seguidores de línea y avances hasta color. |
+| `Mecanismos.py` | Garra delantera con pinza y jaula trasera, por porcentaje del rango calibrado. |
+| `Misiones.py` | Una misión del recorrido por método, en orden de ejecución. |
+| `ArmadorMosaicos.py` | Rutina de armado de la matriz, una por mosaico posible. |
+| `RevisadorBateria.py` | Chequeo de batería previo a la corrida. |
+| `odd_shit/` | Herramientas sueltas de calibración y diagnóstico, fuera del flujo de competencia. |
 
 ---
 
-## Hardware y límites
+## Configuración de Hardware (5 Motores)
 
-Configuración física del robot centralizada en [`config.py`](config.py):
-
-| Componente | Puerto | Rango / Configuración |
-|---|---|---|
-| **Motor Izquierdo** | `Port.B` | `Direction.COUNTERCLOCKWISE` · Rueda `56 mm` |
-| **Motor Derecho** | `Port.E` | `Direction.CLOCKWISE` · Rueda `56 mm` |
-| **Separación entre ruedas** | — | `160 mm` (*axle track*) |
-| **Jaula Trasera / Torque** | `Port.F` | `0%` (arriba) a `100%` (`-179°`) · Invertido |
-| **Elevador Delantero** | `Port.C` | `0%` (arriba) a `100%` (`672°`) |
-| **Pinza Principal** | `Port.A` | `0%` (cerrada con auto-cero) a `100%` (`798°`) |
-| **Sensor de Color** | `Port.D` | Modos reflexión y color HSV calibrado |
+* **Tracción:** Izquierdo (B) | Derecho (E)
+* **Mecanismos:** Pinza Delantera (A) | Elevador Delantero (C) | Garra Trasera (F)
+* **Sensores:** Color Frontal (D)
 
 ---
 
-## Recorrido de misiones
+## Estado Actual
 
-Las misiones de [`Misiones.py`](Misiones.py) ejecutan la secuencia oficial del reto:
+### Misiones (Recorrido completo)
 
-1. **Sección 1:** Arco de salida (90°), seguidor de línea (79 cm), toma de cemento con torque al 93% y empuje de llana.
-2. **Sección 2:** Seguidor (50 cm), avance coordinado subiendo torque al 0% y recolección de bloques verdes al 93.4%.
-3. **Sección 3:** Llegada a zona de matriz, escaneo óptico estático y descarga de verdes con torque al 0%.
-4. **Sección 4:** Navegación de pasillo, cruce de líneas y captura de bloques azules con torque al 93.4%.
-5. **Sección 5:** Posicionamiento de elevador (69.4%) y pinza (47.6%), captura de pala, cierre a 0% y entrega de amarillos.
-6. **Sección 6:** Retorno con pala, activación de torque a 0% en seguidor (65 cm), repliegue general y resolución de la matriz detectada vía [`ArmadorMosaicos.py`](ArmadorMosaicos.py).
+Todas las misiones han sido programadas y funcionan de principio a fin. La fase actual es de **testeo exhaustivo** para afinar valores, detectar casos borde y garantizar la consistencia en competencia.
 
----
+Cada misión arranca donde termina la anterior, así que para probar una sola hay que dejar el robot en la posición en la que la previa lo dejaría.
 
-## Ejecución
+| # | Misión (`Misiones.py`) | Estado | Notas |
+|---|---|---|---|
+| 1 | 🟢 `agarrar_cemento` | Completada | Salida inicial, seguidor de línea y captura del cemento con jaula trasera. |
+| 2 | 🟢 `dejar_llana` | Completada | Empuje de llana y regreso a la línea cruzando intersecciones. |
+| 3 | 🟢 `dejar_cemento` | Completada | Navegación a zona y descarga de cemento en movimiento. |
+| 4 | 🟢 `agarrar_verdes` | Completada | Seguidor hasta verde y captura de bloques verdes con jaula trasera. |
+| 5 | 🟢 `escanear_mosaico` | Completada | Entrada a matriz y detección del patrón de mosaico. |
+| 6 | 🟢 `dejar_verdes` | Completada | Salida de matriz y descarga de bloques verdes en su zona. |
+| 7 | 🟢 `agarrar_amarillos` | Completada | Seguidor de línea y recorrido en zigzag por el pasillo amarillo. |
+| 8 | 🟢 `agarrar_azules` | Completada | Conteo de líneas y encierro de bloques azules con jaula trasera. |
+| 9 | 🟢 `agarrar_pala` | Completada | Posicionamiento de garra/pinza delantera y sujeción de la pala. |
+| 10 | 🟢 `dejar_amarillos` | Completada | Descarga y acomodo de bloques amarillos en su zona. |
+| 11 | 🟢 `dejar_pala_y_azules` | Completada | Descarga coordinada de azules y acomodo final en esquina de matriz. |
 
-1. Abrir el proyecto en VS Code con la extensión oficial de **Pybricks**.
-2. Conectar el PrimeHub por Bluetooth o USB.
-3. Configurar en [`app.py`](app.py) la sección o matriz requerida y ejecutar:
+### Matrices de Mosaicos (`ArmadorMosaicos.py`)
 
-```python
-# app.py
-from robot import Robot
-from Misiones import Misiones
-from ArmadorMosaicos import ArmadorMosaicos
+| # | Mosaico | Estado | Detalle |
+|---|---|---|---|
+| 1 | Verde-Verde | 🔴 No iniciada | Pendiente hasta completar la azul. |
+| 2 | Verde-Amarillo | 🔴 No funcional | Código escrito pero no funciona correctamente. |
+| 3 | Azul | 🟡 En desarrollo (~50%) | Primera mitad lista (recoger/dejar piezas). Falta la segunda mitad: posicionar y dejar las piezas finales en la matriz. |
+| 4 | Amarillo | 🔴 No iniciada | Pendiente hasta completar la azul. |
+| 5 | Blanco | 🔴 No iniciada | Pendiente hasta completar la azul. |
 
-mi_robot = Robot()
-misiones = Misiones(mi_robot)
-armador = ArmadorMosaicos(mi_robot)
-
-# Ejecución completa
-misiones.seccion_1_salida_y_cemento()
-misiones.seccion_2_dejar_cemento_y_tomar_verdes()
-matriz = misiones.seccion_3_escanear_matriz_y_dejar_verdes(armador)
-misiones.seccion_4_amarillos_y_azules()
-misiones.seccion_5_tomar_pala_y_dejar_amarillos()
-misiones.seccion_6_retorno_pala_y_fin(armador, matriz)
-```
+**Prioridad actual:** Completar la matriz azul → corregir verde-amarillo → desarrollar las restantes.
 
 ---
 
-## Colaboradores
-
-<div align="center">
-<table>
-  <tr>
-    <td align="center">
-      <a href="https://github.com/robertofabiot">
-        <img src="https://avatars.githubusercontent.com/u/203884931?v=4" width="100px;" alt="Roberto F. Tercero"/><br />
-        <sub><b>Roberto F. Tercero</b></sub>
-      </a><br />
-      <sub>Team Perrozompopo</sub>
-    </td>
-    <td align="center">
-      <a href="https://github.com/uxvcharlie">
-        <img src="https://avatars.githubusercontent.com/u/211022677?v=4" width="100px;" alt="Carlos Rafael Umaña Vásquez"/><br />
-        <sub><b>Carlos Rafael Umaña Vásquez</b></sub>
-      </a><br />
-      <sub>Team Perrozompopo</sub>
-    </td>
-  </tr>
-</table>
-</div>
-
----
-
-<div align="center">
-<sub>World Robot Olympiad 2026 — Categoría Senior · Team Perrozompopo. Desarrollado con <a href="https://pybricks.com/">Pybricks</a>.</sub>
-</div>
+## Para ejecutar las pruebas
+1. Conecta el PrimeHub vía Bluetooth.
+2. Abre el proyecto en VS Code con la extensión `pybricksdev`.
+3. Ejecuta la tarea (F5) apuntando al archivo `app.py`.

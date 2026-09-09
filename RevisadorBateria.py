@@ -1,53 +1,46 @@
-"""Módulo de comprobación del estado de la batería previo a la corrida."""
-
+from robot import Robot
 import config
 
-
 class RevisadorBateria:
-    """Chequeo de batería previo a cada corrida.
+    """Chequeo de bateria previo a cada corrida.
 
-    Evita ejecutar el recorrido si el voltaje está por debajo de un umbral
-    seguro, ya que las variaciones de potencia afectan el comportamiento
-    de los giros y la tracción.
+    Los lazos DC del proyecto compensan el voltaje, pero por debajo de cierto
+    nivel la bateria ya no da la potencia que piden los giros y la corrida
+    sale distinta a lo calibrado.
     """
 
-    def __init__(self, robot_instancia):
+    def __init__(self, robot_instancia: Robot):
         """
         Argumentos:
-            robot_instancia: Instancia de la clase Robot.
+            robot_instancia: instancia de Robot, de donde sale el hub.
         """
         self.robot = robot_instancia
 
     def revisar_bateria(self):
-        """Comprueba si el voltaje está por encima de config.BATERIA_MINIMA.
+        """Avisa si la bateria esta por debajo de config.BATERIA_MINIMA.
 
-        Devuelve True si la batería es suficiente o si el usuario decide
-        continuar bajo su propio criterio.
+        Devuelve True si se puede correr: o la bateria alcanza, o el usuario
+        eligio seguir igual.
         """
-        bateria = self.obtener_voltaje()
+        bateria = self._obtener_bateria()
         bateria_minima = config.BATERIA_MINIMA
-        print("Voltaje actual:", bateria, "mV")
-
+        print(f"Bateria actual = {bateria}")
+        
         if bateria < bateria_minima:
-            print("ADVERTENCIA: Batería menor a", bateria_minima, "mV")
+            print(f"Batería menor a {bateria_minima}")
+            
+            # Alerta sonora de bateria baja
+            self.robot.hub.speaker.beep(350, 150)
+            self.robot.hub.speaker.beep(250, 150)
+            self.robot.hub.speaker.beep(150, 150)
+            self.robot.hub.speaker.beep(80, 600)
+            
+            continuar = input("¿Desea continuar? (y/n): ")
 
-            # Secuencia sonora de alerta
-            try:
-                self.robot.hub.speaker.beep(350, 150)
-                self.robot.hub.speaker.beep(250, 150)
-                self.robot.hub.speaker.beep(150, 150)
-                self.robot.hub.speaker.beep(80, 600)
-            except Exception:
-                pass
-
-            try:
-                continuar = input("¿Desea continuar de todas formas? (y/n): ")
-                return continuar.strip().lower() == "y"
-            except Exception:
-                return True
+            return continuar == "y"
 
         return True
-
-    def obtener_voltaje(self):
-        """Devuelve el voltaje actual del PrimeHub en milivoltios."""
+    
+    def _obtener_bateria(self):
+        """Voltaje actual del hub, en milivoltios."""
         return self.robot.hub.battery.voltage()
