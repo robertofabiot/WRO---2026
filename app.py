@@ -26,6 +26,9 @@ if __name__ == "__main__":
     if not revisador_bateria.revisar_bateria():
         print("Ejecución cancelada.")
     else:
+        mi_robot.garra_trasera.establecer_cero()
+        mi_robot.garra_delantera.establecer_cero()
+        mi_robot.garra_delantera.establecer_cero_pinza()
         # --- ZONA DE PRUEBAS: descomenta lo que quieras ejecutar ---
 
         # 1. Corrida completa (Reto 1 completo + Matriz 2)

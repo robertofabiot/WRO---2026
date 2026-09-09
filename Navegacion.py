@@ -941,4 +941,4 @@ class Navegacion:
             self.chasis._terminar_movimiento_encadenado()
         else:
             self.chasis.drive_base.stop()
-            Utils.emitir_sonido_confirmacion(self.chasis.hub)
+            Utils.emitir_sonido_confirmacion(self.chasis.hub)
