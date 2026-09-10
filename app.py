@@ -9,6 +9,7 @@ import config
 from robot import Robot
 from RevisadorBateria import RevisadorBateria
 from Misiones import Misiones
+from ArmadorMosaicos import ArmadorMosaicos
 
 mi_robot = Robot(
     port_izq=config.PORT_MOTOR_IZQ,
@@ -19,7 +20,8 @@ mi_robot = Robot(
 )
 
 sensor = ColorSensor(config.PORT_SENSOR_FRENTE)
-misiones = Misiones(mi_robot, sensor)
+armador = ArmadorMosaicos(mi_robot, sensor)
+misiones = Misiones(mi_robot, sensor, armador)
 revisador_bateria = RevisadorBateria(mi_robot)
 
 if __name__ == "__main__":
@@ -32,10 +34,7 @@ if __name__ == "__main__":
 
         # --- ZONA DE PRUEBAS: descomenta lo que quieras ejecutar ---
 
-        # 1. Corrida completa (Reto 1 completo + Matriz 2)
-        misiones.recorrido_completo()
-
-        # 2. Misiones individuales del Reto 1:
+        # Misiones individuales del Reto 1:
         # Cada una arranca donde termina la anterior.
         # misiones.agarrar_cemento()
         # misiones.dejar_llana()
@@ -49,7 +48,5 @@ if __name__ == "__main__":
         # misiones.dejar_amarillos()
         # misiones.dejar_pala_y_azules()
 
-        # 3. Recorrido de Matriz 2 suelto:
-        # misiones.ejecutar_matriz_2()
-        # misiones.dejar_bloques_matriz()
-        # misiones.dejar_bloques_matriz2()
+        # Recorrido de armado de mosaicos individual:
+        # armador.armar(matriz)
