@@ -87,7 +87,7 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(12, velocidad=100)
 
     def _armar_azul(self):
-        """Rutina de armado para mosaico azul (primera mitad operativa)."""
+        """Rutina de armado para mosaico azul (primera mitad operativa). Matriz de Roberto"""
         # Acomodo
         self.robot.chasis.mover_motor_derecho(-600, encadenado=True)
         self.robot.chasis.avanzar_recto(-2, velocidad=1000, encadenado=True)
