@@ -253,7 +253,7 @@ class Misiones:
     def agarrar_pala(self):
         """Avanza hacia la pala, posiciona la garra/pinza y la sujeta firmemente."""
         self.robot.navegacion.giro_relativo(-25)
-        self.robot.chasis.avanzar_recto(35)
+        self.robot.chasis.avanzar_recto(37)
         self.robot.navegacion.giro_relativo(25)
 
     def dejar_amarillos(self):
