@@ -848,6 +848,7 @@ class Navegacion:
 
     def avanzar_hasta_salir_negro(self, sensor_color, velocidad=900, umbral_reflexion=15, lecturas_salida=4, encadenado=False):
         """Avanza recto con corrección de giroscopio hasta dejar de detectar línea negra.
+        Método para compatibilidad con matrices del otro equipo
 
         Argumentos:
             sensor_color: sensor de color a monitorear.
