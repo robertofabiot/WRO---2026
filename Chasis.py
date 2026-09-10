@@ -140,8 +140,7 @@ class Chasis:
         
         Utils.emitir_sonido_confirmacion(self.hub)
 
-    def _mover_motor_traccion(self, motor, grados, velocidad, wait_after,
-                              frenado, margen_grados, encadenado, nombre):
+    def _mover_motor_traccion(self, motor, grados, velocidad, wait_after, frenado, margen_grados, encadenado, nombre):
         """Nucleo de mover_motor_izquierdo() y mover_motor_derecho().
 
         Argumentos:
