@@ -35,7 +35,7 @@ MOSAICOS = {
 
 # --- OPCIONES DE SISTEMA ---
 SONIDO_ACTIVO = False
-BATERIA_MINIMA = 8150
+BATERIA_MINIMA = 8100
 
 # --- SEGURIDAD DE LOS LAZOS DE CONTROL ---
 # Giros mas chicos que esto se saltan: caen dentro del ruido del IMU.
