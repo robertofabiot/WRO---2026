@@ -186,7 +186,7 @@ class Misiones:
         self.robot.navegacion.giro_relativo(-183, max_potencia=90, encadenado=True)
 
         self.robot.garra_trasera.ir_a_porcentaje(95.0, velocidad=250, wait_after=False)
-        self.robot.chasis.avanzar_recto(-17, velocidad=400, encadenado=True)
+        self.robot.chasis.avanzar_recto(-14, velocidad=400, encadenado=True)
 
     def escanear_mosaico(self, distancia_verificacion_cm=5):
         """Sigue la línea por la izquierda, entra a la matriz y escanea el mosaico."""
@@ -251,15 +251,15 @@ class Misiones:
         self.robot.navegacion.giro_relativo(90, max_potencia=80, encadenado=True)
 
         self.robot.garra_trasera.ir_a_porcentaje(95.0, velocidad=500, wait_after=False)
-        self.robot.chasis.avanzar_recto(-17, velocidad=400, encadenado=True)
+        self.robot.chasis.avanzar_recto(-13, velocidad=400, encadenado=True)
 
     def agarrar_pala(self):
         """Avanza hacia la pala, posiciona la garra/pinza y la sujeta firmemente."""
-        self.robot.chasis.avanzar_recto(6)
+        self.robot.chasis.avanzar_recto(4)
         self.robot.navegacion.giro_absoluto(325)
         self.robot.garra_delantera.ir_a_porcentaje(65, wait_after=False)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(55, wait_after=False)
-        self.robot.chasis.avanzar_recto(50)
+        self.robot.chasis.avanzar_recto(52)
         self.robot.garra_delantera.cerrar_al_tope(velocidad=1000, limite_potencia=100)
 
     def dejar_amarillos(self):
