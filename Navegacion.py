@@ -159,8 +159,7 @@ class Navegacion:
             return [(self.chasis.motor_izquierda, 1)], self.chasis.motor_derecha
         raise ValueError("rueda_pivote tiene que ser None, 'izquierda' o 'derecha'")
 
-    def _lazo_giro_pd(self, meta, giro_requerido, rueda_pivote, max_potencia,
-                      min_potencia, kp, kd, tolerancia, encadenado, nombre):
+    def _lazo_giro_pd(self, meta, giro_requerido, rueda_pivote, max_potencia, min_potencia, kp, kd, tolerancia, encadenado, nombre):
         """Lleva el rumbo del IMU hasta 'meta' con un lazo PD sobre dc() directo.
 
         Es el nucleo de giro_absoluto() y giro_relativo(); las misiones no lo

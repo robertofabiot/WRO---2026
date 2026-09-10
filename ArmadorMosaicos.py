@@ -139,9 +139,9 @@ class ArmadorMosaicos:
         # Dejar en matriz
         self.robot.garra_delantera.ir_a_porcentaje(0)
         self.robot.chasis.mover_motor_izquierdo(300, encadenado=True)
-        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 0.2, Color.BLACK, distancia_extra_cm=7)
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor_color, 5, Color.BLACK, distancia_maxima_cm=12, distancia_extra_cm=7)
         self.robot.navegacion.giro_absoluto(180)
-        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, tiempo_ciego_s=0, color_objetivo=Color.BLUE, encadenado=True)
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor_color, 0, Color.BLUE, velocidad_escaneo=700)
         self.robot.navegacion.giro_absoluto(180, encadenado=False)
         self.robot.chasis.avanzar_recto(15, encadenado=True)
 
@@ -168,7 +168,7 @@ class ArmadorMosaicos:
         self.robot.garra_delantera.ir_a_porcentaje(0)
         
         self.robot.navegacion.giro_absoluto(90)
-        self.robot.navegacion.avanzar_tiempo_luego_color(self.sensor_color, 0.3, Color.WHITE, distancia_extra_cm=2, velocidad_alta=150)
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor_color, 3, Color.WHITE, velocidad_escaneo=150, distancia_extra_cm=2)
         self.robot.navegacion.giro_absoluto(180)
         self.robot.garra_delantera.ir_a_porcentaje(85)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(67)
