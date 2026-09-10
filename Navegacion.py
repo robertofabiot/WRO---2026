@@ -813,7 +813,9 @@ class Navegacion:
         self._terminar_seguidor(encadenado, cronometro)
 
     def avanzar_contando_lineas(self, sensor_color, lineas_objetivo, color_linea, tiempo_ciego_s=0.0, distancia_extra_cm=0.0, velocidad=1000, velocidad_lenta=150, encadenado=False, debug=True):
-        """Avanza recto contando las lineas de un color que va cruzando.
+        """
+        DEPRECATED. Usar avanzar_distancia_luego_color para mas precision.
+        Avanza recto contando las lineas de un color que va cruzando.
 
         No sigue la linea: va derecho con la correccion del giroscopio y solo
         cuenta flancos. Al cruzar la penultima linea baja a velocidad_lenta,
