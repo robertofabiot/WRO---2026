@@ -127,14 +127,14 @@ class Misiones:
 
     def dejar_cemento(self):
         """Sigue la línea, gira y descarga el cemento levantando la jaula en recorrido."""
-        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 1, distancia_extra_cm=20, distancia_inicial_cm=15, tiempo_acomodo_ms=0)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 1, distancia_extra_cm=30, distancia_inicial_cm=10, tiempo_acomodo_ms=0)
 
         self.robot.navegacion.giro_relativo(90, max_potencia=85, encadenado=True)
-        self.robot.chasis.avanzar_recto(-20, 1000)
+        self.robot.chasis.avanzar_recto(-10, 1000)
         self.robot.garra_trasera.ir_a_porcentaje(0, wait_after=False)
 
-        self.robot.chasis.avanzar_recto(25, 1000)
-        self.robot.navegacion.giro_relativo(-225)
+        self.robot.chasis.avanzar_recto(15, 1000)
+        self.robot.navegacion.giro_relativo(-100)
         self.robot.chasis.avanzar_recto(-20)
         self.robot.garra_trasera.ir_a_porcentaje(90, wait_after=False)
         self.robot.chasis.avanzar_y_accionar_en_recorrido(
@@ -149,9 +149,9 @@ class Misiones:
         self.robot.navegacion.giro_relativo(-45)
         self.robot.navegacion.avanzar_distancia_luego_color(
             self.sensor,
-            distancia_ciega_cm=0,
+            distancia_ciega_cm=30,
             color_objetivo=Color.WHITE,
-            distancia_maxima_cm=10,
+            distancia_maxima_cm=45,
             velocidad_escaneo=900,
             encadenado=True
         )
