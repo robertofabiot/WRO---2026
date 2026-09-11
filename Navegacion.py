@@ -568,13 +568,10 @@ class Navegacion:
 
     def avanzar_distancia_luego_color(self, sensor_color, distancia_ciega_cm, color_objetivo,
                                       distancia_maxima_cm, velocidad_alta=950, velocidad_escaneo=200,
-                                      distancia_extra_cm=0, lecturas_confirmacion=2, encadenado=False):
-        """Avanza a ciegas una distancia y recien despues busca un color.
-
-        La fase ciega se mide por odometria y no por tiempo, asi que la ventana
-        de busqueda no se corre con la carga de la bateria: se pasa de largo
-        cualquier linea intermedia sin riesgo de falso positivo y el movimiento
-        termina sobre una marca fisica real.
+                                      distancia_extra_cm=0, lecturas_confirmacion=2,
+                                      accion_callback=None, encadenado=False):
+        """Avanza a ciegas una distancia, busca un color y permite disparar
+        un callback no bloqueante antes de recorrer la distancia extra.
 
         Argumentos:
             sensor_color: sensor que busca el color.
@@ -588,6 +585,8 @@ class Navegacion:
             distancia_extra_cm: cuanto avanzar desde donde aparecio el color.
             lecturas_confirmacion: lecturas seguidas del color que se exigen
                 antes de dar el corte por bueno.
+            accion_callback: funcion sin argumentos (ej. lambda con wait_after=False)
+                que se ejecuta inmediatamente al confirmar el color.
             encadenado: True frena con el micro-freno pasivo.
 
         Devuelve True si encontro el color, False si corto por tope o timeout.
@@ -641,13 +640,18 @@ class Navegacion:
             print("AVISO: %s no aparecio entre %d y %d cm. Corregi la ventana."
                   % (color_objetivo, distancia_ciega_cm, distancia_maxima_cm))
 
+        # Disparo del callback únicamente si se detectó el color
+        if encontrado and accion_callback is not None:
+            accion_callback()
+
         # Fase 3: distancia extra desde la deteccion
-        if extra_mm > 0:
+        if encontrado and extra_mm > 0:
             marca = self.chasis.drive_base.distance()
             while abs(self.chasis.drive_base.distance() - marca) < extra_mm:
                 if self.chasis.drive_base.stalled():
                     break
                 if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
+                    print("TIMEOUT avanzar_distancia_luego_color (distancia extra)")
                     break
                 wait(5)
 
