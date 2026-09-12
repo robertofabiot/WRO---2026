@@ -231,6 +231,55 @@ class Chasis:
         wait(100)
         Utils.emitir_sonido_confirmacion(self.hub)
 
+    def acomodar_estable(self, iteraciones=5, potencia=80, tiempo_ms=60, wait_after=True):
+        """Sacude el chasis y lo devuelve exactamente al angulo de partida.
+
+        Es la version fina de sacudir(): en vez de tirones a dc() abiertos,
+        cada medio tiron es un run_target() contra un angulo anclado al
+        arrancar, asi que el robot termina en el mismo punto y con el mismo
+        rumbo con el que entro. Eso es lo que se necesita para asentar los
+        bloques ya soltados dentro de la matriz sin correr el robot ni un
+        milimetro: un sacudir() con dc() deja deriva acumulada y los bloques
+        quedan fuera de la casilla.
+
+        Argumentos:
+            iteraciones: cantidad de sacudidas completas (ida y vuelta).
+            potencia: gobierna la velocidad del tiron, 0-100. Se traduce a
+                grados/s multiplicando por 8.
+            tiempo_ms: duracion nominal de cada medio tiron, de la que sale la
+                amplitud en grados.
+            wait_after: True traba los motores y espera a que el PID del hub
+                asiente las fuerzas antes de devolver el control.
+        """
+        self.drive_base.stop()
+
+        velocidad = int(potencia * 8)
+        amplitud = int((velocidad * tiempo_ms) / 1000)
+
+        # Punto de anclaje: todo el movimiento es relativo a estos dos angulos.
+        centro_izq = self.motor_izquierda.angle()
+        centro_der = self.motor_derecha.angle()
+
+        for _ in range(iteraciones):
+            self.motor_izquierda.run_target(velocidad, centro_izq + amplitud, wait=False)
+            self.motor_derecha.run_target(velocidad, centro_der - amplitud, wait=True)
+
+            self.motor_izquierda.run_target(velocidad, centro_izq - amplitud, wait=False)
+            self.motor_derecha.run_target(velocidad, centro_der + amplitud, wait=True)
+
+        # El regreso al centro va al 40% de la velocidad: a velocidad plena el
+        # overshoot del ultimo tramo deja el chasis torcido justo al final.
+        velocidad_regreso = int(velocidad * 0.4)
+        self.motor_izquierda.run_target(velocidad_regreso, centro_izq, wait=False)
+        self.motor_derecha.run_target(velocidad_regreso, centro_der, wait=True)
+
+        if wait_after:
+            self.motor_izquierda.hold()
+            self.motor_derecha.hold()
+            wait(150)
+
+        Utils.emitir_sonido_confirmacion(self.hub)
+
     def compensar_voltaje(self, potencia_deseada):
         """Escala un duty-cycle para que rinda igual con la bateria descargada.
 
