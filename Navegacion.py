@@ -1,5 +1,5 @@
 from pybricks.tools import StopWatch, wait
-from pybricks.parameters import Color
+from pybricks.parameters import Color, Stop
 from Utils import Utils
 import config
 
@@ -285,6 +285,129 @@ class Navegacion:
             wait(20)
             Utils.emitir_sonido_confirmacion(self.chasis.hub)
 
+
+    def giro_preciso_pd(self, angulo_relativo, max_speed=1000, min_speed=40, kp=8.5, kd=115.0, margen_grados=0):
+        """
+        Caballo de Troya: Mantiene los argumentos viejos para que Misiones.py no tire error, 
+        pero usa control de hardware en C (DriveBase) para un giro violento, sin lag y 100% exacto.
+        """
+    
+        # 1. Guardamos la configuración de pista
+        turn_rate_original = config.TURN_RATE
+        
+        # 2. MODO BESTIA: Límite físico absoluto del motor
+        self.chasis.drive_base.settings(
+            straight_speed=config.STRAIGHT_SPEED, 
+            straight_acceleration=config.STRAIGHT_ACCEL, 
+            turn_rate=350,          # Velocidad tope sin crashear el hub
+            turn_acceleration=1500  # Aceleración absurda para romper inercia
+        )
+        
+        # 3. EL GIRO PERFECTO: 
+        # Al tener use_gyro(True) en robot.py, esto lee el IMU nativamente a 1000Hz.
+        # Si le faltan 5 grados y pesa mucho, el firmware le inyectará el 100% de la batería 
+        # si es necesario para obligarlo a llegar, y frenará en seco por hardware.
+        self.chasis.drive_base.turn(angulo_relativo)
+        
+        # 4. Restauramos la paz
+        self.chasis.drive_base.settings(
+            straight_speed=config.STRAIGHT_SPEED, 
+            straight_acceleration=config.STRAIGHT_ACCEL, 
+            turn_rate=turn_rate_original, 
+            turn_acceleration=config.STRAIGHT_ACCEL
+        )
+
+
+    def seguidor_linea_distancia(self, sensor_color: ColorSensor, velocidad_max, distancia_cm, lado="derecha", tiempo_acomodo_ms=800, kp=0.85, kd=2.5, k_freno=0.6, margen_cm=0, frenado_final= Stop.HOLD):        
+        diametro_rueda = 5.6
+        circunferencia = 3.1416 * diametro_rueda
+        grados_objetivo = (distancia_cm / circunferencia) * 360
+        grados_margen = (margen_cm / circunferencia) * 360 if margen_cm > 0 else 0
+        grados_objetivo_real = max(0, grados_objetivo - grados_margen)
+        
+        # EL SECRETO 1: Calculamos los últimos 4 cm para iniciar el frenado recto
+        grados_desaceleracion = (4.0 / circunferencia) * 360 
+        
+        self.chasis.motor_izquierda.reset_angle(0)
+        self.chasis.motor_derecha.reset_angle(0)
+        cronometro = StopWatch()
+        velocidad_minima = 25
+        tiempo_aceleracion_ms = 0
+        last_error = 0
+        objetivo_reflexion = 35
+        multiplicador_lado = 1 if lado == "derecha" else -1
+        
+        cronometro.reset()
+        cronometro.resume()
+        
+        while True:
+            # Cálculo más preciso del avance
+            grados_izq = abs(self.chasis.motor_izquierda.angle())
+            grados_der = abs(self.chasis.motor_derecha.angle())
+            grados_actuales = (grados_izq + grados_der) / 2
+            
+            grados_restantes = grados_objetivo_real - grados_actuales
+            
+            # Condición de salida exacta
+            if grados_restantes <= 0:
+                break
+                
+            tiempo_actual = cronometro.time()
+            
+            # --- MANEJO DE VELOCIDAD ---
+            if tiempo_actual < tiempo_acomodo_ms:
+                velocidad_actual = velocidad_minima
+            elif tiempo_actual < (tiempo_acomodo_ms + tiempo_aceleracion_ms):
+                tiempo_en_rampa = tiempo_actual - tiempo_acomodo_ms
+                progreso = tiempo_en_rampa / tiempo_aceleracion_ms if tiempo_aceleracion_ms > 0 else 1
+                velocidad_actual = velocidad_minima + ((velocidad_max - velocidad_minima) * progreso)
+            else:
+                velocidad_actual = velocidad_max
+                
+            # EL SECRETO 2: Rampa balística final. Si faltan menos de 4cm, "aterrizamos" la velocidad.
+            if grados_restantes < grados_desaceleracion:
+                progreso_freno = grados_restantes / grados_desaceleracion
+                velocidad_actual = velocidad_minima + ((velocidad_actual - velocidad_minima) * progreso_freno)
+                
+            # --- CÁLCULO PID ---
+            current_reflection = sensor_color.reflection()
+            error = current_reflection - objetivo_reflexion
+            derivative = error - last_error
+            
+            # EL SECRETO 3: Supresor de latigazo. 
+            # En la zona de frenado, suavizamos el KP a la mitad para que no gire el chasis bruscamente.
+            if grados_restantes < grados_desaceleracion:
+                correction = ((error * (kp * 0.5)) + (derivative * kd)) * multiplicador_lado
+            else:
+                correction = ((error * kp) + (derivative * kd)) * multiplicador_lado
+                
+            velocidad_base = velocidad_actual - (abs(error) * k_freno)
+            velocidad_base = max(velocidad_minima, velocidad_base)
+            
+            potencia_izq = velocidad_base - correction
+            potencia_der = velocidad_base + correction
+            
+            potencia_izq = max(-100, min(100, potencia_izq))
+            potencia_der = max(-100, min(100, potencia_der))
+            
+            self.chasis.motor_izquierda.dc(self.chasis.compensar_voltaje(potencia_izq))
+            self.chasis.motor_derecha.dc(self.chasis.compensar_voltaje(potencia_der))
+            last_error = error
+            wait(1)
+            
+        # EL SECRETO 4: Freno Activo. Obliga a la llanta a bloquearse en ese milímetro.
+        if frenado_final == Stop.HOLD:
+            self.chasis.motor_izquierda.hold()
+            self.chasis.motor_derecha.hold()
+        elif frenado_final == Stop.BRAKE:
+            self.chasis.motor_izquierda.brake()
+            self.chasis.motor_derecha.brake()
+        else:
+            self.chasis.motor_izquierda.stop()
+            self.chasis.motor_derecha.stop()
+            
+        cronometro.pause()
+
     def _odometria_giro(self, activos):
         """Promedio del angulo de los motores que empujan el giro, en grados.
 
@@ -568,10 +691,13 @@ class Navegacion:
 
     def avanzar_distancia_luego_color(self, sensor_color, distancia_ciega_cm, color_objetivo,
                                       distancia_maxima_cm, velocidad_alta=950, velocidad_escaneo=200,
-                                      distancia_extra_cm=0, lecturas_confirmacion=2,
-                                      accion_callback=None, encadenado=False):
-        """Avanza a ciegas una distancia, busca un color y permite disparar
-        un callback no bloqueante antes de recorrer la distancia extra.
+                                      distancia_extra_cm=0, lecturas_confirmacion=2, encadenado=False):
+        """Avanza a ciegas una distancia y recien despues busca un color.
+
+        La fase ciega se mide por odometria y no por tiempo, asi que la ventana
+        de busqueda no se corre con la carga de la bateria: se pasa de largo
+        cualquier linea intermedia sin riesgo de falso positivo y el movimiento
+        termina sobre una marca fisica real.
 
         Argumentos:
             sensor_color: sensor que busca el color.
@@ -585,8 +711,6 @@ class Navegacion:
             distancia_extra_cm: cuanto avanzar desde donde aparecio el color.
             lecturas_confirmacion: lecturas seguidas del color que se exigen
                 antes de dar el corte por bueno.
-            accion_callback: funcion sin argumentos (ej. lambda con wait_after=False)
-                que se ejecuta inmediatamente al confirmar el color.
             encadenado: True frena con el micro-freno pasivo.
 
         Devuelve True si encontro el color, False si corto por tope o timeout.
@@ -640,18 +764,13 @@ class Navegacion:
             print("AVISO: %s no aparecio entre %d y %d cm. Corregi la ventana."
                   % (color_objetivo, distancia_ciega_cm, distancia_maxima_cm))
 
-        # Disparo del callback únicamente si se detectó el color
-        if encontrado and accion_callback is not None:
-            accion_callback()
-
         # Fase 3: distancia extra desde la deteccion
-        if encontrado and extra_mm > 0:
+        if extra_mm > 0:
             marca = self.chasis.drive_base.distance()
             while abs(self.chasis.drive_base.distance() - marca) < extra_mm:
                 if self.chasis.drive_base.stalled():
                     break
                 if reloj_seg.time() > config.TIMEOUT_LAZO_MS:
-                    print("TIMEOUT avanzar_distancia_luego_color (distancia extra)")
                     break
                 wait(5)
 
@@ -715,6 +834,7 @@ class Navegacion:
             if cronometro.time() > config.TIMEOUT_LAZO_MS:
                 print("TIMEOUT seguidor_linea_cruces")
                 break
+                
 
             grados_recorridos = self._grados_recorridos()
 
