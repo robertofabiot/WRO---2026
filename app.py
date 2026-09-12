@@ -21,7 +21,7 @@ mi_robot = Robot(
 
 sensor = ColorSensor(config.PORT_SENSOR_FRENTE)
 armador = ArmadorMosaicos(mi_robot, sensor)
-misiones = Misiones(mi_robot, sensor, armador)
+misiones = Misiones(mi_robot,sensor)
 revisador_bateria = RevisadorBateria(mi_robot)
 
 if __name__ == "__main__":
@@ -31,6 +31,7 @@ if __name__ == "__main__":
         mi_robot.garra_trasera.establecer_cero()
         mi_robot.garra_delantera.establecer_cero()
         mi_robot.garra_delantera.establecer_cero_pinza()
+
 
         # --- ZONA DE PRUEBAS: descomenta lo que quieras ejecutar ---
 
@@ -49,4 +50,9 @@ if __name__ == "__main__":
         # misiones.dejar_pala_y_azules()
 
         # Recorrido de armado de mosaicos individual:
-        # armador.armar(matriz)
+        armador.armar(numero_mosaico = 2)
+
+        # misiones.pruebas()
+
+
+

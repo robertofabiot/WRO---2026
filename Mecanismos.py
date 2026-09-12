@@ -32,10 +32,14 @@ class Garra:
         else:
             self.motor.run_angle(velocidad, grados, then=frenado, wait=wait_after)
 
-    def llevar_al_tope(self, direccion, velocidad=1000, limite_potencia=60, frenado=Stop.HOLD):
+    def llevar_al_tope(self, direccion, velocidad=1000, limite_potencia=60, frenado=Stop.HOLD, wait_after=True):
         """Empuja el mecanismo hasta que se traba contra su tope fisico.
 
-        Siempre bloquea: run_until_stalled() de Pybricks no admite wait=False.
+        run_until_stalled() de Pybricks no admite wait=False, asi que sin
+        espera el motor queda empujando a duty fijo y el recorrido sigue en el
+        acto: el tope o la pieza lo frenan. Sirve para agarrar mientras el
+        chasis todavia avanza. En ese modo se ignoran velocidad y frenado, y el
+        motor queda con corriente hasta que otro comando lo releve.
 
         Argumentos:
             direccion: "positivo" o "negativo", el sentido en el que buscar
@@ -44,8 +48,11 @@ class Garra:
             limite_potencia: tope de duty-cycle, 0-100. Cuanto mas bajo, mas
                 suave llega al tope y menos castiga los engranajes.
             frenado: modo de frenado de Pybricks al trabarse.
+            wait_after: True bloquea hasta trabarse; False empuja a
+                limite_potencia en segundo plano.
 
-        Devuelve el angulo en el que quedo trabado el motor.
+        Devuelve el angulo en el que quedo trabado el motor, o None si no
+        espera.
         """
         if direccion == "positivo":
             vel_real = abs(velocidad)
@@ -53,6 +60,9 @@ class Garra:
             vel_real = -abs(velocidad)
         else:
             raise ValueError("direccion tiene que ser 'positivo' o 'negativo'")
+        if not wait_after:
+            self.motor.dc(limite_potencia if vel_real > 0 else -limite_potencia)
+            return None
         return self.motor.run_until_stalled(vel_real, then=frenado, duty_limit=limite_potencia)
 
     def subir(self, grados, velocidad=600, wait_after=True, frenado=Stop.HOLD, margen_grados=0):
@@ -81,29 +91,35 @@ class Garra:
         """
         self.mover(abs(grados), velocidad, wait_after, frenado, margen_grados)
 
-    def subir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+    def subir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD, wait_after=True):
         """Sube hasta el tope fisico.
 
         Argumentos:
             velocidad: grados/s.
             limite_potencia: tope de duty-cycle (0-100).
             frenado: modo de frenado de Pybricks al trabarse.
+            wait_after: True bloquea hasta trabarse; False empuja en segundo
+                plano y sigue.
 
-        Devuelve el angulo en el que quedo trabado el motor.
+        Devuelve el angulo en el que quedo trabado el motor, o None si no
+        espera.
         """
-        return self.llevar_al_tope("negativo", velocidad, limite_potencia, frenado)
+        return self.llevar_al_tope("negativo", velocidad, limite_potencia, frenado, wait_after)
 
-    def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+    def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD, wait_after=True):
         """Baja hasta el tope fisico.
 
         Argumentos:
             velocidad: grados/s.
             limite_potencia: tope de duty-cycle (0-100).
             frenado: modo de frenado de Pybricks al trabarse.
+            wait_after: True bloquea hasta trabarse; False empuja en segundo
+                plano y sigue.
 
-        Devuelve el angulo en el que quedo trabado el motor.
+        Devuelve el angulo en el que quedo trabado el motor, o None si no
+        espera.
         """
-        return self.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
+        return self.llevar_al_tope("positivo", velocidad, limite_potencia, frenado, wait_after)
 
 class GarraDelantera(Garra):
     """Elevador con pinza: dos motores independientes.
@@ -162,29 +178,35 @@ class GarraDelantera(Garra):
         """
         self.mover_pinza(abs(grados), velocidad, wait_after, frenado, margen_grados)
 
-    def abrir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+    def abrir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD, wait_after=True):
         """Abre la pinza hasta su tope fisico.
 
         Argumentos:
             velocidad: grados/s.
             limite_potencia: tope de duty-cycle (0-100).
             frenado: modo de frenado de Pybricks al trabarse.
+            wait_after: True bloquea hasta trabarse; False empuja en segundo
+                plano y sigue.
 
-        Devuelve el angulo en el que quedo trabado el motor.
+        Devuelve el angulo en el que quedo trabado el motor, o None si no
+        espera.
         """
-        return self.pinza.llevar_al_tope("negativo", velocidad, limite_potencia, frenado)
+        return self.pinza.llevar_al_tope("negativo", velocidad, limite_potencia, frenado, wait_after)
 
-    def cerrar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+    def cerrar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD, wait_after=True):
         """Cierra la pinza hasta trabarse, tipicamente contra la pieza.
 
         Argumentos:
             velocidad: grados/s.
             limite_potencia: tope de duty-cycle (0-100) para regular el agarre.
             frenado: modo de frenado de Pybricks al trabarse.
+            wait_after: True bloquea hasta trabarse; False empuja en segundo
+                plano y sigue.
 
-        Devuelve el angulo en el que quedo trabado el motor.
+        Devuelve el angulo en el que quedo trabado el motor, o None si no
+        espera.
         """
-        return self.pinza.llevar_al_tope("positivo", velocidad, limite_potencia, frenado)
+        return self.pinza.llevar_al_tope("positivo", velocidad, limite_potencia, frenado, wait_after)
 
     def establecer_cero(self, velocidad=800, limite_potencia=50):
         """Lleva el elevador a su tope superior y fija ahi el cero absoluto.
@@ -214,14 +236,14 @@ class GarraDelantera(Garra):
         """
         if self.rango_maximo is None:
             raise ValueError("Debes configurar el rango_maximo_grados al instanciar la garra delantera")
-            
+
         porcentaje_seguro = max(0.0, min(100.0, float(porcentaje)))
         angulo_objetivo = (porcentaje_seguro / 100.0) * self.rango_maximo
-        
+
         self.motor.run_target(
-            speed=velocidad, 
-            target_angle=angulo_objetivo, 
-            then=frenado, 
+            speed=velocidad,
+            target_angle=angulo_objetivo,
+            then=frenado,
             wait=wait_after
         )
 
@@ -247,14 +269,14 @@ class GarraDelantera(Garra):
         """
         if self.pinza.rango_maximo is None:
             raise ValueError("Debes configurar el rango_maximo_pinza al instanciar la garra delantera")
-            
+
         porcentaje_seguro = max(0.0, min(100.0, float(porcentaje)))
         angulo_objetivo = (porcentaje_seguro / 100.0) * self.pinza.rango_maximo
-        
+
         self.pinza.motor.run_target(
-            speed=velocidad, 
-            target_angle=angulo_objetivo, 
-            then=frenado, 
+            speed=velocidad,
+            target_angle=angulo_objetivo,
+            then=frenado,
             wait=wait_after
         )
 
@@ -300,14 +322,14 @@ class GarraTrasera(Garra):
         """
         if self.rango_maximo is None:
             raise ValueError("Debes configurar el rango_maximo_grados al instanciar la garra")
-            
+
         porcentaje_seguro = max(0.0, min(100.0, float(porcentaje)))
         angulo_objetivo = (porcentaje_seguro / 100.0) * self.rango_maximo
-        
+
         self.motor.run_target(
-            speed=velocidad, 
-            target_angle=angulo_objetivo, 
-            then=frenado, 
+            speed=velocidad,
+            target_angle=angulo_objetivo,
+            then=frenado,
             wait=wait_after
         )
 
@@ -335,26 +357,32 @@ class GarraTrasera(Garra):
         """
         super().subir(grados, velocidad, wait_after, frenado, margen_grados)
 
-    def subir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+    def subir_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD, wait_after=True):
         """Sube la jaula hasta su tope fisico.
 
         Argumentos:
             velocidad: grados/s.
             limite_potencia: tope de duty-cycle (0-100).
             frenado: modo de frenado de Pybricks al trabarse.
+            wait_after: True bloquea hasta trabarse; False empuja en segundo
+                plano y sigue.
 
-        Devuelve el angulo en el que quedo trabado el motor.
+        Devuelve el angulo en el que quedo trabado el motor, o None si no
+        espera.
         """
-        return super().bajar_al_tope(velocidad, limite_potencia, frenado)
+        return super().bajar_al_tope(velocidad, limite_potencia, frenado, wait_after)
 
-    def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD):
+    def bajar_al_tope(self, velocidad=800, limite_potencia=50, frenado=Stop.HOLD, wait_after=True):
         """Baja la jaula hasta su tope fisico.
 
         Argumentos:
             velocidad: grados/s.
             limite_potencia: tope de duty-cycle (0-100).
             frenado: modo de frenado de Pybricks al trabarse.
+            wait_after: True bloquea hasta trabarse; False empuja en segundo
+                plano y sigue.
 
-        Devuelve el angulo en el que quedo trabado el motor.
+        Devuelve el angulo en el que quedo trabado el motor, o None si no
+        espera.
         """
-        return super().subir_al_tope(velocidad, limite_potencia, frenado)
+        return super().subir_al_tope(velocidad, limite_potencia, frenado, wait_after)
