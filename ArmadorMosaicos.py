@@ -50,7 +50,93 @@ class ArmadorMosaicos:
     
     def _armar_verde_verde(self):
         """Rutina de armado para mosaico verde-verde (pendiente de desarrollo)."""
-        pass
+        print("Voltaje Hub: ", self.robot.hub.battery.voltage(), "mV")
+        gc.collect()
+
+        #Primera fase: Bloques verdes
+        self.robot.garra_delantera.ir_a_porcentaje(0, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(0, wait_after=False)
+
+        #ir a bloques verdes
+        self.robot.chasis.avanzar_recto(-15, velocidad=900)
+        self.robot.navegacion.giro_relativo(90)
+        self.robot.chasis.avanzar_recto(5.5)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=54, tiempo_acomodo_ms=400)
+        self.robot.navegacion.giro_relativo(-90)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=10, tiempo_acomodo_ms=400)
+
+        # tomar bloques verdes
+        # primer tramo
+        self.robot.chasis.avanzar_recto(2, velocidad=900, encadenado=True)
+        self.robot.garra_delantera.ir_a_porcentaje(75, velocidad=700, wait_after=True)
+        self.robot.garra_delantera.cerrar(250, wait_after=False)
+
+        #segundo tramo
+        self.robot.navegacion.desplazar_lateral(-1.8,reversa=True)
+        self.robot.chasis.avanzar_recto(-5.5,velocidad=700)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(85)
+        self.robot.chasis.avanzar_recto(21, velocidad=600)
+        self.robot.garra_delantera.pinza.bajar_al_tope()
+        self.robot.garra_delantera.cerrar_al_tope()
+
+        #dejar segundo tramo
+        self.robot.chasis.avanzar_recto(-11,velocidad=600)
+        self.robot.navegacion.giro_relativo(90,rueda_pivote="izquierda")
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(40)
+
+        #tomar bloques azules
+        self.robot.chasis.avanzar_recto(-11.8,velocidad=700)
+        self.robot.navegacion.giro_relativo(-90)
+        self.robot.garra_delantera.ir_a_porcentaje(30,velocidad=700)
+        self.robot.chasis.avanzar_recto(15)
+        self.robot.garra_delantera.ir_a_porcentaje(75)
+
+        #ir por tramo de verdes restante
+        self.robot.chasis.avanzar_recto(-17, 800)
+        self.robot.navegacion.giro_relativo(90)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=80, distancia_cm=15, tiempo_acomodo_ms=400)
+        self.robot.garra_delantera.cerrar_al_tope()
+
+        #ir a dejar primera fase de matriz
+        self.robot.chasis.avanzar_recto(-10,velocidad=800)
+        self.robot.navegacion.giro_relativo(90)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(20)
+        self.robot.garra_delantera.ir_a_porcentaje(30)
+        self.robot.chasis.avanzar_recto(-10, 900)
+        self.robot.garra_delantera.ir_a_porcentaje(75)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(60)
+        self.robot.chasis.avanzar_recto(16,velocidad=700)
+        self.robot.garra_delantera.cerrar_al_tope()
+        self.robot.garra_delantera.ir_a_porcentaje(60)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=80, distancia_cm=28, lado="izquierda")
+        self.robot.navegacion.desplazar_lateral(1.8)
+
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, distancia_ciega_cm=5, color_objetivo=Color.BLUE, distancia_maxima_cm=11,distancia_extra_cm=1.8)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(65)
+        self.robot.chasis.avanzar_recto(2)
+        self.robot.chasis.avanzar_recto(-3)
+        self.robot.garra_delantera.ir_a_porcentaje(68)
+        self.robot.chasis.acomodar_estable(tiempo_ms=5)
+        self.robot.garra_delantera.ir_a_porcentaje(20)
+
+        #segunda fase: bloques azules
+        self.robot.chasis.avanzar_recto(-40, velocidad=700)
+        self.robot.navegacion.giro_relativo(90)
+        self.robot.navegacion.giro_relativo(90, rueda_pivote="derecha")
+        
+        #tomar los bloques
+        self.robot.chasis.avanzar_recto(20, velocidad=800)
+        self.robot.garra_delantera.ir_a_porcentaje(85)
+        
+        #ir por los verdes
+        self.robot.navegacion.desplazar_lateral(20, max_potencia=90, reversa=True)
+        self.robot.chasis.avanzar_recto(30, velocidad=800)
+        
+        #tomar bloques verdes
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(90)
+        self.robot.navegacion.giro_relativo(-90, rueda_pivote="izquierda")
+        self.robot.navegacion.giro_relativo(-90)
+
 
     def _armar_verde_amarillo(self):
         """Ejecuta la secuencia de navegación y manipulación para el armado de la matriz 2."""
