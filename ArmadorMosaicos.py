@@ -358,7 +358,7 @@ class ArmadorMosaicos:
 
         self.robot.navegacion.giro_relativo(-178)
 
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=)
+        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=50)
 
 
 
