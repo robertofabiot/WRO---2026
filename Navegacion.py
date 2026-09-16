@@ -1,5 +1,6 @@
 from pybricks.tools import StopWatch, wait
 from pybricks.parameters import Color, Stop
+from pybricks.pupdevices import ColorSensor
 from Utils import Utils
 import config
 
