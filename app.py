@@ -1,7 +1,7 @@
 """Punto de entrada del robot.
 
 El recorrido vive en Misiones, partido en misiones modulares y atómicas que se
-pueden correr sueltas para pruebas en pista o encadenadas con recorrido_completo().
+pueden correr sueltas para pruebas en pista.
 """
 
 from pybricks.pupdevices import ColorSensor
@@ -51,8 +51,3 @@ if __name__ == "__main__":
 
         # Recorrido de armado de mosaicos individual:
         armador.armar(numero_mosaico = 2)
-
-        # misiones.pruebas()
-
-
-

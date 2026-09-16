@@ -1,7 +1,7 @@
-"""Secuencia de misiones autónomas y armado de matriz para WRO 2026.
+"""Secuencia de misiones autónomas del Reto 1 para WRO 2026.
 
 Estructura modular dividida en misiones atómicas individuales que pueden
-ejecutarse por separado para calibración y pruebas, o encadenadas en recorrido_completo().
+ejecutarse por separado para calibración y pruebas en pista.
 """
 
 from pybricks.parameters import Color
@@ -105,8 +105,6 @@ class Misiones:
         self.robot.garra_trasera.ir_a_porcentaje(94.4, velocidad=600, wait_after=False)
         self.robot.chasis.avanzar_recto(-12, velocidad=1000, encadenado=False)
 
-    def pruebas(self):
-        self.robot.navegacion.desplazar_lateral(-1)
     def dejar_llana(self):
         """Empuja la llana hacia su zona y regresa a la línea cruzando intersecciones."""
         self.robot.chasis.avanzar_recto(8, velocidad=1000, encadenado=False)
@@ -216,14 +214,6 @@ class Misiones:
         print("Mosaico detectado:", mosaico)
         return mosaico
 
-    def detectar_mosaico(self, distancia_verificacion_cm=5):
-        """Alias para compatibilidad con ArmadorMosaicos."""
-        return self.escanear_mosaico(distancia_verificacion_cm)
-
-    def escanear_matriz(self, distancia_verificacion_cm=5):
-        """Alias para compatibilidad."""
-        return self.escanear_mosaico(distancia_verificacion_cm)
-
     def dejar_verdes(self):
         """Sale de la matriz en reversa, gira 180° y deposita los bloques verdes."""
         self.robot.chasis.avanzar_recto(-37.5, velocidad=900)
@@ -306,38 +296,3 @@ class Misiones:
             encadenado=True
         )
         gc.collect()
-
-    # =========================================================================
-    # CORRIDA COMPLETA
-    # =========================================================================
-
-    def recorrido_completo(self, forzar_matriz=None):
-        """Encadena todas las misiones del reto y ejecuta la matriz correspondiente con ArmadorMosaicos.
-
-        Argumentos:
-            forzar_matriz: Si se especifica un número (ej. 2), omite el resultado
-                del escáner y fuerza esa matriz. Si es None, ejecuta la detectada.
-        """
-        print("=== INICIANDO RECORRIDO COMPLETO (RETO 1 + MATRIZ) ===")
-        self.agarrar_cemento()
-        self.dejar_llana()
-        self.dejar_cemento()
-        self.agarrar_verdes()
-        matriz = self.escanear_mosaico()
-        self.dejar_verdes()
-        self.agarrar_amarillos()
-        self.agarrar_azules()
-        self.agarrar_pala()
-        self.dejar_amarillos()
-        self.dejar_pala_y_azules()
-        gc.collect()
-
-        if forzar_matriz is not None:
-            matriz = forzar_matriz
-
-        print("Matriz seleccionada:", matriz)
-        if self.armador is not None:
-            print("Iniciando recorrido de la matriz %s con ArmadorMosaicos..." % matriz)
-            self.armador.armar(matriz)
-        else:
-            print("AVISO: No se configuró una instancia de ArmadorMosaicos para armar el mosaico.")
