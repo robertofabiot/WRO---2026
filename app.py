@@ -21,7 +21,7 @@ mi_robot = Robot(
 
 sensor = ColorSensor(config.PORT_SENSOR_FRENTE)
 armador = ArmadorMosaicos(mi_robot, sensor)
-misiones = Misiones(mi_robot,sensor)
+misiones = Misiones(mi_robot, sensor, armador)
 revisador_bateria = RevisadorBateria(mi_robot)
 
 if __name__ == "__main__":
