@@ -248,29 +248,26 @@ class Misiones:
         self.robot.navegacion.giro_relativo(90, max_potencia=80, encadenado=True)
 
         self.robot.garra_trasera.ir_a_porcentaje(95.0, velocidad=300, wait_after=False)
-        self.robot.chasis.avanzar_recto(-15, velocidad=600, encadenado=True)
+        self.robot.chasis.avanzar_recto(-11, velocidad=600, encadenado=True)
 
     def agarrar_pala(self):
         """Avanza hacia la pala, posiciona la garra/pinza y la sujeta firmemente."""
         self.robot.chasis.avanzar_recto(5)
         self.robot.navegacion.giro_absoluto(325)
-        self.robot.garra_delantera.ir_a_porcentaje(75, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje(73, wait_after=False)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(65, wait_after=False)
-        self.robot.chasis.avanzar_recto(45)
+        self.robot.chasis.avanzar_recto(47)
         self.robot.garra_delantera.cerrar_al_tope(velocidad=1000, limite_potencia=100)
+        self.robot.garra_delantera.ir_a_porcentaje(0, wait_after=True)
 
     def dejar_amarillos(self):
         """Descarga los bloques amarillos abriendo la pinza, los acomoda y sale de la sección."""
-        self.robot.navegacion.giro_absoluto(10)
+        self.robot.navegacion.giro_absoluto(10, min_potencia=60)
         self.robot.chasis.avanzar_recto(15)
-        self.robot.navegacion.giro_absoluto(0)
-        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 1, distancia_extra_cm=0, distancia_inicial_cm=20,lado="izquierda", tiempo_acomodo_ms=0)
-
-        self.robot.garra_delantera.abrir(50)
-        self.robot.garra_delantera.ir_a_porcentaje(0, wait_after=False)
-        wait(300) 
+        self.robot.navegacion.giro_absoluto(0, min_potencia=60)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 1, distancia_extra_cm=10, distancia_inicial_cm=20,lado="izquierda", tiempo_acomodo_ms=0) 
         self.robot.navegacion.giro_relativo(90, max_potencia=80)
-        self.robot.chasis.avanzar_recto(28)
+        self.robot.chasis.avanzar_recto(24)
         self.robot.chasis.avanzar_recto(-28)
         self.robot.garra_delantera.ir_a_porcentaje(75, wait_after=False)
         self.robot.navegacion.giro_relativo(-90, max_potencia=90, encadenado=True)
