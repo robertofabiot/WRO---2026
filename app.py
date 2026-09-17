@@ -50,4 +50,4 @@ if __name__ == "__main__":
         # misiones.dejar_pala_y_azules()
 
         # Recorrido de armado de mosaicos individual:
-        armador.armar(numero_mosaico = 2)
+        # armador.armar(numero_mosaico = 2)
