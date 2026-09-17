@@ -421,6 +421,15 @@ class Navegacion:
             total += motor.angle()
         return total / len(activos)
 
+    def rumbo(self):
+        """Devuelve el rumbo absoluto que marca el IMU en este momento.
+
+        Sirve para anclar una secuencia de maniobras a la pose real con la que
+        arranca en vez de a un rumbo del mapa escrito a mano: se lee una sola
+        vez y los giros siguientes salen todos de ahi con giro_absoluto().
+        """
+        return self.chasis.hub.imu.heading()
+
     def giro_absoluto(self, rumbo_objetivo, rueda_pivote=None, max_potencia=85,
                       min_potencia=None, kp=None, kd=None, tolerancia=1.5,
                       ruta_corta=True, encadenado=False):

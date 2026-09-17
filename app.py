@@ -40,6 +40,7 @@ if __name__ == "__main__":
         # misiones.agarrar_cemento()
         # misiones.dejar_llana()
         # misiones.dejar_cemento()
+        # misiones.mover_pala_al_camino()
         # misiones.agarrar_verdes()
         # matriz = misiones.escanear_mosaico()
         # misiones.dejar_verdes()

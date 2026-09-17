@@ -131,34 +131,70 @@ class Misiones:
         )
 
     def dejar_cemento(self):
-        """Sigue la línea, gira y descarga el cemento levantando la jaula en recorrido."""
-        self._seguir_linea_distancia(
-            distancia_cm=50,
+        """Sigue la línea hasta el cruce, encara el parqueo y suelta ahí el cemento."""
+        self.robot.navegacion.seguidor_linea_cruces(
+            self.sensor,
             velocidad_max=100,
-            lado="derecha",
-            kp=1.15,
-            kd=3.8,
-            k_freno=0.05,
-            tiempo_acomodo_ms=50,
-            encadenado=True
+            cruces_objetivo=1,
+            distancia_extra_cm=30,
+            distancia_inicial_cm=10,
+            tiempo_acomodo_ms=0
         )
-        wait(100)
 
-        self.robot.navegacion.giro_relativo(-90, max_potencia=85, encadenado=True)
+        self.robot.navegacion.giro_relativo(90, max_potencia=85, encadenado=True)
+        self.robot.chasis.avanzar_recto(-10, velocidad=1000)
 
+        # La jaula sube bloqueando a propósito: si el robot arranca con ella a
+        # medio subir se lleva el cuenco puesto y se pierden los 15 puntos.
+        self.robot.garra_trasera.ir_a_porcentaje(0)
+        self.robot.chasis.avanzar_recto(15, velocidad=1000)
+
+    def mover_pala_al_camino(self, distancia_pala_cm=20):
+        """Recoge la pala con la jaula trasera y la deja tirada sobre el camino de salida.
+
+        Aprovecha que la jaula queda libre apenas se suelta el cemento. La pala
+        no viaja el resto del recorrido: queda apoyada donde el robot vuelve a
+        pasar al ir a dejar los amarillos, así que después solo hay que empujarla.
+
+        Arranca encarando el parqueo, que es donde termina dejar_cemento(), y
+        devuelve el robot a la línea en la misma pose que espera agarrar_verdes().
+
+        Argumentos:
+            distancia_pala_cm: cuánto retrocede para calzarle la jaula a la pala.
+                Es el número a tocar si la barrera de la jaula cae encima de la
+                pala en vez de quedar por detrás de ella.
+        """
+        # Todas las maniobras del rodeo se miden contra el rumbo con el que
+        # arranca la misión, así el error de un giro no se hereda al siguiente.
+        rumbo_parqueo = self.robot.navegacion.rumbo()
+        rumbo_linea = rumbo_parqueo - 90
+
+        # La jaula baja recién cuando el robot ya está en posición: la pala es
+        # plana y una jaula que baja antes la arrastra en vez de encerrarla.
+        self.robot.navegacion.giro_absoluto(rumbo_parqueo - 100)
+        self.robot.chasis.avanzar_recto(-distancia_pala_cm)
+        self.robot.garra_trasera.ir_a_porcentaje(90)
+
+        self.robot.chasis.avanzar_recto(15)
+        self.robot.navegacion.giro_absoluto(rumbo_parqueo - 120)
         self.robot.chasis.avanzar_y_accionar_en_recorrido(
-            distancia_total_cm=28,
-            distancia_accion_cm=26,
+            distancia_total_cm=40,
+            distancia_accion_cm=20,
             margen_cm=2,
             accion_callback=lambda: self.robot.garra_trasera.ir_a_porcentaje(
-                0, velocidad=900, wait_after=False
+                0, wait_after=False
             ),
         )
+        gc.collect()
+
+        # Vuelta a la línea. Este bloque estaba metido al principio de
+        # agarrar_verdes: vive acá porque es parte del rodeo de la pala.
+        self.robot.navegacion.giro_absoluto(rumbo_parqueo - 165)
         self.robot.navegacion.avanzar_distancia_luego_color(
             self.sensor,
-            distancia_ciega_cm=0,
+            distancia_ciega_cm=30,
             color_objetivo=Color.WHITE,
-            distancia_maxima_cm=10,
+            distancia_maxima_cm=45,
             velocidad_escaneo=900,
             encadenado=True
         )
@@ -171,7 +207,9 @@ class Misiones:
             distancia_extra_cm=5
         )
 
-        self.robot.navegacion.giro_relativo(90, max_potencia=85, encadenado=True)
+        # Absoluto y no relativo: deja el robot sobre el rumbo de la línea sin
+        # arrastrar el error acumulado de los cuatro giros del rodeo.
+        self.robot.navegacion.giro_absoluto(rumbo_linea, max_potencia=85, encadenado=True)
 
     def agarrar_verdes(self):
         """Sigue la línea hasta ver verde, gira y retrocede atrapando los bloques verdes."""
