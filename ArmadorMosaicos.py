@@ -38,15 +38,15 @@ class ArmadorMosaicos:
             self.robot.garra_delantera.establecer_cero_pinza()
             self.robot.garra_trasera.ir_a_porcentaje(100)
 
-    def armar(self, numero_mosaico: int):
+    def armar(self, matriz: int):
         """Corre la rutina de armado del mosaico pedido.
 
         Argumentos:
-            numero_mosaico: numero devuelto por Misiones.escanear_mosaico().
-                Si no esta en la tabla, cae en la rutina verde-verde.
+            matriz: número devuelto por Misiones.escanear_mosaico().
+                Si no está en la tabla, cae en la rutina verde-verde.
         """
-        rutina_a_ejecutar = self.rutinas.get(numero_mosaico, self._armar_verde_verde)
-        print(f"Ejecutando rutina de armado para mosaico: {numero_mosaico}")
+        rutina_a_ejecutar = self.rutinas.get(matriz, self._armar_verde_verde)
+        print(f"Ejecutando rutina de armado para mosaico: {matriz}")
         rutina_a_ejecutar()
     
     def _armar_verde_verde(self):

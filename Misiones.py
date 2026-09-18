@@ -14,17 +14,14 @@ from robot import Robot
 class Misiones:
     """Misiones del recorrido secuencial del Reto 1."""
 
-    def __init__(self, robot: Robot, sensor_frente, armador=None):
+    def __init__(self, robot: Robot, sensor_frente):
         """
         Argumentos:
             robot: instancia de Robot con el chasis y los mecanismos armados.
             sensor_frente: ColorSensor delantero (el seguidor).
-            armador: instancia opcional de ArmadorMosaicos.
         """
         self.robot = robot
         self.sensor = sensor_frente
-        self.armador = armador
-        self.matriz_detectada = None
 
     # =========================================================================
     # AUXILIARES
@@ -58,7 +55,7 @@ class Misiones:
 
     def _identificar_combinacion(self, distancia_verificacion_cm=5):
         """Lee el mosaico a armar y devuelve su número según config.MOSAICOS."""
-        color_principal = self.sensor.color()
+        color_principal = self.robot.navegacion.detectar_color_preciso(self.sensor)
         if color_principal not in config.MOSAICOS:
             return -1
 
@@ -67,7 +64,7 @@ class Misiones:
         if type(decision) is dict:
             self.robot.chasis.avanzar_recto(distancia_verificacion_cm)
             wait(50)
-            color_anterior = self.sensor.color()
+            color_anterior = self.robot.navegacion.detectar_color_preciso(self.sensor)
             self.robot.chasis.avanzar_recto(-distancia_verificacion_cm)
 
             if color_anterior not in decision:
@@ -82,12 +79,7 @@ class Misiones:
 
     def agarrar_cemento(self):
         """Salida inicial, seguidor de línea y captura del cemento con la jaula trasera."""
-        self.robot.garra_trasera.establecer_cero()
-        self.robot.garra_delantera.establecer_cero()
-        self.robot.garra_delantera.establecer_cero_pinza()
-
         self.robot.navegacion.giro_relativo(90, rueda_pivote="derecha", max_potencia=100, min_potencia=100, encadenado=True)
-        gc.collect()
 
         self._seguir_linea_distancia(
             distancia_cm=79,
@@ -113,22 +105,9 @@ class Misiones:
         self.robot.chasis.avanzar_recto(-32, velocidad=1000)
 
         self.robot.chasis.avanzar_recto(8, velocidad=900, encadenado=True)
-        self.robot.navegacion.avanzar_contando_lineas(
-            self.sensor,
-            lineas_objetivo=2,
-            color_linea=Color.BLACK,
-            velocidad=900,
-            velocidad_lenta=800,
-            debug=False
-        )
-        gc.collect()
-
-        self.robot.chasis.giro_de_arco(
-            radio_cm=13,
-            angulo_deg=19,
-            lado="derecha",
-            encadenado=False
-        )
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, 5, Color.WHITE, 20, velocidad_escaneo=300)
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, 5, Color.BLACK, 15, velocidad_alta=300, velocidad_escaneo=300, distancia_extra_cm=5)
+        self.robot.navegacion.giro_relativo(10, rueda_pivote="derecha", max_potencia=100, min_potencia=80, encadenado=True)
 
     def dejar_cemento(self):
         """Sigue la línea hasta el cruce, encara el parqueo y suelta ahí el cemento."""
@@ -136,47 +115,31 @@ class Misiones:
             self.sensor,
             velocidad_max=100,
             cruces_objetivo=1,
-            distancia_extra_cm=30,
-            distancia_inicial_cm=10,
+            distancia_extra_cm=32,
+            distancia_inicial_cm=18,
             tiempo_acomodo_ms=0
         )
 
         self.robot.navegacion.giro_relativo(90, max_potencia=85, encadenado=True)
         self.robot.chasis.avanzar_recto(-10, velocidad=1000)
 
-        # La jaula sube bloqueando a propósito: si el robot arranca con ella a
-        # medio subir se lleva el cuenco puesto y se pierden los 15 puntos.
-        self.robot.garra_trasera.ir_a_porcentaje(0)
-        self.robot.chasis.avanzar_recto(15, velocidad=1000)
+        self.robot.garra_trasera.ir_a_porcentaje(0, wait_after=False)
+        self.robot.chasis.avanzar_recto(5, velocidad=1000)
 
-    def mover_pala_al_camino(self, distancia_pala_cm=20):
-        """Recoge la pala con la jaula trasera y la deja tirada sobre el camino de salida.
+    def mover_pala_al_camino(self, distancia_pala_cm=24):
+        """Recoge la pala con la jaula trasera y la deja sobre el camino de salida.
 
         Aprovecha que la jaula queda libre apenas se suelta el cemento. La pala
-        no viaja el resto del recorrido: queda apoyada donde el robot vuelve a
-        pasar al ir a dejar los amarillos, así que después solo hay que empujarla.
-
-        Arranca encarando el parqueo, que es donde termina dejar_cemento(), y
-        devuelve el robot a la línea en la misma pose que espera agarrar_verdes().
+        queda apoyada donde el robot vuelve a pasar al ir a dejar los amarillos.
+        Deja al robot perfilado hacia el pasillo de salida.
 
         Argumentos:
             distancia_pala_cm: cuánto retrocede para calzarle la jaula a la pala.
-                Es el número a tocar si la barrera de la jaula cae encima de la
-                pala en vez de quedar por detrás de ella.
         """
-        # Todas las maniobras del rodeo se miden contra el rumbo con el que
-        # arranca la misión, así el error de un giro no se hereda al siguiente.
-        rumbo_parqueo = self.robot.navegacion.rumbo()
-        rumbo_linea = rumbo_parqueo - 90
-
-        # La jaula baja recién cuando el robot ya está en posición: la pala es
-        # plana y una jaula que baja antes la arrastra en vez de encerrarla.
-        self.robot.navegacion.giro_absoluto(rumbo_parqueo - 100)
-        self.robot.chasis.avanzar_recto(-distancia_pala_cm)
-        self.robot.garra_trasera.ir_a_porcentaje(90)
-
-        self.robot.chasis.avanzar_recto(15)
-        self.robot.navegacion.giro_absoluto(rumbo_parqueo - 120)
+        self.robot.navegacion.giro_relativo(-130)
+        self.robot.chasis.avanzar_recto(-distancia_pala_cm, wait_after=False)
+        wait(350)
+        self.robot.garra_trasera.ir_a_porcentaje(90, velocidad=800)
         self.robot.chasis.avanzar_y_accionar_en_recorrido(
             distancia_total_cm=40,
             distancia_accion_cm=20,
@@ -187,45 +150,13 @@ class Misiones:
         )
         gc.collect()
 
-        # Vuelta a la línea. Este bloque estaba metido al principio de
-        # agarrar_verdes: vive acá porque es parte del rodeo de la pala.
-        self.robot.navegacion.giro_absoluto(rumbo_parqueo - 165)
-        self.robot.navegacion.avanzar_distancia_luego_color(
-            self.sensor,
-            distancia_ciega_cm=30,
-            color_objetivo=Color.WHITE,
-            distancia_maxima_cm=45,
-            velocidad_escaneo=900,
-            encadenado=True
-        )
-        self.robot.navegacion.avanzar_distancia_luego_color(
-            self.sensor,
-            distancia_ciega_cm=2,
-            color_objetivo=Color.BLACK,
-            distancia_maxima_cm=10,
-            velocidad_escaneo=150,
-            distancia_extra_cm=5
-        )
-
-        # Absoluto y no relativo: deja el robot sobre el rumbo de la línea sin
-        # arrastrar el error acumulado de los cuatro giros del rodeo.
-        self.robot.navegacion.giro_absoluto(rumbo_linea, max_potencia=85, encadenado=True)
-
     def agarrar_verdes(self):
-        """Sigue la línea hasta ver verde, gira y retrocede atrapando los bloques verdes."""
-        self.robot.navegacion.seguidor_linea_color(
-            self.sensor,
-            velocidad_max=95,
-            color_objetivo=Color.GREEN,
-            lado="derecha",
-            tiempo_acomodo_ms=0,
-            distancia_cm=45,
-            distancia_maxima_cm=55,
-            encadenado=True,
-        )
-
-        self.robot.chasis.avanzar_recto(-7, velocidad=900, encadenado=True)
-        self.robot.navegacion.giro_relativo(-183, max_potencia=90, encadenado=True)
+        """Gira hacia la línea, detecta la intersección (blanco/negro), encara y retrocede atrapando los verdes con la jaula."""
+        self.robot.navegacion.giro_relativo(-20)
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, 5, Color.WHITE, 20, velocidad_escaneo=300)
+        self.robot.navegacion.avanzar_distancia_luego_color(self.sensor, 5, Color.BLACK, 15, velocidad_alta=300, velocidad_escaneo=300, distancia_extra_cm=5)
+        
+        self.robot.navegacion.giro_relativo(-110, max_potencia=90, encadenado=True)
 
         self.robot.garra_trasera.ir_a_porcentaje(95.0, velocidad=250, wait_after=False)
         self.robot.chasis.avanzar_recto(-17, velocidad=600, encadenado=True)
@@ -249,7 +180,6 @@ class Misiones:
         self.robot.chasis.avanzar_recto(9, velocidad=700)
 
         mosaico = self._identificar_combinacion(distancia_verificacion_cm)
-        self.matriz_detectada = mosaico
         print("Mosaico detectado:", mosaico)
         return mosaico
 
@@ -281,7 +211,7 @@ class Misiones:
         wait(100)
 
     def agarrar_azules(self):
-        """Avanza contando líneas, gira hacia los bloques azules y los encierra con la jaula."""
+        """Avanza recto, gira hacia los bloques azules y los encierra con la jaula."""
         self.robot.chasis.avanzar_recto(55, encadenado=False)
         self.robot.navegacion.giro_relativo(90, max_potencia=80, encadenado=True)
 
@@ -289,24 +219,19 @@ class Misiones:
         self.robot.chasis.avanzar_recto(-11, velocidad=600, encadenado=True)
 
     def agarrar_pala(self):
-        """Avanza hacia la pala, posiciona la garra/pinza y la sujeta firmemente."""
-        self.robot.chasis.avanzar_recto(4)
-        self.robot.navegacion.giro_absoluto(325)
+        """Posiciona la garra delantera y pinza abierta, encara la pala y avanza para calzarla."""
         self.robot.garra_delantera.ir_a_porcentaje(65, wait_after=False)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(65, wait_after=False)
-        self.robot.chasis.avanzar_recto(52.5)
+        self.robot.chasis.avanzar_recto(4)
+        self.robot.navegacion.giro_absoluto(325)
+        self.robot.chasis.avanzar_recto(30)
 
     def dejar_amarillos(self):
-        """Descarga los bloques amarillos abriendo la pinza, los acomoda y sale de la sección."""
-        self.robot.navegacion.giro_absoluto(10)
-        self.robot.chasis.avanzar_recto(15)
-        self.robot.garra_delantera.ir_a_porcentaje(60, wait_after=False)
+        """Alinea a la línea, avanza hacia la zona amarilla, retrocede y posiciona la garra delantera."""
         self.robot.navegacion.giro_absoluto(0)
-        self.robot.garra_delantera.ir_a_porcentaje_pinza(70)
-        self.robot.garra_delantera.ir_a_porcentaje(70, wait_after=True)
-        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 1, distancia_extra_cm=5, distancia_inicial_cm=20,lado="izquierda", tiempo_acomodo_ms=0)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 1, distancia_extra_cm=5, distancia_inicial_cm=30, lado="izquierda", tiempo_acomodo_ms=0)
         self.robot.garra_delantera.ir_a_porcentaje(0, wait_after=False)
-        wait(300) 
+        wait(300)
         self.robot.navegacion.giro_absoluto(90, max_potencia=80)
         self.robot.navegacion.avanzar_distancia_luego_color(
             self.sensor,
@@ -323,7 +248,7 @@ class Misiones:
         self.robot.garra_delantera.ir_a_porcentaje_pinza(72)
 
     def dejar_pala_y_azules(self):
-        """Retorna con la pala, descarga los bloques azules y se posiciona en la matriz."""
+        """Sigue la línea transportando la carga y se posiciona hasta detectar la zona azul frente a la zona de inicio."""
         self._seguir_linea_distancia(
             distancia_cm=40,
             velocidad_max=100,
