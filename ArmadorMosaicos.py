@@ -50,7 +50,7 @@ class ArmadorMosaicos:
         rutina_a_ejecutar()
     
     def _armar_verde_verde(self):
-        """Rutina de armado para mosaico verde-verde (pendiente de desarrollo)."""
+               """Rutina de armado para mosaico verde-verde"""
         print("Voltaje Hub: ", self.robot.hub.battery.voltage(), "mV")
 
         # arranque de armado
@@ -61,7 +61,7 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(5.5, velocidad=800)
 
         #primera fase: ir a bloques verdes
-        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 1, distancia_extra_cm=12, distancia_inicial_cm=20, tiempo_acomodo_ms=0)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 1, distancia_extra_cm=12, distancia_inicial_cm=20.8, tiempo_acomodo_ms=0)
         # self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=45.4, tiempo_acomodo_ms=400)
         self.robot.navegacion.giro_relativo(-90)        
         #self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=100, distancia_cm=10, tiempo_acomodo_ms=400)
@@ -73,15 +73,15 @@ class ArmadorMosaicos:
         self.robot.garra_delantera.cerrar(250, wait_after=False)
 
         #tomar segundo tramo de verdes
-        self.robot.navegacion.desplazar_lateral(-1.8,reversa=True)
+        self.robot.navegacion.desplazar_lateral(-2.3,reversa=True)
         self.robot.chasis.avanzar_recto(-7,velocidad=700)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(85)
-        self.robot.chasis.avanzar_recto(22, velocidad=600)
+        self.robot.chasis.avanzar_recto(23, velocidad=600)
         self.robot.garra_delantera.pinza.bajar_al_tope()
         self.robot.garra_delantera.cerrar_al_tope()
 
         #dejar segundo tramo tirado 
-        self.robot.chasis.avanzar_recto(-11.7,velocidad=800)
+        self.robot.chasis.avanzar_recto(-13,velocidad=800)
         self.robot.navegacion.giro_relativo(90,rueda_pivote="izquierda")
         self.robot.garra_delantera.ir_a_porcentaje_pinza(40)
 
@@ -89,7 +89,7 @@ class ArmadorMosaicos:
         self.robot.chasis.avanzar_recto(-11.4,velocidad=800)
         self.robot.navegacion.giro_relativo(-90)
         self.robot.garra_delantera.ir_a_porcentaje(30,velocidad=700)
-        self.robot.chasis.avanzar_recto(13.5, velocidad=800)
+        self.robot.chasis.avanzar_recto(15.2, velocidad=800)
         self.robot.garra_delantera.ir_a_porcentaje(75)
 
         #ir por tramo de verdes restante
@@ -100,55 +100,65 @@ class ArmadorMosaicos:
         self.robot.garra_delantera.cerrar_al_tope()
 
         #ir a dejar primera fase de matriz
-        self.robot.chasis.avanzar_recto(-9,velocidad=800)
+        self.robot.chasis.avanzar_recto(-6,velocidad=800)
         #self.robot.navegacion.seguidor_linea_cruces(self.sensor, 100, 1, distancia_inicial_cm=5)
         self.robot.navegacion.giro_relativo(90)
         
         #acomodar piezas
-        self.robot.garra_delantera.ir_a_porcentaje_pinza(20)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(20, wait_after=False)
         self.robot.garra_delantera.ir_a_porcentaje(30)
         self.robot.chasis.avanzar_recto(-13, velocidad=900)
         self.robot.garra_delantera.ir_a_porcentaje(75, wait_after=False)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(60)
         self.robot.chasis.avanzar_recto(20,velocidad=700)
-        self.robot.garra_delantera.cerrar_al_tope()
+        self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
 
         # ir a dejarlas al mosaico
         self.robot.garra_delantera.ir_a_porcentaje(60)
-        self.robot.navegacion.giro_relativo(-20, max_potencia=100, min_potencia=100)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=80, distancia_cm=10, lado="izquierda", frenado_final= Stop.NONE)
-        self.robot.navegacion.seguidor_linea_color(self.sensor, velocidad_max=100, color_objetivo=Color.BLUE, lado="izquierda", distancia_cm=15, distancia_maxima_cm=25)
-        self.robot.navegacion.desplazar_lateral(1.6)
+        #self.robot.navegacion.giro_relativo(-20, max_potencia=100, min_potencia=100)
+        self.robot.navegacion.seguidor_linea_color(self.sensor, velocidad_max=100, color_objetivo=Color.BLUE, lado="izquierda", distancia_cm=15, distancia_ciega_cm=15)
+        self.robot.navegacion.giro_relativo(5)
+        
+        #self.robot.navegacion.desplazar_lateral(1.3)
         #self.robot.chasis.mover_motor_derecho(10)
-        self.robot.chasis.avanzar_recto(11)
+        self.robot.chasis.avanzar_recto(20)
+        
         self.robot.garra_delantera.ir_a_porcentaje_pinza(70)
         self.robot.chasis.avanzar_recto(2)
         self.robot.chasis.avanzar_recto(-3)
         self.robot.garra_delantera.ir_a_porcentaje(70)
         self.robot.chasis.acomodar_estable(potencia=90, iteraciones=3)
+        self.robot.navegacion.giro_relativo(-4)
         self.robot.garra_delantera.ir_a_porcentaje(20, wait_after=False)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(20)
 
-        #segunda fase: bloques azules (esto no se ha testeado xd)
-        self.robot.chasis.avanzar_recto(-40, velocidad=700)
-        self.robot.navegacion.giro_relativo(90)
-        self.robot.navegacion.giro_relativo(90, rueda_pivote="derecha")
+        #segunda fase: bloques azules 
+        wait(100) #evita que se mueva por el acomodado estable, para ir recto al retroceder
+        self.robot.chasis.avanzar_recto(-26, velocidad=900)
+        self.robot.navegacion.giro_relativo(180)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 90, 1, distancia_extra_cm=3, distancia_inicial_cm=5, lado="izquierda",tiempo_acomodo_ms=0)
+        #self.robot.navegacion.giro_relativo(90, rueda_pivote="derecha")
         
         #tomar los bloques
-        #self.robot.navegacion.desplazar_lateral(-.8, max_potencia=90)
-        self.robot.chasis.avanzar_recto(29.5, velocidad=800)
+        self.robot.navegacion.giro_relativo(-92,rueda_pivote="izquierda")
+        wait(100)
+        self.robot.navegacion.giro_relativo(90)
+        wait(100)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, 90, cruces_objetivo=1,distancia_inicial_cm=5, tiempo_acomodo_ms=0, lado="izquierda")
+        self.robot.navegacion.giro_relativo(2)
+        self.robot.chasis.avanzar_recto(14, velocidad=800)
         self.robot.garra_delantera.ir_a_porcentaje(75)
         
         #ir por los verdes y tomar bloques verdes
-        self.robot.chasis.avanzar_recto(-3.2, velocidad=800)
-        self.robot.navegacion.giro_relativo(35)
-        self.robot.chasis.avanzar_recto(4)
+        self.robot.chasis.avanzar_recto(-5, velocidad=800)
+        self.robot.navegacion.giro_relativo(30)
+        self.robot.chasis.avanzar_recto(5)    
         self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
-        self.robot.navegacion.giro_relativo(145)
+        self.robot.navegacion.giro_relativo(140)
 
         #dejar segunda fase
         self.robot.chasis.avanzar_recto(20, velocidad=900)
-        self.robot.navegacion.desplazar_lateral(-3.8)
+        self.robot.navegacion.desplazar_lateral(-5)
         #self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=800, distancia_cm=15)
 
         #acomodar piezas
@@ -162,10 +172,9 @@ class ArmadorMosaicos:
 
         # ir a dejarlas al mosaico
         self.robot.garra_delantera.ir_a_porcentaje(60)
-        self.robot.navegacion.giro_relativo(-20, max_potencia=100, min_potencia=80)
-        self.robot.navegacion.seguidor_linea_distancia(self.sensor, velocidad_max=80, distancia_cm=10, lado="izquierda", frenado_final= Stop.NONE)
-        self.robot.navegacion.seguidor_linea_color(self.sensor, velocidad_max=100, color_objetivo=Color.BLUE, lado="izquierda", distancia_cm=15, distancia_maxima_cm=25)
-        self.robot.navegacion.desplazar_lateral(1.6)
+        self.robot.navegacion.seguidor_linea_color(self.sensor, velocidad_max=100,color_objetivo=Color.BLUE, lado="izquierda", distancia_cm=15, distancia_ciega_cm=15)
+        self.robot.chasis.avanzar_recto(1, velocidad=900)
+        self.robot.navegacion.desplazar_lateral(1.4)
         #self.robot.chasis.mover_motor_derecho(10)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(70)
         self.robot.chasis.avanzar_recto(2)
