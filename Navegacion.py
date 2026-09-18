@@ -609,8 +609,8 @@ class Navegacion:
         """
         return (abs(self.chasis.motor_izquierda.angle())
                 + abs(self.chasis.motor_derecha.angle())) / 2
-
-  def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo,
+    
+    def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo,
                              lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None,
                              lecturas_confirmacion=3, distancia_maxima_cm=None,
                              distancia_ciega_cm=0,
