@@ -303,7 +303,7 @@ class ArmadorMosaicos:
         self.robot.garra_delantera.ir_a_porcentaje(20, wait_after=False)
         self.robot.garra_delantera.ir_a_porcentaje_pinza(20)
 
-     def _armar_verde_amarillo(self):
+    def _armar_verde_amarillo(self):
         """Ejecuta la secuencia de navegación y manipulación para el armado de la matriz 2."""
         print("Voltaje Hub:", self.robot.hub.battery.voltage(), "mV")
         print("Ejecutando recorrido de matriz 2...")
