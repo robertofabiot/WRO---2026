@@ -610,9 +610,10 @@ class Navegacion:
         return (abs(self.chasis.motor_izquierda.angle())
                 + abs(self.chasis.motor_derecha.angle())) / 2
 
-    def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo,
+  def seguidor_linea_color(self, sensor_color, velocidad_max, color_objetivo,
                              lado="derecha", tiempo_acomodo_ms=800, distancia_cm=None,
                              lecturas_confirmacion=3, distancia_maxima_cm=None,
+                             distancia_ciega_cm=0,
                              kp=0.85, kd=2.5, k_freno=0.6, encadenado=False):
         """Sigue el borde de la linea hasta que el sensor vea un color.
 
@@ -632,6 +633,8 @@ class Navegacion:
                 antes de dar el corte por bueno.
             distancia_maxima_cm: tope duro de seguridad. Si el color no
                 aparecio antes, corta igual y avisa por consola.
+            distancia_ciega_cm: distancia en cm durante la cual el robot ignora
+                los colores detectados. Ideal para pasar sobre intersecciones.
             kp, kd: ganancias del PD sobre la reflexion.
             k_freno: cuanto se frena el avance por cada punto de error.
             encadenado: True frena con el micro-freno pasivo.
@@ -640,11 +643,16 @@ class Navegacion:
         multiplicador_lado = 1 if lado == "derecha" else -1
         error_previo, contador_color = 0, 0
 
+        # Calculo de objetivos en grados de motor
         grados_objetivo = self._grados_rueda(distancia_cm) if distancia_cm is not None else None
         grados_maximos = self._grados_rueda(distancia_maxima_cm) if distancia_maxima_cm is not None else None
+        grados_ciega = self._grados_rueda(distancia_ciega_cm) if distancia_ciega_cm > 0 else 0
         velocidad_enfoque = min(50, velocidad_max)
 
-        if grados_objetivo is not None or grados_maximos is not None:
+        # Determinar si necesitamos el odometro activo
+        rastrear_distancia = (grados_objetivo is not None) or (grados_maximos is not None) or (grados_ciega > 0)
+
+        if rastrear_distancia:
             self.chasis.motor_izquierda.reset_angle(0)
             self.chasis.motor_derecha.reset_angle(0)
 
@@ -656,21 +664,27 @@ class Navegacion:
             if cronometro.time() > config.TIMEOUT_LAZO_MS:
                 print("TIMEOUT seguidor_linea_color")
                 break
+            
+            # Calculamos el recorrido una sola vez por iteracion si es necesario
+            recorrido = self._grados_recorridos() if rastrear_distancia else 0
 
-            if self.detectar_color_preciso(sensor_color) == color_objetivo:
-                contador_color += 1
-                if contador_color >= lecturas_confirmacion:
-                    break
+            # Lógica de detección de color condicionada a la distancia ciega
+            if grados_ciega == 0 or recorrido >= grados_ciega:
+                if self.detectar_color_preciso(sensor_color) == color_objetivo:
+                    contador_color += 1
+                    if contador_color >= lecturas_confirmacion:
+                        break
+                else:
+                    contador_color = 0
             else:
+                # Si estamos en zona ciega, mantenemos el contador de color en 0
                 contador_color = 0
 
             velocidad_actual = (self.VELOCIDAD_MINIMA_SEGUIDOR
                                 if cronometro.time() < tiempo_acomodo_ms
                                 else velocidad_max)
 
-            if grados_objetivo is not None or grados_maximos is not None:
-                recorrido = self._grados_recorridos()
-
+            if rastrear_distancia:
                 if grados_maximos is not None and recorrido >= grados_maximos:
                     print("AVISO seguidor_linea_color: no aparecio el color en %d cm"
                           % distancia_maxima_cm)
@@ -689,7 +703,6 @@ class Navegacion:
             wait(1)
 
         self._terminar_seguidor(encadenado, cronometro)
-
     def avanzar_distancia_luego_color(self, sensor_color, distancia_ciega_cm, color_objetivo,
                                       distancia_maxima_cm, velocidad_alta=950, velocidad_escaneo=200,
                                       distancia_extra_cm=0, lecturas_confirmacion=2, encadenado=False):
