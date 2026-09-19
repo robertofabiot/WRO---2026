@@ -713,9 +713,103 @@ class ArmadorMosaicos:
         self._dejar_bloques_matriz2()
         gc.collect()
 
-    def _armar_blanco(self):
-        """Rutina de armado para mosaico blanco (pendiente de desarrollo)."""
-        pass
+  def _armar_blanco(self):
+        """Matriz 3 migrada de matriz3.py del otro equipo, con las funciones de este repo.
+ 
+        Mapeo de mecanismos (referencia -> este robot):
+            mover_garra_delantera(260-265) bajar  -> garra_delantera.ir_a_porcentaje(75)
+            mover_garra_delantera(0) subir        -> garra_delantera.ir_a_porcentaje(0)
+            mover_garra_principal(N) abrir        -> ir_a_porcentaje_pinza(100 - N/2)
+            mover_garra_principal(0) agarrar      -> garra_delantera.cerrar_al_tope()
+            mover_torque(-170)                    -> garra_trasera.ir_a_porcentaje(97.8)
+        Los giros de 89 / -89 de la referencia van a 90: aca los giros son exactos.
+        """
+        # -- NADA DE ESTO HA SIDO TESTEAD
+ 
+        # ---------- Salida ----------
+        self.robot.chasis.avanzar_recto(-13, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(67)
+        self.robot.navegacion.giro_relativo(90)
+ 
+        # ---------- Primera fase: blancos y verdes ----------
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, velocidad_max=80, cruces_objetivo=1,distancia_inicial_cm=40,distancia_extra_cm=14, lado="izquierda")
+        self.robot.navegacion.giro_relativo(-92)
+ 
+        # Agarra los blancos y verdes
+        self.robot.garra_delantera.ir_a_porcentaje(75)
+        self.robot.chasis.avanzar_recto(14)
+        self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
+        self.robot.garra_delantera.ir_a_porcentaje(70)
+        self.robot.chasis.avanzar_recto(-20)
+ 
+        # ---------- Camino a los amarillos ----------
+        self.robot.navegacion.giro_relativo(-93)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, velocidad_max=100, cruces_objetivo=1, distancia_extra_cm=37, distancia_inicial_cm=6, lado="izquierda")
+        self.robot.navegacion.giro_relativo(93)
+ 
+        # Agarra los amarillos
+        self.robot.navegacion.giro_relativo(-8)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(70, velocidad=1000)
+        self.robot.navegacion.giro_relativo(7.5, rueda_pivote="derecha")
+        self.robot.chasis.avanzar_recto(15, velocidad=600)
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=1000, limite_potencia=100)
+        self.robot.chasis.avanzar_recto(-18, velocidad=750)
+ 
+        # ---------- Camino a la matriz ----------
+        self.robot.navegacion.giro_relativo(90)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, velocidad_max=100, cruces_objetivo=1,distancia_extra_cm=3)
+        self.robot.navegacion.giro_relativo(90)
+ 
+        # ---------- Deja la primera fase ----------
+        # ref: dejar_bloques_matriz3(distancia_entrada=11.8)
+        # Esa funcion no esta en el repo de ellos: se usa la entrega de _armar_verde_amarillo
+        
+
+        self.robot.garra_delantera.ir_a_porcentaje(60)
+
+        self.robot.navegacion.seguidor_linea_color(self.sensor, velocidad_max=100, color_objetivo=Color.BLUE, distancia_ciega_cm=20)
+        self.robot.navegacion.giro_relativo(-5)
+        self.robot.chasis.avanzar_recto(18, velocidad=400)
+        self.robot.navegacion.giro_relativo(5)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(70)
+        self.robot.chasis.avanzar_recto(2)
+        self.robot.chasis.avanzar_recto(-4)
+        self.robot.chasis.acomodar_estable(iteraciones=3, tiempo_ms=50)
+        self.robot.garra_delantera.ir_a_porcentaje(80, wait_after=False)
+ 
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(30)
+        self.robot.chasis.acomodar_estable(iteraciones=3, tiempo_ms=40)
+        self.robot.garra_delantera.ir_a_porcentaje(0, wait_after=False)
+ 
+        self.robot.chasis.avanzar_recto(-20)
+        self.robot.navegacion.giro_relativo(-180)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, velocidad_max=100, cruces_objetivo=1, distancia_inicial_cm=15)
+        self.robot.garra_delantera.ir_a_porcentaje(80, wait_after=False)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(porcentaje=50, wait_after=False)
+        self.robot.navegacion.giro_relativo(90, rueda_pivote="derecha")
+        self.robot.chasis.avanzar_recto(3)
+        self.robot.navegacion.giro_relativo(-90, rueda_pivote="izquierda")
+        self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
+        rumbo_actual = self.robot.chasis.hub.imu.heading()
+        self.robot.garra_delantera.ir_a_porcentaje(75, wait_after=False)
+        self.robot.navegacion.desplazar_lateral(12, reversa=True)
+        self.robot.navegacion.giro_absoluto(rumbo_actual)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(70)
+        self.robot.chasis.avanzar_recto(18)
+        self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
+        self.robot.chasis.avanzar_recto(-14)
+        self.robot.navegacion.giro_relativo(-90)
+        self.robot.navegacion.seguidor_linea_cruces(self.sensor, velocidad_max=100, cruces_objetivo=1, distancia_extra_cm=4,distancia_inicial_cm=15)
+        self.robot.navegacion.giro_relativo(90)
+        self.robot.navegacion.giro_relativo(-8)
+        self.robot.garra_delantera.ir_a_porcentaje_pinza(70, velocidad=1000)
+        self.robot.navegacion.giro_relativo(7.5, rueda_pivote="derecha")
+        self.robot.chasis.avanzar_recto(15, velocidad=600)
+        self.robot.garra_delantera.cerrar_al_tope(velocidad=1000, limite_potencia=100)
+        self.robot.chasis.avanzar_recto(-18, velocidad=750)
+        self.robot.garra_delantera.cerrar_al_tope(limite_potencia=100)
+        self.robot.chasis.avanzar_recto(-20)
+        self.robot.navegacion.giro_relativo(90)
 
     # =========================================================================
     # AUXILIARES DE LÍNEA Y ENTREGA EN MATRIZ (NECESARIO PARA QUE FUNCIONE
