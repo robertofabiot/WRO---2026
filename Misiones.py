@@ -224,7 +224,7 @@ class Misiones:
         self.robot.garra_delantera.ir_a_porcentaje_pinza(65, wait_after=False)
         self.robot.chasis.avanzar_recto(4)
         self.robot.navegacion.giro_absoluto(325)
-        self.robot.chasis.avanzar_recto(30)
+        self.robot.chasis.avanzar_recto(40)
 
     def dejar_amarillos(self):
         """Alinea a la línea, avanza hacia la zona amarilla, retrocede y posiciona la garra delantera."""
